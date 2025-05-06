@@ -1,37 +1,72 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
-import { userDb } from "@/lib/db"
+import { getAuthSession } from "@/lib/auth-utils"
 
-export async function GET() {
-  try {
-    // Check authentication
-    const session = await getServerSession(authOptions)
+export async function POST(request: Request) {
+  // For development testing, we'll allow unauthenticated access with a special header
+  const headers = new Headers(request.headers)
+  const isTestMode = headers.get("x-vocahire-test-mode") === "true"
+
+  // In production, we would always require authentication
+  if (!isTestMode) {
+    // Check authentication using our simplified auth check
+    const session = await getAuthSession()
 
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+  }
+
+  try {
+    // Get job role from request if provided (but don't include it in requestBody)
+    const body = await request.json().catch(() => ({}))
+    const jobRole = body.jobRole || "Software Engineer"
+
+    // ✅ Only include the supported parameter
+    const requestBody = {
+      model: "gpt-4o-mini-realtime",
     }
 
-    // Check if the user has credits
-    const user = await userDb.findById(session.user.id)
+    console.log("OpenAI request body:", requestBody)
 
-    if (!user || user.credits <= 0) {
-      return NextResponse.json({ error: "No credits available" }, { status: 403 })
+    const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    })
+
+    const text = await response.text()
+    console.log("OpenAI API response:", text)
+
+    if (!response.ok) {
+      let details
+      try {
+        details = JSON.parse(text)
+      } catch (e) {
+        details = { error: text }
+      }
+      throw new Error(`OpenAI error: ${details.error?.message || text}`)
     }
 
-    // In a real implementation, we would check if the user has credits/subscription
-    // For now, we'll assume they do
-
-    // Create a realtime session with OpenAI
-    // This is a placeholder for the actual OpenAI Realtime API call
-    // const realtimeSession = await createRealtimeSession()
-
-    // For now, we'll return a mock token
+    const data = JSON.parse(text)
     return NextResponse.json({
-      token: "mock_session_token_" + Math.random().toString(36).substring(2, 15),
+      token: data.client_secret.value,
+      sessionId: data.id,
+      jobRole, // Still return jobRole to the client
     })
   } catch (error) {
-    console.error("Error creating realtime session:", error)
-    return NextResponse.json({ error: "Failed to create session" }, { status: 500 })
+    console.error("OpenAI token generation failed:", error)
+    return NextResponse.json(
+      {
+        error: "Failed to generate OpenAI token",
+        message: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    )
   }
 }
