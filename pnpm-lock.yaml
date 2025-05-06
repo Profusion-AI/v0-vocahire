@@ -20,6 +20,9 @@ importers:
       '@neondatabase/serverless':
         specifier: latest
         version: 1.0.0
+      '@prisma/adapter-neon':
+        specifier: latest
+        version: 6.7.0(@neondatabase/serverless@1.0.0)
       '@prisma/client':
         specifier: latest
         version: 6.7.0(prisma@6.7.0(typescript@5.0.2))(typescript@5.0.2)
@@ -614,6 +617,11 @@ packages:
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
 
+  '@prisma/adapter-neon@6.7.0':
+    resolution: {integrity: sha512-Iu4/nFApLersb5g4b9doTe8eep1oXOb5C1NKSx3zP3eHur2MozWP7tbTN6cra2vj1OGdYGaP5w4RzxaYDdw/eg==}
+    peerDependencies:
+      '@neondatabase/serverless': '>0.6.0 <2'
+
   '@prisma/client@6.7.0':
     resolution: {integrity: sha512-+k61zZn1XHjbZul8q6TdQLpuI/cvyfil87zqK2zpreNIXyXtpUv3+H/oM69hcsFcZXaokHJIzPAt5Z8C8eK2QA==}
     engines: {node: '>=18.18'}
@@ -631,6 +639,9 @@ packages:
 
   '@prisma/debug@6.7.0':
     resolution: {integrity: sha512-RabHn9emKoYFsv99RLxvfG2GHzWk2ZI1BuVzqYtmMSIcuGboHY5uFt3Q3boOREM9de6z5s3bQoyKeWnq8Fz22w==}
+
+  '@prisma/driver-adapter-utils@6.7.0':
+    resolution: {integrity: sha512-xYcXALWz1GsCRqwcDw0kP0R27chn99Co/HMX0nyOvIjAOo+41Tl/qcCOce/Ik1wNMGTI68N64kt3iccJ4EJoCQ==}
 
   '@prisma/engines-version@6.7.0-36.3cff47a7f5d65c3ea74883f1d736e41d68ce91ed':
     resolution: {integrity: sha512-EvpOFEWf1KkJpDsBCrih0kg3HdHuaCnXmMn7XFPObpFTzagK1N0Q0FMnYPsEhvARfANP5Ok11QyoTIRA2hgJTA==}
@@ -2764,6 +2775,12 @@ snapshots:
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
+  '@prisma/adapter-neon@6.7.0(@neondatabase/serverless@1.0.0)':
+    dependencies:
+      '@neondatabase/serverless': 1.0.0
+      '@prisma/driver-adapter-utils': 6.7.0
+      postgres-array: 3.0.4
+
   '@prisma/client@6.7.0(prisma@6.7.0(typescript@5.0.2))(typescript@5.0.2)':
     optionalDependencies:
       prisma: 6.7.0(typescript@5.0.2)
@@ -2777,6 +2794,10 @@ snapshots:
       - supports-color
 
   '@prisma/debug@6.7.0': {}
+
+  '@prisma/driver-adapter-utils@6.7.0':
+    dependencies:
+      '@prisma/debug': 6.7.0
 
   '@prisma/engines-version@6.7.0-36.3cff47a7f5d65c3ea74883f1d736e41d68ce91ed': {}
 

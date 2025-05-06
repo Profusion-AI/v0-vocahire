@@ -1,17 +1,28 @@
 import { PrismaClient } from "@prisma/client"
-import { neon, neonConfig } from "@neondatabase/serverless"
+import { Pool } from "@neondatabase/serverless"
+import { PrismaNeon } from "@prisma/adapter-neon"
+import { neon } from "@neondatabase/serverless"
 
-// Configure neon to use WebSockets for serverless environments
-neonConfig.fetchConnectionCache = true
+// PrismaClient is attached to the `global` object in development to prevent
+// exhausting your database connection limit.
+const globalForPrisma = global as unknown as { prisma: PrismaClient }
 
-declare global {
-  var prisma: PrismaClient | undefined
-}
+// Create a connection pool
+const connectionString = process.env.DATABASE_URL!
+const pool = new Pool({ connectionString })
 
-// Use PrismaClient in development, but create a new instance for production
-export const db = globalThis.prisma || new PrismaClient()
+// Create a Neon adapter
+const adapter = new PrismaNeon(pool)
+
+// Create a new PrismaClient instance
+export const db =
+  globalForPrisma.prisma ||
+  new PrismaClient({
+    adapter,
+    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+  })
 
 // Create a SQL client using neon for direct SQL queries
-export const sql = neon(process.env.DATABASE_URL!)
+export const sql = neon(connectionString)
 
-if (process.env.NODE_ENV !== "production") globalThis.prisma = db
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db
