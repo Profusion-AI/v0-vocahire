@@ -59,7 +59,9 @@
     "vaul": "^0.9.6",
     "zod": "latest",
     "@supabase/supabase-js": "latest",
-    "@supabase/ssr": "latest"
+    "@supabase/ssr": "latest",
+    "@stripe/stripe-js": "latest",
+    "stripe": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

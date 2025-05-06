@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button"
 import { PurchaseButton } from "@/components/PurchaseButton"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/hooks/use-toast"
-import { getSessionToken } from "@/lib/get-session-token"
+import { supabase } from "@/lib/supabaseClient"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { InfoIcon } from "lucide-react"
 
 interface FeedbackItem {
   id: string
@@ -24,7 +26,7 @@ interface FeedbackData {
 export default function FeedbackPage() {
   const [feedback, setFeedback] = useState<FeedbackData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [sessionToken, setSessionToken] = useState<string | null>(null)
+  const [tableError, setTableError] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const interviewId = searchParams.get("id")
@@ -32,20 +34,18 @@ export default function FeedbackPage() {
   const { toast } = useToast()
 
   useEffect(() => {
-    const fetchToken = async () => {
-      const token = await getSessionToken()
-      setSessionToken(token)
-    }
-
-    if (user) {
-      fetchToken()
-    }
-  }, [user])
-
-  useEffect(() => {
     const fetchFeedback = async () => {
       try {
-        if (!sessionToken) return
+        if (!user) return
+
+        // Check if the table exists first
+        const { error: checkError } = await supabase.from("interviews").select("id").limit(1)
+
+        if (checkError && checkError.message.includes("relation") && checkError.message.includes("does not exist")) {
+          setTableError(true)
+          setIsLoading(false)
+          return
+        }
 
         if (!interviewId) {
           // If no interview ID, show demo feedback
@@ -97,17 +97,12 @@ export default function FeedbackPage() {
         }
 
         // Fetch real feedback from API
-        const response = await fetch(`/api/interviews/${interviewId}`, {
-          headers: {
-            Authorization: `Bearer ${sessionToken}`,
-          },
-        })
+        const { data, error } = await supabase.from("interviews").select("*").eq("id", interviewId).single()
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch feedback")
+        if (error) {
+          throw error
         }
 
-        const data = await response.json()
         setFeedback(data.feedback)
       } catch (error) {
         console.error("Error fetching feedback:", error)
@@ -116,21 +111,55 @@ export default function FeedbackPage() {
           description: "Failed to load feedback. Please try again.",
           variant: "destructive",
         })
+
+        // Show demo feedback
+        setFeedback({
+          summary: "This is demo feedback since we couldn't load your actual feedback.",
+          items: [
+            {
+              id: "1",
+              title: "Demo Feedback",
+              content: "This is a sample feedback item.",
+              type: "neutral",
+            },
+          ],
+        })
       } finally {
         setIsLoading(false)
       }
     }
 
-    if (sessionToken) {
+    if (user) {
       fetchFeedback()
     }
-  }, [interviewId, toast, router, sessionToken])
+  }, [interviewId, toast, router, user])
 
-  if (isLoading || loading || !sessionToken) {
+  if (isLoading || loading) {
     return (
       <div className="container max-w-4xl py-8">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </div>
+    )
+  }
+
+  // If the table doesn't exist, show a message and redirect to dashboard
+  if (tableError) {
+    return (
+      <div className="container max-w-4xl py-8">
+        <h1 className="text-3xl font-bold mb-8 text-center">Database Setup Required</h1>
+
+        <Alert variant="warning" className="mb-6">
+          <InfoIcon className="h-4 w-4" />
+          <AlertTitle>Database Setup Required</AlertTitle>
+          <AlertDescription>
+            The interviews table doesn't exist in your database yet. Please go to the dashboard to set up your database.
+          </AlertDescription>
+        </Alert>
+
+        <div className="flex justify-center">
+          <Button onClick={() => router.push("/dashboard")}>Go to Dashboard</Button>
         </div>
       </div>
     )

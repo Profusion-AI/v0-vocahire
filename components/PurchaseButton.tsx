@@ -43,7 +43,11 @@ export function PurchaseButton({ userId, children, ...props }: PurchaseButtonPro
 
       // Redirect to Stripe Checkout
       const stripe = await getStripe()
-      const { error } = await stripe!.redirectToCheckout({
+      if (!stripe) {
+        throw new Error("Stripe failed to initialize")
+      }
+
+      const { error } = await stripe.redirectToCheckout({
         sessionId: session.id,
       })
 
