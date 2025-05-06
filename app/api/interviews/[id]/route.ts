@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { config } from "@/lib/config"
 
-export async function GET() {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
     // Create a Supabase client using cookies
     const cookieStore = cookies()
@@ -37,13 +37,23 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // In a real implementation, we would call OpenAI's API to create a realtime session
-    // For now, we'll return a mock token
-    return NextResponse.json({
-      token: "mock_session_token_" + Math.random().toString(36).substring(2, 15),
-    })
+    const interviewId = params.id
+
+    // Query the database for the interview
+    const { data: interview, error: dbError } = await supabase
+      .from("interviews")
+      .select("*")
+      .eq("id", interviewId)
+      .single()
+
+    if (dbError) {
+      console.error("Database error:", dbError)
+      return NextResponse.json({ error: "Interview not found" }, { status: 404 })
+    }
+
+    return NextResponse.json(interview)
   } catch (error) {
-    console.error("Error creating realtime session:", error)
-    return NextResponse.json({ error: "Failed to create session" }, { status: 500 })
+    console.error("Error fetching interview:", error)
+    return NextResponse.json({ error: "Failed to fetch interview" }, { status: 500 })
   }
 }
