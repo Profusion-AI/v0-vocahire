@@ -6,17 +6,29 @@ export const sql = neon(process.env.DATABASE_URL!)
 // User related functions
 export const userDb = {
   async findByEmail(email: string) {
-    const result = await sql`
-      SELECT * FROM "User" WHERE email = ${email} LIMIT 1
-    `
-    return result[0] || null
+    try {
+      console.log(`Finding user by email: ${email}`)
+      const result = await sql`
+        SELECT * FROM "User" WHERE email = ${email} LIMIT 1
+      `
+      console.log(`User query result: ${JSON.stringify(result)}`)
+      return result[0] || null
+    } catch (error) {
+      console.error(`Error finding user by email: ${email}`, error)
+      throw error
+    }
   },
 
   async findById(id: string) {
-    const result = await sql`
-      SELECT * FROM "User" WHERE id = ${id} LIMIT 1
-    `
-    return result[0] || null
+    try {
+      const result = await sql`
+        SELECT * FROM "User" WHERE id = ${id} LIMIT 1
+      `
+      return result[0] || null
+    } catch (error) {
+      console.error(`Error finding user by id: ${id}`, error)
+      throw error
+    }
   },
 
   async create({
@@ -25,207 +37,93 @@ export const userDb = {
     password,
     credits = 1,
   }: { name: string; email: string; password: string; credits?: number }) {
-    const id = `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-    const now = new Date()
+    try {
+      const id = `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+      const now = new Date()
 
-    const result = await sql`
-      INSERT INTO "User" (id, name, email, password, credits, "createdAt", "updatedAt")
-      VALUES (${id}, ${name}, ${email}, ${password}, ${credits}, ${now}, ${now})
-      RETURNING *
-    `
-    return result[0]
+      const result = await sql`
+        INSERT INTO "User" (id, name, email, password, credits, "createdAt", "updatedAt")
+        VALUES (${id}, ${name}, ${email}, ${password}, ${credits}, ${now}, ${now})
+        RETURNING *
+      `
+      return result[0]
+    } catch (error) {
+      console.error(`Error creating user: ${email}`, error)
+      throw error
+    }
   },
 
   async updateCredits(userId: string, credits: number) {
-    const result = await sql`
-      UPDATE "User" SET credits = ${credits}, "updatedAt" = ${new Date()}
-      WHERE id = ${userId}
-      RETURNING *
-    `
-    return result[0]
-  },
-}
-
-// Session related functions
-export const sessionDb = {
-  async create({ sessionToken, userId, expires }: { sessionToken: string; userId: string; expires: Date }) {
-    const id = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-
-    const result = await sql`
-      INSERT INTO "Session" (id, "sessionToken", "userId", expires)
-      VALUES (${id}, ${sessionToken}, ${userId}, ${expires})
-      RETURNING *
-    `
-    return result[0]
-  },
-
-  async findByToken(sessionToken: string) {
-    const result = await sql`
-      SELECT * FROM "Session" WHERE "sessionToken" = ${sessionToken} LIMIT 1
-    `
-    return result[0] || null
-  },
-
-  async deleteByToken(sessionToken: string) {
-    await sql`
-      DELETE FROM "Session" WHERE "sessionToken" = ${sessionToken}
-    `
-  },
-
-  async deleteByUserId(userId: string) {
-    await sql`
-      DELETE FROM "Session" WHERE "userId" = ${userId}
-    `
-  },
-}
-
-// Account related functions
-export const accountDb = {
-  async create(data: {
-    userId: string
-    type: string
-    provider: string
-    providerAccountId: string
-    refresh_token?: string
-    access_token?: string
-    expires_at?: number
-    token_type?: string
-    scope?: string
-    id_token?: string
-    session_state?: string
-  }) {
-    const id = `account_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-
-    const result = await sql`
-      INSERT INTO "Account" (
-        id, "userId", type, provider, "providerAccountId", 
-        refresh_token, access_token, expires_at, token_type, 
-        scope, id_token, session_state
-      )
-      VALUES (
-        ${id}, ${data.userId}, ${data.type}, ${data.provider}, ${data.providerAccountId},
-        ${data.refresh_token || null}, ${data.access_token || null}, ${data.expires_at || null}, 
-        ${data.token_type || null}, ${data.scope || null}, ${data.id_token || null}, 
-        ${data.session_state || null}
-      )
-      RETURNING *
-    `
-    return result[0]
-  },
-
-  async findByProviderAndId(provider: string, providerAccountId: string) {
-    const result = await sql`
-      SELECT * FROM "Account" 
-      WHERE provider = ${provider} AND "providerAccountId" = ${providerAccountId}
-      LIMIT 1
-    `
-    return result[0] || null
-  },
-
-  async deleteByUserId(userId: string) {
-    await sql`
-      DELETE FROM "Account" WHERE "userId" = ${userId}
-    `
+    try {
+      const result = await sql`
+        UPDATE "User" SET credits = ${credits}, "updatedAt" = ${new Date()}
+        WHERE id = ${userId}
+        RETURNING *
+      `
+      return result[0]
+    } catch (error) {
+      console.error(`Error updating credits for user: ${userId}`, error)
+      throw error
+    }
   },
 }
 
 // Interview related functions
 export const interviewDb = {
-  async create({
-    userId,
-    transcript,
-    feedback,
-    duration,
-  }: { userId: string; transcript?: string; feedback?: any; duration?: number }) {
-    const id = `interview_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-    const now = new Date()
+  async create({ userId, transcript, feedback }: { userId: string; transcript: string; feedback: any }) {
+    try {
+      const id = `interview_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+      const now = new Date()
 
-    const result = await sql`
-      INSERT INTO "Interview" (id, "userId", transcript, feedback, duration, "createdAt", "updatedAt")
-      VALUES (${id}, ${userId}, ${transcript || null}, ${feedback ? JSON.stringify(feedback) : null}, ${duration || null}, ${now}, ${now})
-      RETURNING *
-    `
-    return result[0]
+      const result = await sql`
+        INSERT INTO "Interview" (id, "userId", transcript, feedback, "createdAt", "updatedAt")
+        VALUES (${id}, ${userId}, ${transcript}, ${JSON.stringify(feedback)}, ${now}, ${now})
+        RETURNING *
+      `
+      return result[0]
+    } catch (error) {
+      console.error("Error creating interview:", error)
+      throw error
+    }
   },
 
-  async findById(id: string) {
-    const result = await sql`
-      SELECT * FROM "Interview" WHERE id = ${id} LIMIT 1
-    `
-    return result[0] || null
+  async update({ id, feedback }: { id: string; feedback: any }) {
+    try {
+      const now = new Date()
+
+      const result = await sql`
+        UPDATE "Interview" SET feedback = ${JSON.stringify(feedback)}, "updatedAt" = ${now}
+        WHERE id = ${id}
+        RETURNING *
+      `
+      return result[0]
+    } catch (error) {
+      console.error("Error updating interview:", error)
+      throw error
+    }
   },
 
   async findByUserId(userId: string) {
-    const result = await sql`
-      SELECT * FROM "Interview" WHERE "userId" = ${userId} ORDER BY "createdAt" DESC
-    `
-    return result
+    try {
+      const result = await sql`
+        SELECT * FROM "Interview" WHERE "userId" = ${userId} ORDER BY "createdAt" DESC
+      `
+      return result
+    } catch (error) {
+      console.error("Error finding interviews by user id:", error)
+      throw error
+    }
   },
 
-  async update({
-    id,
-    transcript,
-    feedback,
-    duration,
-  }: { id: string; transcript?: string; feedback?: any; duration?: number }) {
-    const updateFields = []
-    const values: any[] = [id]
-
-    if (transcript !== undefined) {
-      updateFields.push(`transcript = $${values.length + 1}`)
-      values.push(transcript)
+  async findById(id: string) {
+    try {
+      const result = await sql`
+        SELECT * FROM "Interview" WHERE id = ${id} LIMIT 1
+      `
+      return result[0] || null
+    } catch (error) {
+      console.error(`Error finding interview by id: ${id}`, error)
+      throw error
     }
-
-    if (feedback !== undefined) {
-      updateFields.push(`feedback = $${values.length + 1}`)
-      values.push(JSON.stringify(feedback))
-    }
-
-    if (duration !== undefined) {
-      updateFields.push(`duration = $${values.length + 1}`)
-      values.push(duration)
-    }
-
-    updateFields.push(`"updatedAt" = $${values.length + 1}`)
-    values.push(new Date())
-
-    if (updateFields.length === 1) {
-      return null // Nothing to update
-    }
-
-    const query = `
-      UPDATE "Interview" 
-      SET ${updateFields.join(", ")}
-      WHERE id = $1
-      RETURNING *
-    `
-
-    const result = await sql.query(query, ...values)
-    return result[0] || null
-  },
-}
-
-// Verification token related functions
-export const verificationTokenDb = {
-  async create({ identifier, token, expires }: { identifier: string; token: string; expires: Date }) {
-    const result = await sql`
-      INSERT INTO "VerificationToken" (identifier, token, expires)
-      VALUES (${identifier}, ${token}, ${expires})
-      RETURNING *
-    `
-    return result[0]
-  },
-
-  async findByToken(token: string) {
-    const result = await sql`
-      SELECT * FROM "VerificationToken" WHERE token = ${token} LIMIT 1
-    `
-    return result[0] || null
-  },
-
-  async deleteByToken(token: string) {
-    await sql`
-      DELETE FROM "VerificationToken" WHERE token = ${token}
-    `
   },
 }

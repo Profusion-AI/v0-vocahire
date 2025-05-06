@@ -1,26 +1,25 @@
 "use client"
 
 import type React from "react"
-
-import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
+import { useAuth } from "@/contexts/auth-context"
 
 interface AuthGuardProps {
   children: React.ReactNode
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  const { data: session, status } = useSession()
+  const { user, loading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (!loading && !user) {
       router.push("/login")
     }
-  }, [status, router])
+  }, [loading, user, router])
 
-  if (status === "loading") {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -28,7 +27,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     )
   }
 
-  if (status === "authenticated") {
+  if (user) {
     return <>{children}</>
   }
 

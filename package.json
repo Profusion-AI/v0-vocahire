@@ -65,7 +65,6 @@
     "@stripe/stripe-js": "latest",
     "stripe": "latest",
     "next-auth": "latest",
-    "crypto": "latest",
     "@neondatabase/serverless": "latest"
   },
   "devDependencies": {

@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
 import { hash } from "@/lib/password"
 import { userDb } from "@/lib/db"
 import { z } from "zod"
+
+// Force Node.js runtime
+export const runtime = "nodejs"
 
 // Define schema for validation
 const userSchema = z.object({
@@ -39,6 +43,16 @@ export async function POST(req: Request) {
       email,
       password: hashedPassword,
       credits: 1, // Give one free credit
+    })
+
+    // Set auth cookie
+    cookies().set({
+      name: "auth-user-id",
+      value: user.id,
+      httpOnly: true,
+      path: "/",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     })
 
     // Remove password from response
