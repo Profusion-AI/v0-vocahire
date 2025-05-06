@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
+import { userDb } from "@/lib/db"
 
 export async function GET() {
   try {
@@ -9,6 +10,13 @@ export async function GET() {
 
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Check if the user has credits
+    const user = await userDb.findById(session.user.id)
+
+    if (!user || user.credits <= 0) {
+      return NextResponse.json({ error: "No credits available" }, { status: 403 })
     }
 
     // In a real implementation, we would check if the user has credits/subscription

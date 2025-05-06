@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { db } from "@/lib/db"
+import { interviewDb } from "@/lib/db"
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -13,15 +13,15 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     const interviewId = params.id
 
-    const interview = await db.interview.findUnique({
-      where: {
-        id: interviewId,
-        userId: session.user.id,
-      },
-    })
+    const interview = await interviewDb.findById(interviewId)
 
     if (!interview) {
       return NextResponse.json({ error: "Interview not found" }, { status: 404 })
+    }
+
+    // Check if the interview belongs to the user
+    if (interview.userId !== session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     return NextResponse.json(interview)

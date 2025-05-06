@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { stripe } from "@/lib/stripe-server"
-import { db } from "@/lib/db"
+import { userDb } from "@/lib/db"
 
 export async function POST(req: Request) {
   const body = await req.text()
@@ -24,17 +24,13 @@ export async function POST(req: Request) {
     const userId = session.metadata?.userId
 
     if (userId) {
-      // Update the user's credits or subscription status
-      await db.user.update({
-        where: {
-          id: userId,
-        },
-        data: {
-          credits: {
-            increment: 5, // Add 5 interview credits
-          },
-        },
-      })
+      // Get the current user
+      const user = await userDb.findById(userId)
+
+      if (user) {
+        // Update the user's credits
+        await userDb.updateCredits(userId, user.credits + 5) // Add 5 interview credits
+      }
     }
   }
 

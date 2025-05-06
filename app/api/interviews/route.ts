@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { db } from "@/lib/db"
+import { interviewDb } from "@/lib/db"
 
 export async function GET() {
   try {
@@ -11,20 +11,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const interviews = await db.interview.findMany({
-      where: {
-        userId: session.user.id,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      select: {
-        id: true,
-        createdAt: true,
-        duration: true,
-        feedback: true,
-      },
-    })
+    const interviews = await interviewDb.findByUserId(session.user.id)
 
     return NextResponse.json(interviews)
   } catch (error) {

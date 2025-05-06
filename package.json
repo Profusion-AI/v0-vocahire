@@ -61,16 +61,12 @@
     "ws": "latest",
     "@auth/core": "latest",
     "nodemailer": "latest",
-    "@prisma/client": "latest",
-    "prisma": "latest",
-    "@neondatabase/serverless": "latest",
     "openai": "latest",
     "@stripe/stripe-js": "latest",
     "stripe": "latest",
     "next-auth": "latest",
-    "@auth/prisma-adapter": "latest",
     "crypto": "latest",
-    "@prisma/adapter-neon": "latest"
+    "@neondatabase/serverless": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

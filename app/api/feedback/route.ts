@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { generateFeedback } from "@/lib/feedback-generator"
-import { db } from "@/lib/db"
+import { interviewDb } from "@/lib/db"
 import { z } from "zod"
 
 // Define schema for validation
@@ -34,29 +34,25 @@ export async function POST(req: Request) {
     // Generate feedback
     const feedback = await generateFeedback(transcript)
 
-    // Save to database if interviewId is provided
+    // Save to database
+    let interview
+
     if (interviewId) {
-      await db.interview.update({
-        where: {
-          id: interviewId,
-          userId: session.user.id,
-        },
-        data: {
-          feedback: feedback as any,
-        },
+      // Update existing interview
+      interview = await interviewDb.update({
+        id: interviewId,
+        feedback,
       })
     } else {
       // Create new interview record
-      await db.interview.create({
-        data: {
-          userId: session.user.id,
-          transcript,
-          feedback: feedback as any,
-        },
+      interview = await interviewDb.create({
+        userId: session.user.id,
+        transcript,
+        feedback,
       })
     }
 
-    return NextResponse.json(feedback)
+    return NextResponse.json({ ...feedback, id: interview.id })
   } catch (error) {
     console.error("Error generating feedback:", error)
     return NextResponse.json({ error: "Failed to generate feedback" }, { status: 500 })

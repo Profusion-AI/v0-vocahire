@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { hash } from "@/lib/password"
-import { db } from "@/lib/db"
+import { userDb } from "@/lib/db"
 import { z } from "zod"
 
 // Define schema for validation
@@ -24,11 +24,7 @@ export async function POST(req: Request) {
     const { name, email, password } = result.data
 
     // Check if user already exists
-    const existingUser = await db.user.findUnique({
-      where: {
-        email,
-      },
-    })
+    const existingUser = await userDb.findByEmail(email)
 
     if (existingUser) {
       return NextResponse.json({ message: "User already exists" }, { status: 409 })
@@ -38,13 +34,11 @@ export async function POST(req: Request) {
     const hashedPassword = await hash(password)
 
     // Create user
-    const user = await db.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        credits: 1, // Give one free credit
-      },
+    const user = await userDb.create({
+      name,
+      email,
+      password: hashedPassword,
+      credits: 1, // Give one free credit
     })
 
     // Remove password from response

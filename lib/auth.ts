@@ -1,12 +1,10 @@
 import type { NextAuthOptions } from "next-auth"
-import { PrismaAdapter } from "@auth/prisma-adapter"
 import CredentialsProvider from "next-auth/providers/credentials"
 import GoogleProvider from "next-auth/providers/google"
-import { db } from "@/lib/db"
 import { compare } from "@/lib/password"
+import { userDb } from "@/lib/db"
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(db),
   session: {
     strategy: "jwt",
   },
@@ -29,11 +27,7 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        const user = await db.user.findUnique({
-          where: {
-            email: credentials.email,
-          },
-        })
+        const user = await userDb.findByEmail(credentials.email)
 
         if (!user) {
           return null
@@ -60,34 +54,28 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async session({ token, session }) {
       if (token) {
-        session.user.id = token.id
-        session.user.name = token.name
-        session.user.email = token.email
-        session.user.image = token.picture
+        session.user.id = token.id as string
+        session.user.name = token.name as string
+        session.user.email = token.email as string
+        session.user.image = token.picture as string
       }
 
       return session
     },
     async jwt({ token, user }) {
-      const dbUser = await db.user.findFirst({
-        where: {
-          email: token.email,
-        },
-      })
+      if (user) {
+        token.id = user.id
+      } else if (token.email) {
+        const dbUser = await userDb.findByEmail(token.email as string)
 
-      if (!dbUser) {
-        if (user) {
-          token.id = user.id
+        if (dbUser) {
+          token.id = dbUser.id
+          token.name = dbUser.name
+          token.picture = dbUser.image
         }
-        return token
       }
 
-      return {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        picture: dbUser.image,
-      }
+      return token
     },
   },
 }
