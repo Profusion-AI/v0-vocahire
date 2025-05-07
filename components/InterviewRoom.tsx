@@ -2,16 +2,27 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { useInterviewSession } from "@/hooks/useInterviewSession"
+import { useInterviewSession } from "../hooks/useInterviewSession"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mic, Clock, Volume2, VolumeX, AlertCircle, WifiOff, ExternalLink, Key, Info } from "lucide-react"
+import {
+  Mic,
+  Clock,
+  Volume2,
+  VolumeX,
+  AlertCircle,
+  WifiOff,
+  ExternalLink,
+  Key,
+  Info,
+  AlertTriangle,
+} from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ConnectionQualityIndicator } from "@/components/connection-quality-indicator"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { cn } from "@/lib/utils"
 
 interface InterviewRoomProps {
   onComplete?: (messages: Array<{ role: string; content: string; timestamp: number }>) => void
@@ -21,8 +32,21 @@ interface InterviewRoomProps {
 export function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: InterviewRoomProps) {
   const router = useRouter()
   const { toast } = useToast()
-  const { status, messages, start, stop, isConnecting, isActive, error, debug, peerConnection, isMockMode } =
-    useInterviewSession()
+  const {
+    status,
+    messages,
+    start,
+    stop,
+    isConnecting,
+    isActive,
+    error,
+    debug,
+    peerConnection,
+    isMockMode,
+    audioLevel,
+    errorDetails,
+    errorType,
+  } = useInterviewSession()
 
   const [timeRemaining, setTimeRemaining] = useState(600) // 10 minutes in seconds
   const [isPermissionGranted, setIsPermissionGranted] = useState<boolean | null>(null)
@@ -31,9 +55,11 @@ export function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: In
   const [apiError, setApiError] = useState<string | null>(null)
   const [showDebug, setShowDebug] = useState(false)
   const [selectedJobTitle, setSelectedJobTitle] = useState(jobTitle)
+  const [sessionEnding, setSessionEnding] = useState(false)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Check for microphone permission
   useEffect(() => {
@@ -55,13 +81,19 @@ export function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: In
 
   // Timer countdown when interview is active
   useEffect(() => {
-    let intervalId: NodeJS.Timeout
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current)
+      timerIntervalRef.current = null
+    }
 
     if (isActive && timeRemaining > 0) {
-      intervalId = setInterval(() => {
+      timerIntervalRef.current = setInterval(() => {
         setTimeRemaining((prev) => {
           if (prev <= 1) {
-            clearInterval(intervalId)
+            if (timerIntervalRef.current) {
+              clearInterval(timerIntervalRef.current)
+              timerIntervalRef.current = null
+            }
             handleInterviewComplete()
             return 0
           }
@@ -71,7 +103,10 @@ export function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: In
     }
 
     return () => {
-      if (intervalId) clearInterval(intervalId)
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current)
+        timerIntervalRef.current = null
+      }
     }
   }, [isActive, timeRemaining])
 
@@ -92,6 +127,13 @@ export function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: In
   const handleStartInterview = async () => {
     try {
       setApiError(null)
+      setSessionEnding(false)
+      setTimeRemaining(600) // Reset timer to 10 minutes
+
+      // Create and play a silent audio to unlock audio playback
+      // This helps with browsers that require user interaction before audio can play
+      const unlockAudio = new Audio()
+      unlockAudio.play().catch((e) => console.log("Silent audio play failed, may need user interaction"))
 
       // Show a toast to indicate we're starting
       toast({
@@ -123,13 +165,18 @@ export function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: In
   }
 
   const handleInterviewComplete = () => {
-    stop()
+    if (sessionEnding) return // Prevent multiple calls
+
+    setSessionEnding(true)
 
     // Show completion toast
     toast({
       title: "Interview completed",
       description: "Generating your feedback...",
     })
+
+    // Stop the session
+    stop()
 
     // In a real implementation, you would save the interview data to your database
     // and then redirect to the feedback page
@@ -149,20 +196,25 @@ export function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: In
     }
   }
 
-  // Helper function to render network error messages with helpful suggestions
+  // Helper function to render error messages with helpful suggestions
   const renderNetworkError = (errorMessage: string) => {
     const isNetworkError =
+      errorType === "connection" ||
       errorMessage.includes("network") ||
       errorMessage.includes("connection") ||
       errorMessage.includes("ICE") ||
       errorMessage.includes("STUN") ||
       errorMessage.includes("TURN") ||
       errorMessage.includes("WebRTC") ||
+      errorMessage.includes("WebSocket") ||
       errorMessage.includes("audio") ||
       errorMessage.includes("Failed to fetch") ||
       errorMessage.includes("Failed to connect")
 
-    const isApiKeyError =
+    const isApiError =
+      errorType === "unauthorized" ||
+      errorType === "forbidden" ||
+      errorType === "configuration" ||
       errorMessage.includes("API key") ||
       errorMessage.includes("OpenAI") ||
       errorMessage.includes("token") ||
@@ -173,15 +225,13 @@ export function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: In
         <div className="flex items-start gap-2">
           {isNetworkError ? (
             <WifiOff className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          ) : isApiKeyError ? (
+          ) : isApiError ? (
             <Key className="h-5 w-5 mt-0.5 flex-shrink-0" />
           ) : (
             <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
           )}
           <div>
-            <p className="font-medium">
-              {isNetworkError ? "Connection Error:" : isApiKeyError ? "API Configuration Error:" : "Error:"}
-            </p>
+            <p className="font-medium">{isNetworkError ? "Connection Error:" : isApiError ? "API Error:" : "Error:"}</p>
             <p>{errorMessage}</p>
 
             {isNetworkError && (
@@ -211,16 +261,17 @@ export function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: In
               </div>
             )}
 
-            {isApiKeyError && (
+            {isApiError && (
               <div className="mt-3 space-y-2 text-sm">
                 <p className="font-medium">Possible causes:</p>
                 <ul className="list-disc pl-5 space-y-1">
-                  <li>The OpenAI API key is not configured correctly</li>
-                  <li>The API key may have expired or been revoked</li>
+                  <li>The OpenAI API key may be invalid or missing</li>
+                  <li>The API key may have expired</li>
                   <li>There may be an issue with the OpenAI service</li>
+                  <li>The API may be experiencing high traffic</li>
                 </ul>
                 <p className="mt-2">
-                  Please check your environment variables and make sure the OPENAI_API_KEY is set correctly.
+                  Please check that your OpenAI API key is correctly configured in the environment variables.
                 </p>
                 <div className="mt-3">
                   <Button variant="outline" size="sm" className="text-xs mr-2" onClick={() => setShowDebug(!showDebug)}>
@@ -241,6 +292,24 @@ export function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: In
     )
   }
 
+  // Audio level visualization
+  const renderAudioLevel = () => {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="text-xs font-medium">Audio Level:</div>
+        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full w-24 overflow-hidden">
+          <div
+            className={cn(
+              "h-full rounded-full transition-all duration-100",
+              audioLevel > 50 ? "bg-green-500" : audioLevel > 20 ? "bg-blue-500" : "bg-gray-400",
+            )}
+            style={{ width: `${audioLevel}%` }}
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <Card className="w-full max-w-3xl mx-auto">
       <CardHeader>
@@ -248,7 +317,9 @@ export function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: In
           <CardTitle>Mock Interview: {selectedJobTitle}</CardTitle>
           <div className="flex items-center gap-4">
             {isActive && !isMockMode && (
-              <ConnectionQualityIndicator peerConnection={peerConnection} className="bg-background/80 border" />
+              <div className="bg-green-100 dark:bg-green-900/20 px-2 py-1 rounded-md text-xs text-green-700 dark:text-green-400">
+                <span>Live Connection</span>
+              </div>
             )}
             <div className="flex items-center gap-2 text-lg font-mono">
               <Clock className="h-5 w-5" />
@@ -262,21 +333,45 @@ export function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: In
 
       <CardContent className="space-y-4">
         {isMockMode && isActive && (
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertTitle>Interactive Demo Mode</AlertTitle>
+          <Alert variant="warning">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Simulated Interview Mode</AlertTitle>
             <AlertDescription>
               <p className="mb-2">
-                Running in interactive demo mode. The OpenAI Realtime API is not publicly available yet, so we're using
-                a simulated interview experience with speech recognition.
+                <strong>Note:</strong> You are currently in a simulated interview experience. The AI voice interview
+                service is not available.
+              </p>
+              <p className="text-sm text-muted-foreground mb-2">
+                {errorType === "unauthorized" && "The API key appears to be invalid."}
+                {errorType === "forbidden" && "The request was rejected by the API."}
+                {errorType === "configuration" && "The voice interview service is not configured."}
+                {errorType === "connection" && "Could not connect to the voice interview service."}
+                {errorType === "server" && "The voice interview service is experiencing issues."}
+                {errorType === "rate_limit" && "The voice interview service has reached its usage limit."}
+                {!errorType && "The voice interview service is unavailable."}
               </p>
               <p className="text-sm text-muted-foreground">
-                Speak into your microphone to respond to the interviewer's questions. The AI will listen and respond
-                accordingly.
+                Speak into your microphone to respond to the interviewer's questions. The system will listen and respond
+                with pre-defined questions.
               </p>
               <Button variant="link" className="p-0 h-auto text-xs underline" onClick={() => setShowDebug(!showDebug)}>
                 {showDebug ? "Hide technical details" : "Show technical details"}
               </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {!isMockMode && isActive && (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Live Interview Mode</AlertTitle>
+            <AlertDescription>
+              <p className="mb-2">
+                Connected to OpenAI Realtime API. You are now having a live conversation with an AI interviewer.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Speak clearly into your microphone. Your voice is being streamed to the AI in real-time.
+              </p>
             </AlertDescription>
           </Alert>
         )}
@@ -345,18 +440,21 @@ export function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: In
               {(isConnecting || isActive) && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center mb-4">
-                    <div
-                      className={`p-3 rounded-full ${
-                        isActive ? "bg-green-100 dark:bg-green-900/20" : "bg-amber-100 dark:bg-amber-900/20"
-                      }`}
-                    >
-                      {isActive ? (
-                        <Mic className="h-6 w-6 text-green-600 dark:text-green-400 animate-pulse" />
-                      ) : (
-                        <Mic className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                      )}
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`p-3 rounded-full ${
+                          isActive ? "bg-green-100 dark:bg-green-900/20" : "bg-amber-100 dark:bg-amber-900/20"
+                        }`}
+                      >
+                        {isActive ? (
+                          <Mic className="h-6 w-6 text-green-600 dark:text-green-400 animate-pulse" />
+                        ) : (
+                          <Mic className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                        )}
+                      </div>
+                      {isActive && renderAudioLevel()}
                     </div>
-                    {isActive && !isMockMode && (
+                    {isActive && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -383,7 +481,7 @@ export function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: In
                       <p>
                         {isMockMode
                           ? "Interview in progress. Speak into your microphone to respond."
-                          : "Interview in progress. Speak clearly into your microphone."}
+                          : "Live interview in progress. Speak clearly into your microphone."}
                       </p>
                     )}
                   </div>
@@ -421,8 +519,17 @@ export function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: In
               )}
             </div>
 
-            {/* Hidden audio element for AI voice */}
-            <audio ref={audioRef} autoPlay playsInline className="hidden" />
+            {/* Audio element for AI voice */}
+            <div className="mb-2">
+              <p className="text-xs text-muted-foreground mb-1">AI Voice Output:</p>
+              <audio
+                ref={audioRef}
+                autoPlay
+                playsInline
+                controls={showDebug}
+                className={showDebug ? "w-full" : "hidden"}
+              />
+            </div>
           </>
         )}
 
@@ -430,14 +537,20 @@ export function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: In
           <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-md text-xs font-mono overflow-x-auto">
             <p className="font-medium mb-1">Debug Info:</p>
             <p className="whitespace-pre-wrap">{debug}</p>
+            {errorDetails && (
+              <>
+                <p className="font-medium mt-2 mb-1">Error Details:</p>
+                <p className="whitespace-pre-wrap text-red-500">{errorDetails}</p>
+              </>
+            )}
           </div>
         )}
       </CardContent>
 
       <CardFooter className="flex justify-between">
         {isActive && (
-          <Button variant="destructive" onClick={handleInterviewComplete}>
-            End Interview Early
+          <Button variant="destructive" onClick={handleInterviewComplete} disabled={sessionEnding}>
+            {sessionEnding ? "Ending Interview..." : "End Interview Early"}
           </Button>
         )}
         {!isActive && status !== "idle" && (

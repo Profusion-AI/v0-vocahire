@@ -17,10 +17,13 @@ interface UseInterviewSessionReturn {
   isActive: boolean
   error: string | null
   debug: string | null
+  errorDetails: string | null
+  errorType: string | null
   start: (jobTitle?: string) => Promise<void>
   stop: () => void
   peerConnection: RTCPeerConnection | null
   isMockMode: boolean
+  audioLevel: number
 }
 
 // Declare the webkitSpeechRecognition variable
@@ -30,6 +33,7 @@ declare global {
     SpeechRecognition: any
     _vocahirePeerConnection: any
     _vocahireRecognition: any
+    _vocahireTTS: ((text: string) => void) | undefined
   }
 }
 
@@ -128,7 +132,10 @@ export function useInterviewSession(): UseInterviewSessionReturn {
   const [messages, setMessages] = useState<Message[]>([])
   const [error, setError] = useState<string | null>(null)
   const [debug, setDebug] = useState<string | null>(null)
+  const [errorDetails, setErrorDetails] = useState<string | null>(null)
+  const [errorType, setErrorType] = useState<string | null>(null)
   const [isMockMode, setIsMockMode] = useState(false)
+  const [audioLevel, setAudioLevel] = useState(0)
 
   // WebRTC related refs
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
@@ -141,6 +148,9 @@ export function useInterviewSession(): UseInterviewSessionReturn {
   const currentJobTitleRef = useRef<string>("Software Engineer")
   const lastUserSpeechTimeRef = useRef<number>(0)
   const isWaitingForResponseRef = useRef<boolean>(false)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const audioLevelIntervalRef = useRef<number | null>(null)
 
   // Cleanup function to be called when stopping the session
   const cleanup = useCallback(() => {
@@ -148,6 +158,19 @@ export function useInterviewSession(): UseInterviewSessionReturn {
     if (mockIntervalRef.current) {
       clearInterval(mockIntervalRef.current)
       mockIntervalRef.current = null
+    }
+
+    // Clear audio level monitoring
+    if (audioLevelIntervalRef.current) {
+      window.clearInterval(audioLevelIntervalRef.current)
+      audioLevelIntervalRef.current = null
+    }
+
+    // Close audio context
+    if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+      audioContextRef.current.close().catch(console.error)
+      audioContextRef.current = null
+      analyserRef.current = null
     }
 
     // Close data channel
@@ -168,34 +191,6 @@ export function useInterviewSession(): UseInterviewSessionReturn {
       localStreamRef.current = null
     }
 
-    // Remove global reference (used for debugging)
-    if (typeof window !== "undefined") {
-      // @ts-ignore
-      window._vocahirePeerConnection = null
-    }
-
-    // If we have a real session, terminate it
-    if (sessionIdRef.current && !isMockMode) {
-      // In a real implementation, we would call the OpenAI API to terminate the session
-      console.log("Terminating OpenAI Realtime session:", sessionIdRef.current)
-      sessionIdRef.current = null
-    }
-  }, [isMockMode])
-
-  // Stop the interview session
-  const stop = useCallback(() => {
-    // Stop speech recognition if active
-    if (typeof window !== "undefined" && window._vocahireRecognition) {
-      try {
-        // @ts-ignore
-        window._vocahireRecognition.stop()
-      } catch (e) {
-        console.error("Error stopping speech recognition:", e)
-      }
-      // @ts-ignore
-      window._vocahireRecognition = null
-    }
-
     // Remove audio element
     if (audioElementRef.current) {
       audioElementRef.current.pause()
@@ -206,12 +201,70 @@ export function useInterviewSession(): UseInterviewSessionReturn {
       audioElementRef.current = null
     }
 
+    // Remove global reference (used for debugging)
+    if (typeof window !== "undefined") {
+      // @ts-ignore
+      window._vocahirePeerConnection = null
+    }
+
+    // If we have a real session, terminate it
+    if (sessionIdRef.current && !isMockMode) {
+      // Call the API to terminate the session
+      terminateSession(sessionIdRef.current).catch((err) => {
+        console.error("Error terminating session:", err)
+      })
+      sessionIdRef.current = null
+    }
+  }, [isMockMode])
+
+  // Function to terminate an OpenAI session
+  const terminateSession = async (sessionId: string) => {
+    try {
+      setDebug((prev) => `${prev || ""}\nTerminating OpenAI Realtime session: ${sessionId}`)
+
+      const response = await fetch("/api/terminate-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ sessionId }),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`Error terminating session: ${response.status} ${errorText}`)
+        setDebug((prev) => `${prev || ""}\nError terminating session: ${response.status} ${errorText}`)
+      } else {
+        setDebug((prev) => `${prev || ""}\nSession terminated successfully`)
+      }
+    } catch (error) {
+      console.error("Error calling terminate session API:", error)
+      setDebug(
+        (prev) => `${prev || ""}\nError terminating session: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
+  }
+
+  // Stop the interview session
+  const stop = useCallback(() => {
+    // Stop speech recognition if active (only for mock mode)
+    if (isMockMode && typeof window !== "undefined" && window._vocahireRecognition) {
+      try {
+        // @ts-ignore
+        window._vocahireRecognition.stop()
+      } catch (e) {
+        console.error("Error stopping speech recognition:", e)
+      }
+      // @ts-ignore
+      window._vocahireRecognition = null
+    }
+
     // Clean up WebRTC resources
     cleanup()
 
     // Update state
     setStatus("ended")
-  }, [cleanup])
+  }, [cleanup, isMockMode])
 
   // Clean up on unmount
   useEffect(() => {
@@ -233,34 +286,404 @@ export function useInterviewSession(): UseInterviewSessionReturn {
     if (isWaitingForResponseRef.current && now - lastUserSpeechTimeRef.current > 5000) {
       isWaitingForResponseRef.current = false
 
+      let responseText = ""
+
       // 50% chance of asking a follow-up question, 50% chance of moving to the next question
       if (
         Math.random() > 0.5 &&
         mockQuestionIndexRef.current < getQuestionsForJobTitle(currentJobTitleRef.current).length
       ) {
         // Ask a follow-up question
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: getRandomFollowUp(),
-            timestamp: now,
-          },
-        ])
+        responseText = getRandomFollowUp()
       } else if (mockQuestionIndexRef.current < getQuestionsForJobTitle(currentJobTitleRef.current).length) {
         // Move to the next question
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: getQuestionsForJobTitle(currentJobTitleRef.current)[mockQuestionIndexRef.current],
-            timestamp: now,
-          },
-        ])
+        responseText = getQuestionsForJobTitle(currentJobTitleRef.current)[mockQuestionIndexRef.current]
         mockQuestionIndexRef.current++
+      }
+
+      // Add the message to the UI
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: responseText,
+          timestamp: now,
+        },
+      ])
+
+      // Use text-to-speech to speak the response
+      if (typeof window !== "undefined" && window._vocahireTTS) {
+        // @ts-ignore
+        window._vocahireTTS(responseText)
       }
     }
   }, [getRandomFollowUp])
+
+  // Function to set up WebRTC connection
+  const setupWebRTC = useCallback(
+    async (sessionData: any, jobTitle: string) => {
+      try {
+        setDebug((prev) => `${prev || ""}\nSetting up WebRTC connection...`)
+
+        // 1. Fetch ICE servers from our API
+        const iceResponse = await fetch("/api/ice-servers")
+        if (!iceResponse.ok) {
+          throw new Error(`Failed to fetch ICE servers: ${iceResponse.status}`)
+        }
+        const { iceServers } = await iceResponse.json()
+        setDebug((prev) => `${prev || ""}\nReceived ICE servers: ${JSON.stringify(iceServers)}`)
+
+        // 2. Create a new RTCPeerConnection with ICE servers
+        const peerConnection = new RTCPeerConnection({
+          iceServers: iceServers || DEFAULT_ICE_SERVERS,
+        })
+        peerConnectionRef.current = peerConnection
+
+        // Store for debugging
+        if (typeof window !== "undefined") {
+          // @ts-ignore
+          window._vocahirePeerConnection = peerConnection
+        }
+
+        // 3. Set up event handlers for the peer connection
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate) {
+            setDebug((prev) => `${prev || ""}\nNew ICE candidate: ${JSON.stringify(event.candidate)}`)
+
+            // In a real implementation, we would send this candidate to the OpenAI server
+            // For now, we'll just log it
+            console.log("New ICE candidate:", event.candidate)
+          }
+        }
+
+        peerConnection.oniceconnectionstatechange = () => {
+          setDebug((prev) => `${prev || ""}\nICE connection state changed: ${peerConnection.iceConnectionState}`)
+          console.log("ICE connection state changed:", peerConnection.iceConnectionState)
+
+          if (peerConnection.iceConnectionState === "connected" || peerConnection.iceConnectionState === "completed") {
+            setStatus("active")
+          } else if (
+            peerConnection.iceConnectionState === "failed" ||
+            peerConnection.iceConnectionState === "disconnected" ||
+            peerConnection.iceConnectionState === "closed"
+          ) {
+            setError(`WebRTC connection failed: ${peerConnection.iceConnectionState}`)
+            cleanup()
+            setStatus("idle")
+          }
+        }
+
+        peerConnection.ontrack = (event) => {
+          setDebug((prev) => `${prev || ""}\nReceived remote track: ${event.track.kind}`)
+          console.log("Received remote track:", event.track.kind)
+
+          if (event.track.kind === "audio") {
+            // Create an audio element if it doesn't exist
+            if (!audioElementRef.current) {
+              const audioElement = new Audio()
+              audioElement.autoplay = true
+              audioElement.playsInline = true // Important for iOS
+              audioElement.controls = false
+              audioElement.muted = false
+              document.body.appendChild(audioElement)
+              audioElementRef.current = audioElement
+
+              // Log that we've created the audio element
+              setDebug((prev) => `${prev || ""}\nCreated audio element for AI voice playback`)
+            }
+
+            // Create a new MediaStream with the received track
+            const remoteStream = new MediaStream([event.track])
+
+            // Set the remote stream as the source for the audio element
+            if (audioElementRef.current) {
+              audioElementRef.current.srcObject = remoteStream
+              audioElementRef.current.play().catch((error) => {
+                console.error("Error playing audio:", error)
+                setDebug((prev) => `${prev || ""}\nError playing audio: ${error.message}`)
+              })
+              setDebug((prev) => `${prev || ""}\nConnected remote audio stream to audio element`)
+            }
+          }
+        }
+
+        // 4. Set up data channel for control messages
+        const dataChannel = peerConnection.createDataChannel("control")
+        dataChannelRef.current = dataChannel
+
+        dataChannel.onopen = () => {
+          setDebug((prev) => `${prev || ""}\nData channel opened`)
+          console.log("Data channel opened")
+        }
+
+        dataChannel.onclose = () => {
+          setDebug((prev) => `${prev || ""}\nData channel closed`)
+          console.log("Data channel closed")
+        }
+
+        dataChannel.onmessage = (event) => {
+          setDebug((prev) => `${prev || ""}\nReceived message on data channel: ${event.data}`)
+          console.log("Received message on data channel:", event.data)
+
+          try {
+            const data = JSON.parse(event.data)
+
+            // Handle different message types
+            if (data.type === "transcript") {
+              // Add assistant message
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: "assistant",
+                  content: data.text,
+                  timestamp: Date.now(),
+                },
+              ])
+            } else if (data.type === "user_transcript") {
+              // Add user message from OpenAI's transcription
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: "user",
+                  content: data.text,
+                  timestamp: Date.now(),
+                },
+              ])
+            } else if (data.type === "end") {
+              // End the session
+              stop()
+            }
+          } catch (error) {
+            console.error("Error parsing data channel message:", error)
+          }
+        }
+
+        peerConnection.ondatachannel = (event) => {
+          setDebug((prev) => `${prev || ""}\nReceived data channel: ${event.channel.label}`)
+          console.log("Received data channel:", event.channel.label)
+
+          const receivedChannel = event.channel
+          receivedChannel.onmessage = (messageEvent) => {
+            setDebug((prev) => `${prev || ""}\nReceived message on ${receivedChannel.label}: ${messageEvent.data}`)
+            console.log(`Received message on ${receivedChannel.label}:`, messageEvent.data)
+
+            try {
+              const data = JSON.parse(messageEvent.data)
+
+              // Handle different message types
+              if (data.type === "transcript") {
+                // Add assistant message
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    role: "assistant",
+                    content: data.text,
+                    timestamp: Date.now(),
+                  },
+                ])
+              } else if (data.type === "user_transcript") {
+                // Add user message from OpenAI's transcription
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    role: "user",
+                    content: data.text,
+                    timestamp: Date.now(),
+                  },
+                ])
+              } else if (data.type === "end") {
+                // End the session
+                stop()
+              }
+            } catch (error) {
+              console.error("Error parsing data channel message:", error)
+            }
+          }
+        }
+
+        // 5. Add local audio track to the peer connection
+        if (localStreamRef.current) {
+          localStreamRef.current.getAudioTracks().forEach((track) => {
+            peerConnection.addTrack(track, localStreamRef.current!)
+          })
+        }
+
+        // 6. Set remote description (SDP offer) from OpenAI
+        if (sessionData.sdp) {
+          setDebug((prev) => `${prev || ""}\nSetting remote description from OpenAI...`)
+
+          const offer = {
+            type: "offer",
+            sdp: sessionData.sdp,
+          } as RTCSessionDescriptionInit
+
+          await peerConnection.setRemoteDescription(offer)
+          setDebug((prev) => `${prev || ""}\nRemote description set successfully`)
+
+          // 7. Create and set local description (SDP answer)
+          setDebug((prev) => `${prev || ""}\nCreating answer...`)
+          const answer = await peerConnection.createAnswer()
+          await peerConnection.setLocalDescription(answer)
+          setDebug((prev) => `${prev || ""}\nLocal description set successfully`)
+
+          // 8. Send the answer to OpenAI
+          // In a real implementation, we would send this to the OpenAI server
+          // For now, we'll just log it
+          setDebug((prev) => `${prev || ""}\nAnswer SDP: ${answer.sdp}`)
+          console.log("Answer SDP:", answer.sdp)
+
+          // 9. Add initial message
+          setMessages([
+            {
+              role: "assistant",
+              content: `Hello! I'm your AI interviewer for the ${jobTitle} position. I'll be asking you some questions to learn more about your experience and skills. Could you start by telling me a bit about your background and relevant experience?`,
+              timestamp: Date.now(),
+            },
+          ])
+
+          // 10. Set up audio level monitoring
+          setupAudioLevelMonitoring()
+
+          return true
+        } else {
+          throw new Error("No SDP offer in session data")
+        }
+      } catch (error) {
+        console.error("Error setting up WebRTC:", error)
+        setDebug(
+          (prev) => `${prev || ""}\nError setting up WebRTC: ${error instanceof Error ? error.message : String(error)}`,
+        )
+        throw error
+      }
+    },
+    [cleanup, stop],
+  )
+
+  // Function to set up audio level monitoring
+  const setupAudioLevelMonitoring = useCallback(() => {
+    if (!localStreamRef.current) return
+
+    try {
+      // Create AudioContext and Analyser
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      audioContextRef.current = audioContext
+
+      // Create an analyser
+      const analyser = audioContext.createAnalyser()
+      analyser.fftSize = 256
+      analyserRef.current = analyser
+
+      // Create a source from the stream
+      const source = audioContext.createMediaStreamSource(localStreamRef.current)
+      source.connect(analyser)
+
+      // Set up interval to check audio levels
+      const bufferLength = analyser.frequencyBinCount
+      const dataArray = new Uint8Array(bufferLength)
+
+      audioLevelIntervalRef.current = window.setInterval(() => {
+        if (analyserRef.current) {
+          analyserRef.current.getByteFrequencyData(dataArray)
+
+          // Calculate average level
+          let sum = 0
+          for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i]
+          }
+          const average = sum / bufferLength
+
+          // Normalize to 0-100 range
+          const normalizedLevel = Math.min(100, Math.max(0, average * 2))
+          setAudioLevel(normalizedLevel)
+        }
+      }, 100)
+    } catch (error) {
+      console.error("Error setting up audio level monitoring:", error)
+    }
+  }, [])
+
+  // Function to set up speech recognition (only for mock mode)
+  const setupSpeechRecognition = useCallback(() => {
+    if (!isMockMode) return
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition()
+      recognition.continuous = true
+      recognition.interimResults = true
+      recognition.lang = "en-US"
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[event.results.length - 1][0].transcript
+        const isFinal = event.results[event.results.length - 1].isFinal
+
+        if (isFinal && transcript.trim()) {
+          // Add user message
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "user",
+              content: transcript,
+              timestamp: Date.now(),
+            },
+          ])
+
+          // Update the last speech time
+          lastUserSpeechTimeRef.current = Date.now()
+          isWaitingForResponseRef.current = true
+        }
+      }
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error)
+      }
+
+      recognition.start()
+
+      // Store recognition instance for cleanup
+      // @ts-ignore
+      window._vocahireRecognition = recognition
+
+      // Also set up a simple text-to-speech function for mock mode responses
+      if (!window._vocahireTTS) {
+        window._vocahireTTS = (text: string) => {
+          // Use the Web Speech API for text-to-speech in mock mode
+          if ("speechSynthesis" in window) {
+            // Cancel any ongoing speech
+            window.speechSynthesis.cancel()
+
+            // Create a new utterance
+            const utterance = new SpeechSynthesisUtterance(text)
+
+            // Get available voices and try to select a good one
+            const voices = window.speechSynthesis.getVoices()
+
+            // Try to find a natural sounding voice
+            const preferredVoice = voices.find(
+              (voice) =>
+                voice.name.includes("Daniel") || voice.name.includes("Google") || voice.name.includes("Natural"),
+            )
+
+            if (preferredVoice) {
+              utterance.voice = preferredVoice
+            }
+
+            // Set properties
+            utterance.rate = 1.0 // Normal speaking rate
+            utterance.pitch = 1.0 // Normal pitch
+            utterance.volume = 1.0 // Full volume
+
+            // Speak the text
+            window.speechSynthesis.speak(utterance)
+          }
+        }
+      }
+    } else {
+      console.warn("Speech recognition not supported in this browser")
+      setDebug((prev) => `${prev || ""}\nSpeech recognition not supported in this browser`)
+    }
+  }, [isMockMode])
 
   // Start the interview session
   const start = useCallback(
@@ -268,6 +691,8 @@ export function useInterviewSession(): UseInterviewSessionReturn {
       try {
         setError(null)
         setDebug(null)
+        setErrorDetails(null)
+        setErrorType(null)
         setStatus("connecting")
         setIsMockMode(false)
         currentJobTitleRef.current = jobTitle
@@ -316,6 +741,11 @@ export function useInterviewSession(): UseInterviewSessionReturn {
             setDebug((prev) => `${prev || ""}\nSwitching to mock interview mode: ${responseData.message}`)
             if (responseData.details) {
               setDebug((prev) => `${prev || ""}\nError details: ${responseData.details}`)
+              setErrorDetails(responseData.details)
+            }
+            if (responseData.errorType) {
+              setDebug((prev) => `${prev || ""}\nError type: ${responseData.errorType}`)
+              setErrorType(responseData.errorType)
             }
             setIsMockMode(true)
 
@@ -339,6 +769,12 @@ export function useInterviewSession(): UseInterviewSessionReturn {
             mockIntervalRef.current = setInterval(() => {
               handleUserSpeechInMockMode()
             }, 2000) // Check every 2 seconds
+
+            // Set up speech recognition for user responses (only in mock mode)
+            setupSpeechRecognition()
+
+            // Set up audio level monitoring
+            setupAudioLevelMonitoring()
           } else if (responseData.session) {
             // We have a real session from the OpenAI Realtime API
             setDebug(
@@ -346,31 +782,12 @@ export function useInterviewSession(): UseInterviewSessionReturn {
             )
             sessionIdRef.current = responseData.session.id
 
-            // In a real implementation, we would use the session to establish a WebRTC connection
-            // For now, we'll simulate a successful connection
-            setStatus("active")
+            // Set up WebRTC connection with the session data
+            const success = await setupWebRTC(responseData.session, jobTitle)
 
-            // Add initial message
-            setMessages([
-              {
-                role: "assistant",
-                content: `Hello! I'm your AI interviewer for the ${jobTitle} position. I'll be asking you some questions to learn more about your experience and skills. Could you start by telling me a bit about your background and relevant experience?`,
-                timestamp: Date.now(),
-              },
-            ])
-
-            // Set up a simulated response every 30 seconds
-            // In a real implementation, this would come from the WebRTC connection
-            mockIntervalRef.current = setInterval(() => {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  role: "assistant",
-                  content: "That's interesting. Can you tell me more about your experience with [relevant technology]?",
-                  timestamp: Date.now(),
-                },
-              ])
-            }, 30000)
+            if (!success) {
+              throw new Error("Failed to set up WebRTC connection")
+            }
           } else {
             throw new Error("Unexpected response from server")
           }
@@ -381,54 +798,6 @@ export function useInterviewSession(): UseInterviewSessionReturn {
           )
           throw apiError
         }
-
-        // Set up speech recognition for user responses
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-
-        if (SpeechRecognition) {
-          const recognition = new SpeechRecognition()
-          recognition.continuous = true
-          recognition.interimResults = true
-          recognition.lang = "en-US"
-
-          recognition.onresult = (event) => {
-            const transcript = event.results[event.results.length - 1][0].transcript
-            const isFinal = event.results[event.results.length - 1].isFinal
-
-            if (isFinal && transcript.trim()) {
-              // Add user message
-              setMessages((prev) => [
-                ...prev,
-                {
-                  role: "user",
-                  content: transcript,
-                  timestamp: Date.now(),
-                },
-              ])
-
-              // Update the last speech time
-              lastUserSpeechTimeRef.current = Date.now()
-              isWaitingForResponseRef.current = true
-
-              // In a real implementation with WebRTC, we would send this to the OpenAI API
-              // For now, we just log it
-              console.log("User said:", transcript)
-            }
-          }
-
-          recognition.onerror = (event) => {
-            console.error("Speech recognition error:", event.error)
-          }
-
-          recognition.start()
-
-          // Store recognition instance for cleanup
-          // @ts-ignore
-          window._vocahireRecognition = recognition
-        } else {
-          console.warn("Speech recognition not supported in this browser")
-          setDebug((prev) => `${prev || ""}\nSpeech recognition not supported in this browser`)
-        }
       } catch (err) {
         console.error("Error starting interview session:", err)
         cleanup()
@@ -436,7 +805,7 @@ export function useInterviewSession(): UseInterviewSessionReturn {
         setError(err instanceof Error ? err.message : "Unknown error starting interview")
       }
     },
-    [cleanup, handleUserSpeechInMockMode],
+    [cleanup, handleUserSpeechInMockMode, setupSpeechRecognition, setupWebRTC, setupAudioLevelMonitoring],
   )
 
   return {
@@ -446,9 +815,12 @@ export function useInterviewSession(): UseInterviewSessionReturn {
     isActive: status === "active",
     error,
     debug,
+    errorDetails,
+    errorType,
     start,
     stop,
     peerConnection: peerConnectionRef.current,
     isMockMode,
+    audioLevel,
   }
 }

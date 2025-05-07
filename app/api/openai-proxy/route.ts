@@ -47,6 +47,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         mock: true,
         message: "OpenAI API key not configured. Falling back to mock mode.",
+        errorType: "configuration",
       })
     }
 
@@ -58,85 +59,128 @@ export async function POST(req: Request) {
       return NextResponse.json({
         mock: true,
         message: "Missing required job title. Falling back to mock mode.",
+        errorType: "validation",
       })
     }
 
-    // Check if we should use the experimental Realtime API
-    const useRealtimeApi = process.env.USE_OPENAI_REALTIME_API === "true"
+    // Check if we should use the Realtime API
+    // Default to true unless explicitly disabled
+    const useRealtimeApi = process.env.USE_OPENAI_REALTIME_API !== "false"
 
-    if (useRealtimeApi) {
-      // Try to use the experimental Realtime API
-      try {
-        console.log("Attempting to use OpenAI Realtime API")
-
-        // Log the request details for debugging
-        console.log("OpenAI API Key (first 4 chars):", openaiApiKey.substring(0, 4) + "...")
-        console.log("Job Title:", body.jobTitle)
-
-        const openaiResponse = await fetch("https://api.openai.com/v1/audio/realtime/sessions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${openaiApiKey}`,
-            "OpenAI-Beta": "realtime",
-          },
-          body: JSON.stringify({
-            model: "gpt-4o",
-            voice: "alloy",
-            session_mode: "conversation",
-            prompt: `You are an AI interviewer conducting a 10-minute mock interview for a ${body.jobTitle} position. 
-            Ask relevant technical and behavioral questions. Be conversational but professional. 
-            Start by introducing yourself and asking the candidate to tell you about their background. 
-            Listen to their responses and ask follow-up questions. 
-            Limit each of your responses to 2-3 sentences to keep the conversation flowing.`,
-            session_params: {
-              duration_limit_seconds: 600, // 10 minutes
-            },
-          }),
-        })
-
-        // Log the response status for debugging
-        console.log("OpenAI API Response Status:", openaiResponse.status)
-
-        if (!openaiResponse.ok) {
-          const errorText = await openaiResponse.text()
-          console.error(`OpenAI Realtime API error: ${openaiResponse.status} ${errorText}`)
-
-          // Fall back to alternative approach
-          throw new Error(`OpenAI Realtime API error: ${openaiResponse.status}`)
-        }
-
-        const data = await openaiResponse.json()
-        console.log("Successfully created OpenAI Realtime session")
-
-        // Return the session data
-        return NextResponse.json({
-          mock: false,
-          session: data,
-        })
-      } catch (error) {
-        console.error("Error with OpenAI Realtime API, falling back to alternative approach:", error)
-        // Continue to alternative approach
-      }
+    if (!useRealtimeApi) {
+      return NextResponse.json({
+        mock: true,
+        message: "OpenAI Realtime API is disabled by configuration. Using mock mode.",
+        errorType: "configuration",
+      })
     }
 
-    // Alternative approach: Use standard OpenAI APIs
-    // For now, we'll return a structured response that indicates we should use the mock mode
-    // In a production implementation, we would set up a different approach using the available APIs
+    try {
+      console.log("Using OpenAI Realtime API")
 
-    return NextResponse.json({
-      mock: true,
-      message: "OpenAI Realtime API is not available. Using alternative approach.",
-      details:
-        "The Realtime API appears to be in private beta or not publicly available yet. " +
-        "We're falling back to a simulated interview experience.",
-      jobTitle: body.jobTitle,
-    })
+      // Log the request details for debugging
+      console.log("OpenAI API Key (first 4 chars):", openaiApiKey.substring(0, 4) + "...")
+      console.log("Job Title:", body.jobTitle)
+
+      // Construct the request payload according to OpenAI's latest specifications
+      const requestPayload = {
+        // Use the correct model name for realtime API
+        model: "gpt-4o-mini-realtime-preview",
+        voice: "alloy",
+        session_mode: "conversation",
+        // Include required audio format parameters
+        input_audio_format: {
+          type: "audio/webm",
+          sampling_rate: 16000,
+        },
+        output_audio_format: {
+          type: "audio/webm",
+          sampling_rate: 24000,
+        },
+        // Enable Whisper transcription for user audio
+        input_audio_transcription: {
+          model: "whisper-1",
+        },
+        // Specify modalities
+        modalities: ["audio", "text"],
+        prompt: `You are an AI interviewer conducting a 10-minute mock interview for a ${body.jobTitle} position. 
+        Ask relevant technical and behavioral questions. Be conversational but professional. 
+        Start by introducing yourself and asking the candidate to tell you about their background. 
+        Listen to their responses and ask follow-up questions. 
+        Limit each of your responses to 2-3 sentences to keep the conversation flowing.`,
+        session_params: {
+          duration_limit_seconds: 600, // 10 minutes
+        },
+      }
+
+      // Make the API call with the correct headers
+      const openaiResponse = await fetch("https://api.openai.com/v1/audio/realtime/sessions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${openaiApiKey}`,
+          "OpenAI-Beta": "realtime",
+        },
+        body: JSON.stringify(requestPayload),
+      })
+
+      // Log the response status for debugging
+      console.log("OpenAI API Response Status:", openaiResponse.status)
+
+      if (!openaiResponse.ok) {
+        const errorText = await openaiResponse.text()
+        console.error(`OpenAI Realtime API error: ${openaiResponse.status} ${errorText}`)
+
+        // Determine error type for better client-side handling
+        let errorType = "api"
+        if (openaiResponse.status === 401) {
+          errorType = "unauthorized"
+        } else if (openaiResponse.status === 403) {
+          errorType = "forbidden"
+        } else if (openaiResponse.status === 404) {
+          errorType = "not_found"
+        } else if (openaiResponse.status === 429) {
+          errorType = "rate_limit"
+        } else if (openaiResponse.status >= 500) {
+          errorType = "server"
+        }
+
+        // Provide more detailed error information
+        return NextResponse.json({
+          mock: true,
+          message: "Failed to create OpenAI Realtime session. Using mock mode instead.",
+          details: `API Error (${openaiResponse.status}): ${errorText}`,
+          errorType: errorType,
+          jobTitle: body.jobTitle,
+        })
+      }
+
+      const data = await openaiResponse.json()
+      console.log("Successfully created OpenAI Realtime session")
+
+      // Return the complete session data for WebRTC setup
+      return NextResponse.json({
+        mock: false,
+        session: data,
+      })
+    } catch (error) {
+      console.error("Error with OpenAI Realtime API, falling back to mock mode:", error)
+
+      // Return detailed error information
+      return NextResponse.json({
+        mock: true,
+        message: "Error connecting to OpenAI Realtime API. Using mock mode instead.",
+        details: error instanceof Error ? error.message : String(error),
+        errorType: "connection",
+        jobTitle: body.jobTitle,
+      })
+    }
   } catch (error) {
     console.error("Error in OpenAI proxy route:", error)
     return NextResponse.json({
       mock: true,
       message: `Internal server error: ${error instanceof Error ? error.message : String(error)}. Falling back to mock mode.`,
+      errorType: "internal",
     })
   }
 }
