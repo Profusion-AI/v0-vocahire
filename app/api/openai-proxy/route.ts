@@ -39,8 +39,20 @@ export async function POST(req: Request) {
       console.warn("No authenticated session found in OpenAI proxy route - proceeding anyway for testing")
     }
 
-    // Get OpenAI API key
-    const openaiApiKey = process.env.OPENAI_API_KEY
+    // Parse request body
+    const body = await req.json()
+
+    // Check for custom API key in the request (for debug purposes)
+    let openaiApiKey = process.env.OPENAI_API_KEY
+    let usingCustomKey = false
+
+    if (body.apiKey && typeof body.apiKey === "string" && body.apiKey.trim().startsWith("sk-")) {
+      openaiApiKey = body.apiKey.trim()
+      usingCustomKey = true
+      console.log("[OpenAI Proxy] Using custom API key from request")
+      // Remove the API key from the body to avoid sending it to OpenAI
+      delete body.apiKey
+    }
 
     if (!openaiApiKey) {
       console.error("OpenAI API key not configured")
@@ -50,9 +62,6 @@ export async function POST(req: Request) {
         errorType: "configuration",
       })
     }
-
-    // Parse request body
-    const body = await req.json()
 
     // Validate required fields
     if (!body.jobTitle) {
@@ -68,6 +77,7 @@ export async function POST(req: Request) {
     const useRealtimeApi = process.env.USE_OPENAI_REALTIME_API !== "false"
 
     if (!useRealtimeApi) {
+      console.log("[OpenAI Proxy] Realtime API disabled by configuration")
       return NextResponse.json({
         mock: true,
         message: "OpenAI Realtime API is disabled by configuration. Using mock mode.",
@@ -76,45 +86,37 @@ export async function POST(req: Request) {
     }
 
     try {
-      console.log("Using OpenAI Realtime API")
+      console.log("[OpenAI Proxy] Using OpenAI Realtime API")
+      console.log(
+        `[OpenAI Proxy] Environment variable USE_OPENAI_REALTIME_API: ${process.env.USE_OPENAI_REALTIME_API || "not set (defaults to true)"}`,
+      )
 
       // Log the request details for debugging
-      console.log("OpenAI API Key (first 4 chars):", openaiApiKey.substring(0, 4) + "...")
-      console.log("Job Title:", body.jobTitle)
+      console.log("[OpenAI Proxy] OpenAI API Key (first 4 chars):", openaiApiKey.substring(0, 4) + "...")
+      console.log("[OpenAI Proxy] Using custom key:", usingCustomKey)
+      console.log("[OpenAI Proxy] Job Title:", body.jobTitle)
 
-      // Construct the request payload according to OpenAI's latest specifications
+      // Construct the request payload with only the parameters confirmed to work
       const requestPayload = {
         // Use the correct model name for realtime API
         model: "gpt-4o-mini-realtime-preview",
         voice: "alloy",
-        session_mode: "conversation",
-        // Include required audio format parameters
-        input_audio_format: {
-          type: "audio/webm",
-          sampling_rate: 16000,
-        },
-        output_audio_format: {
-          type: "audio/webm",
-          sampling_rate: 24000,
-        },
-        // Enable Whisper transcription for user audio
-        input_audio_transcription: {
-          model: "whisper-1",
-        },
-        // Specify modalities
-        modalities: ["audio", "text"],
-        prompt: `You are an AI interviewer conducting a 10-minute mock interview for a ${body.jobTitle} position. 
+        instructions: `You are an AI interviewer conducting a 10-minute mock interview for a ${body.jobTitle} position. 
         Ask relevant technical and behavioral questions. Be conversational but professional. 
         Start by introducing yourself and asking the candidate to tell you about their background. 
         Listen to their responses and ask follow-up questions. 
         Limit each of your responses to 2-3 sentences to keep the conversation flowing.`,
-        session_params: {
-          duration_limit_seconds: 600, // 10 minutes
-        },
+        // Keep turn_detection as it was accepted in the test
+        turn_detection: { type: "server_vad" },
+        // Keep input_audio_transcription as it's useful for the interview
+        input_audio_transcription: { model: "whisper-1" },
       }
 
-      // Make the API call with the correct headers
-      const openaiResponse = await fetch("https://api.openai.com/v1/audio/realtime/sessions", {
+      console.log("[OpenAI Proxy] Request payload:", JSON.stringify(requestPayload, null, 2))
+      console.log("[OpenAI Proxy] Calling OpenAI Realtime API at: https://api.openai.com/v1/realtime/sessions")
+
+      // Make the API call with the correct headers and URL
+      const openaiResponse = await fetch("https://api.openai.com/v1/realtime/sessions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -124,12 +126,29 @@ export async function POST(req: Request) {
         body: JSON.stringify(requestPayload),
       })
 
-      // Log the response status for debugging
-      console.log("OpenAI API Response Status:", openaiResponse.status)
+      // Log the response status and headers for debugging
+      console.log("[OpenAI Proxy] API Response Status:", openaiResponse.status)
+      console.log("[OpenAI Proxy] API Response Status Text:", openaiResponse.statusText)
+
+      // Log response headers
+      const headers = {}
+      openaiResponse.headers.forEach((value, key) => {
+        headers[key] = value
+      })
+      console.log("[OpenAI Proxy] API Response Headers:", JSON.stringify(headers, null, 2))
 
       if (!openaiResponse.ok) {
         const errorText = await openaiResponse.text()
-        console.error(`OpenAI Realtime API error: ${openaiResponse.status} ${errorText}`)
+        console.error(`[OpenAI Proxy] Realtime API error: ${openaiResponse.status} ${errorText}`)
+
+        // Try to parse the error as JSON if possible
+        let parsedError = errorText
+        try {
+          parsedError = JSON.parse(errorText)
+          console.error("[OpenAI Proxy] Parsed error:", JSON.stringify(parsedError, null, 2))
+        } catch (e) {
+          console.error("[OpenAI Proxy] Error is not valid JSON:", errorText)
+        }
 
         // Determine error type for better client-side handling
         let errorType = "api"
@@ -152,19 +171,32 @@ export async function POST(req: Request) {
           details: `API Error (${openaiResponse.status}): ${errorText}`,
           errorType: errorType,
           jobTitle: body.jobTitle,
+          responseStatus: openaiResponse.status,
+          responseStatusText: openaiResponse.statusText,
+          responseHeaders: headers,
+          usingCustomKey: usingCustomKey,
         })
       }
 
       const data = await openaiResponse.json()
-      console.log("Successfully created OpenAI Realtime session")
+      console.log("[OpenAI Proxy] Successfully created OpenAI Realtime session")
+      console.log("[OpenAI Proxy] Session ID:", data.id)
+
+      // Log a sanitized version of the response (without the full SDP)
+      const sanitizedData = { ...data }
+      if (sanitizedData.sdp) {
+        sanitizedData.sdp = sanitizedData.sdp.substring(0, 100) + "... [truncated]"
+      }
+      console.log("[OpenAI Proxy] Session data (sanitized):", JSON.stringify(sanitizedData, null, 2))
 
       // Return the complete session data for WebRTC setup
       return NextResponse.json({
         mock: false,
         session: data,
+        usingCustomKey: usingCustomKey,
       })
     } catch (error) {
-      console.error("Error with OpenAI Realtime API, falling back to mock mode:", error)
+      console.error("[OpenAI Proxy] Error with OpenAI Realtime API, falling back to mock mode:", error)
 
       // Return detailed error information
       return NextResponse.json({
@@ -173,14 +205,17 @@ export async function POST(req: Request) {
         details: error instanceof Error ? error.message : String(error),
         errorType: "connection",
         jobTitle: body.jobTitle,
+        stack: error instanceof Error ? error.stack : undefined,
+        usingCustomKey: usingCustomKey,
       })
     }
   } catch (error) {
-    console.error("Error in OpenAI proxy route:", error)
+    console.error("[OpenAI Proxy] Error in OpenAI proxy route:", error)
     return NextResponse.json({
       mock: true,
       message: `Internal server error: ${error instanceof Error ? error.message : String(error)}. Falling back to mock mode.`,
       errorType: "internal",
+      stack: error instanceof Error ? error.stack : undefined,
     })
   }
 }
