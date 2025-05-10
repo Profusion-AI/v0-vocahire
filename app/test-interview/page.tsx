@@ -1,112 +1,645 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useInterviewSession } from "@/hooks/useInterviewSession"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mic, Clock, Volume2, VolumeX, Bug, Loader2, WifiOff, AlertCircle, ExternalLink } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ConnectionQualityIndicator } from "@/components/connection-quality-indicator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import Link from "next/link"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { Loader2, Mic, MicOff, Volume2, VolumeX, Info, AlertCircle, Clock } from "lucide-react"
 
 export default function TestInterviewPage() {
-  const { status, messages, start, stop, isConnecting, isActive, error, debug } = useInterviewSession()
+  // State for session creation
+  const [jobTitle, setJobTitle] = useState("Software Engineer")
+  const [creatingSession, setCreatingSession] = useState(false)
+  const [sessionData, setSessionData] = useState<any>(null)
+  const [sessionError, setSessionError] = useState<string | null>(null)
+  const [mockMode, setMockMode] = useState(false)
+  const [mockDetails, setMockDetails] = useState<any>(null)
 
-  const [timeRemaining, setTimeRemaining] = useState(600) // 10 minutes in seconds
+  // State for WebRTC connection
+  const [peerConnection, setPeerConnection] = useState<RTCPeerConnection | null>(null)
+  const [connectionState, setConnectionState] = useState<string>("disconnected")
+  const [iceConnectionState, setIceConnectionState] = useState<string>("new")
+  const [signalingState, setSignalingState] = useState<string>("stable")
+
+  // State for audio
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null)
+  const [audioLevel, setAudioLevel] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
-  const [showDebug, setShowDebug] = useState(false)
-  const [selectedRole, setSelectedRole] = useState("Software Engineer")
-  const [activeTab, setActiveTab] = useState("interview")
-  const [connectionStats, setConnectionStats] = useState<any>(null)
 
-  // Reference to the peer connection for stats
+  // State for interview
+  const [interviewActive, setInterviewActive] = useState(false)
+  const [messages, setMessages] = useState<Array<{ role: string; content: string; timestamp: number }>>([])
+  const [elapsedTime, setElapsedTime] = useState(0)
+  const [isTerminating, setIsTerminating] = useState(false)
+
+  // State for logs
+  const [logs, setLogs] = useState<string[]>([])
+
+  // Refs
+  const audioRef = useRef<HTMLAudioElement | null>(null)
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
+  const dataChannelRef = useRef<RTCDataChannel | null>(null)
+  const localStreamRef = useRef<MediaStream | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const audioLevelIntervalRef = useRef<number | null>(null)
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const mockIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Get access to the peer connection for the connection quality indicator
+  // Helper function to add logs
+  const addLog = (message: string) => {
+    setLogs((prev) => [...prev, `[${new Date().toISOString()}] ${message}`])
+  }
+
+  // Scroll to bottom when new messages arrive
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      // This is a hack to access the peer connection from the hook
-      const checkForPeerConnection = () => {
-        // @ts-ignore - accessing a property for demo purposes
-        if (window._vocahirePeerConnection) {
-          peerConnectionRef.current = window._vocahirePeerConnection
-        }
-      }
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+    }
+  }, [messages])
 
-      // Check every second for the peer connection
-      const intervalId = setInterval(checkForPeerConnection, 1000)
-      checkForPeerConnection() // Check immediately
-
-      return () => {
-        clearInterval(intervalId)
-      }
+  // Clean up resources when component unmounts
+  useEffect(() => {
+    return () => {
+      cleanup()
     }
   }, [])
 
-  // Timer countdown when interview is active
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout
+  // Function to create a session
+  const createSession = async () => {
+    try {
+      setCreatingSession(true)
+      setSessionData(null)
+      setSessionError(null)
+      setMockMode(false)
+      setMockDetails(null)
+      addLog(`Creating session for job title: ${jobTitle}`)
 
-    if (isActive && timeRemaining > 0) {
-      intervalId = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            clearInterval(intervalId)
-            stop()
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-    }
-
-    return () => {
-      if (intervalId) clearInterval(intervalId)
-    }
-  }, [isActive, timeRemaining, stop])
-
-  // Connection stats polling
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout
-
-    const getConnectionStats = async () => {
-      if (!peerConnectionRef.current) return
-
+      // Request microphone access first
       try {
-        const stats = await peerConnectionRef.current.getStats()
-        const statsObj: any = {}
+        addLog("Requesting microphone access...")
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        localStreamRef.current = stream
+        setLocalStream(stream)
+        addLog(`Microphone access granted. Audio tracks: ${stream.getAudioTracks().length}`)
+      } catch (err) {
+        addLog(`Error getting microphone access: ${err instanceof Error ? err.message : String(err)}`)
+        throw new Error("Could not access microphone. Please check your browser permissions.")
+      }
 
-        stats.forEach((report) => {
-          if (report.type === "inbound-rtp" && report.kind === "audio") {
-            statsObj.packetsReceived = report.packetsReceived
-            statsObj.packetsLost = report.packetsLost
-            statsObj.jitter = report.jitter
-            statsObj.audioLevel = report.audioLevel
+      // Call our OpenAI proxy endpoint
+      const response = await fetch("/api/openai-proxy", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jobTitle: jobTitle,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        addLog(`API error: ${response.status} ${errorText}`)
+        throw new Error(`API error: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      addLog("Received response from proxy")
+      addLog(`Response data: ${JSON.stringify(data, null, 2)}`)
+
+      if (data.mock) {
+        // Handle mock mode
+        addLog(`Mock mode activated: ${data.message}`)
+        setSessionError(`Mock mode: ${data.message}`)
+        setMockMode(true)
+        setMockDetails(data)
+
+        // Start mock interview with simulated messages
+        startMockInterview(jobTitle)
+      } else if (data.session) {
+        addLog(`Received session ID: ${data.session.id}`)
+        setSessionData(data.session)
+
+        // Log the full session data structure for debugging
+        addLog(`Session data structure: ${JSON.stringify(Object.keys(data.session))}`)
+
+        // Check if the session data has the required client_secret
+        if (!data.session.client_secret || !data.session.client_secret.value) {
+          addLog("ERROR: No client_secret in session data")
+          setSessionError(
+            "Our apologies, Vocahire is undergoing technical difficulties at the moment. Your interview credits have not been consumed. If the issue persists, please reach out to help@vocahire.com",
+          )
+          return
+        }
+
+        // Set up WebRTC with the session data
+        try {
+          await setupWebRTC(data.session)
+        } catch (err) {
+          addLog(`WebRTC setup error: ${err instanceof Error ? err.message : String(err)}`)
+          setSessionError(
+            "Our apologies, Vocahire is undergoing technical difficulties at the moment. Your interview credits have not been consumed. If the issue persists, please reach out to help@vocahire.com",
+          )
+        }
+      } else {
+        addLog("Unexpected response from server - no session or mock flag")
+        throw new Error("Unexpected response from server")
+      }
+    } catch (err) {
+      addLog(`Error creating session: ${err instanceof Error ? err.message : String(err)}`)
+      setSessionError(err instanceof Error ? err.message : "Unknown error creating session")
+
+      // Show error message to user
+      setSessionError(
+        "Our apologies, Vocahire is undergoing technical difficulties at the moment. Your interview credits have not been consumed. If the issue persists, please reach out to help@vocahire.com",
+      )
+    } finally {
+      setCreatingSession(false)
+    }
+  }
+
+  // Update the setupWebRTC function to create an offer first and then get the answer
+  const setupWebRTC = async (session: any) => {
+    try {
+      addLog("Setting up WebRTC connection...")
+
+      // Validate that session has the required client_secret
+      if (!session.client_secret || !session.client_secret.value) {
+        throw new Error("No client_secret in session data")
+      }
+
+      // Create a new RTCPeerConnection
+      const iceServers = session.rtc_server?.ice_servers || [
+        { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+      ]
+
+      addLog(`Using ICE servers: ${JSON.stringify(iceServers)}`)
+
+      const pc = new RTCPeerConnection({ iceServers })
+      peerConnectionRef.current = pc
+      setPeerConnection(pc)
+
+      // Set up event handlers
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          addLog(`New ICE candidate: ${JSON.stringify(event.candidate)}`)
+        }
+      }
+
+      pc.oniceconnectionstatechange = () => {
+        addLog(`ICE connection state changed: ${pc.iceConnectionState}`)
+        setIceConnectionState(pc.iceConnectionState)
+
+        if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+          addLog("WebRTC connection established successfully")
+          setInterviewActive(true)
+          startTimer()
+        } else if (
+          pc.iceConnectionState === "failed" ||
+          pc.iceConnectionState === "disconnected" ||
+          pc.iceConnectionState === "closed"
+        ) {
+          addLog(`WebRTC connection failed: ${pc.iceConnectionState}`)
+          setInterviewActive(false)
+        }
+      }
+
+      pc.onconnectionstatechange = () => {
+        addLog(`Connection state changed: ${pc.connectionState}`)
+        setConnectionState(pc.connectionState)
+      }
+
+      pc.onsignalingstatechange = () => {
+        addLog(`Signaling state changed: ${pc.signalingState}`)
+        setSignalingState(pc.signalingState)
+      }
+
+      pc.ontrack = (event) => {
+        addLog(`Received remote track: ${event.track.kind}`)
+
+        if (event.track.kind === "audio") {
+          // Create an audio element if it doesn't exist
+          if (!audioRef.current) {
+            addLog("Creating audio element for AI voice playback")
+            const audioElement = new Audio()
+            audioElement.autoplay = true
+            audioElement.playsInline = true
+            audioElement.controls = false
+            audioElement.muted = false
+            document.body.appendChild(audioElement)
+            audioRef.current = audioElement
           }
-          if (report.type === "remote-inbound-rtp") {
-            statsObj.roundTripTime = report.roundTripTime
+
+          // Create a new MediaStream with the received track
+          const remoteStream = new MediaStream([event.track])
+
+          // Set the remote stream as the source for the audio element
+          if (audioRef.current) {
+            addLog("Connecting remote audio stream to audio element")
+            audioRef.current.srcObject = remoteStream
+            audioRef.current.play().catch((error) => {
+              addLog(`Error playing audio: ${error?.message ? error.message : String(error)}`)
+            })
           }
-          if (report.type === "candidate-pair" && report.state === "succeeded") {
-            statsObj.currentRoundTripTime = report.currentRoundTripTime
-            statsObj.availableOutgoingBitrate = report.availableOutgoingBitrate
+        }
+      }
+
+      // Set up data channel
+      addLog("Creating data channel...")
+      const dataChannel = pc.createDataChannel("control")
+      dataChannelRef.current = dataChannel
+
+      dataChannel.onopen = () => {
+        addLog("Data channel opened")
+      }
+
+      dataChannel.onclose = () => {
+        addLog("Data channel closed")
+      }
+
+      dataChannel.onerror = (error) => {
+        addLog(`Data channel error: ${error.toString()}`)
+      }
+
+      dataChannel.onmessage = (event) => {
+        addLog(`Received message on data channel: ${event.data}`)
+
+        // Handle the message through a common function
+        handleDataChannelMessage(event.data)
+      }
+
+      // Helper function to handle data channel messages
+      const handleDataChannelMessage = (data: string) => {
+        try {
+          const parsedData = JSON.parse(data)
+
+          // Handle different message types
+          if (parsedData.type === "transcript") {
+            // Add assistant message
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                content: parsedData.text,
+                timestamp: Date.now(),
+              },
+            ])
+          } else if (parsedData.type === "user_transcript") {
+            // Add user message from OpenAI's transcription
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "user",
+                content: parsedData.text,
+                timestamp: Date.now(),
+              },
+            ])
+          } else if (parsedData.type === "end") {
+            // End the session
+            endInterview()
           }
+        } catch (error) {
+          addLog(`Error parsing data channel message: ${error instanceof Error ? error.message : String(error)}`)
+        }
+      }
+
+      pc.ondatachannel = (event) => {
+        addLog(`Received data channel: ${event.channel.label}`)
+
+        const receivedChannel = event.channel
+        receivedChannel.onmessage = (messageEvent) => {
+          addLog(`Received message on ${receivedChannel.label}: ${messageEvent.data}`)
+
+          // Use the common handler function
+          handleDataChannelMessage(messageEvent.data)
+        }
+      }
+
+      // Add local audio track to the peer connection
+      if (localStreamRef.current) {
+        addLog("Adding local audio tracks to peer connection")
+        localStreamRef.current.getAudioTracks().forEach((track) => {
+          pc.addTrack(track, localStreamRef.current!)
+          addLog(`Added local audio track: ${track.id}`)
+        })
+      }
+
+      // Set up audio level monitoring
+      setupAudioLevelMonitoring()
+
+      // Create an offer
+      addLog("Creating offer...")
+      const offer = await pc.createOffer()
+      addLog("Offer created successfully")
+
+      // Set local description
+      await pc.setLocalDescription(offer)
+      addLog("Local description set successfully")
+      addLog(`Offer SDP created (first 100 chars): ${offer.sdp?.substring(0, 100)}...`)
+
+      // Send the offer to the server and get the answer
+      addLog("Sending offer to server to get answer...")
+      try {
+        const rtcResponse = await fetch("/api/get-rtc-details", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sessionId: session.id,
+            offerSdp: offer.sdp,
+            model: session.model,
+            clientSecret: session.client_secret.value,
+          }),
         })
 
-        setConnectionStats(statsObj)
-      } catch (err) {
-        console.error("Error getting connection stats:", err)
+        if (!rtcResponse.ok) {
+          const errorText = await rtcResponse.text()
+          addLog(`Error getting answer SDP: ${rtcResponse.status} ${errorText}`)
+          throw new Error(`Failed to get answer SDP: ${rtcResponse.status}`)
+        }
+
+        const rtcData = await rtcResponse.json()
+        addLog("Received answer SDP from server")
+
+        if (!rtcData.sdp) {
+          addLog("ERROR: No SDP answer in response")
+          throw new Error("No SDP answer in response")
+        }
+
+        // Set remote description with the answer
+        const answer = {
+          type: "answer",
+          sdp: rtcData.sdp,
+        } as RTCSessionDescriptionInit
+
+        await pc.setRemoteDescription(answer)
+        addLog("Remote description set successfully")
+
+        // No need to send the answer back to OpenAI - the connection is now established
+      } catch (error) {
+        addLog(`Error in WebRTC offer/answer exchange: ${error instanceof Error ? error.message : String(error)}`)
+        throw error
       }
+    } catch (error) {
+      addLog(`Error setting up WebRTC: ${error instanceof Error ? error.message : String(error)}`)
+      throw error
+    }
+  }
+
+  // Function to start a mock interview (fallback when real API fails)
+  const startMockInterview = (jobTitle: string) => {
+    addLog(`Starting mock interview for ${jobTitle}`)
+    setInterviewActive(true)
+    startTimer()
+
+    // Add initial interviewer message
+    setTimeout(() => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Hello! I'm your AI interviewer for the ${jobTitle} position. Could you please introduce yourself and tell me about your background?`,
+          timestamp: Date.now(),
+        },
+      ])
+    }, 2000)
+
+    // Set up mock interview responses
+    const mockResponses = [
+      "That's interesting! Can you tell me about a challenging project you worked on recently?",
+      "How do you approach problem-solving in your work?",
+      "What are your strengths and weaknesses as a professional?",
+      "Where do you see yourself in 5 years?",
+      "How do you handle tight deadlines and pressure?",
+      "Tell me about a time when you had to learn a new technology quickly.",
+      "How do you stay updated with the latest trends in your field?",
+      "What questions do you have for me about the position?",
+      "Thank you for your time today. We'll be in touch with next steps.",
+    ]
+
+    // Simulate user speaking by adding a message every 30 seconds
+    let messageIndex = 0
+    mockIntervalRef.current = setInterval(() => {
+      if (messageIndex < mockResponses.length) {
+        // Add a simulated user message first (as if the user spoke)
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "user",
+            content: "(Your response would be transcribed here)",
+            timestamp: Date.now(),
+          },
+        ])
+
+        // Then add the interviewer's next question after a short delay
+        setTimeout(() => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: mockResponses[messageIndex],
+              timestamp: Date.now(),
+            },
+          ])
+        }, 1500)
+
+        messageIndex++
+      } else {
+        // End the mock interview when we run out of questions
+        if (mockIntervalRef.current) {
+          clearInterval(mockIntervalRef.current)
+          mockIntervalRef.current = null
+        }
+      }
+    }, 30000) // Every 30 seconds
+  }
+
+  // Function to set up audio level monitoring
+  const setupAudioLevelMonitoring = () => {
+    if (!localStreamRef.current) return
+
+    try {
+      // Create AudioContext and Analyser
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      audioContextRef.current = audioContext
+
+      // Create an analyser
+      const analyser = audioContext.createAnalyser()
+      analyser.fftSize = 256
+      analyserRef.current = analyser
+
+      // Create a source from the stream
+      const source = audioContext.createMediaStreamSource(localStreamRef.current)
+      source.connect(analyser)
+
+      // Set up interval to check audio levels
+      const bufferLength = analyser.frequencyBinCount
+      const dataArray = new Uint8Array(bufferLength)
+
+      audioLevelIntervalRef.current = window.setInterval(() => {
+        if (analyserRef.current) {
+          analyserRef.current.getByteFrequencyData(dataArray)
+
+          // Calculate average level
+          let sum = 0
+          for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i]
+          }
+          const average = sum / bufferLength
+
+          // Normalize to 0-100 range
+          const normalizedLevel = Math.min(100, Math.max(0, average * 2))
+          setAudioLevel(normalizedLevel)
+        }
+      }, 100)
+    } catch (error) {
+      addLog(`Error setting up audio level monitoring: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  // Function to start the timer
+  const startTimer = () => {
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current)
     }
 
-    if (isActive) {
-      intervalId = setInterval(getConnectionStats, 2000)
+    setElapsedTime(0)
+    timerIntervalRef.current = setInterval(() => {
+      setElapsedTime((prev) => prev + 1)
+    }, 1000)
+  }
+
+  // Function to toggle mute
+  const toggleMute = () => {
+    if (localStreamRef.current) {
+      const newMuteState = !isMuted
+      // Toggle mute state for all audio tracks
+      localStreamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = !newMuteState
+      })
+      setIsMuted(newMuteState)
+      addLog(`Microphone ${newMuteState ? "muted" : "unmuted"}`)
+    }
+  }
+
+  // Function to end the interview
+  const endInterview = async () => {
+    if (isTerminating) return
+    setIsTerminating(true)
+    addLog("Ending interview...")
+
+    try {
+      // Stop the timer
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current)
+        timerIntervalRef.current = null
+      }
+
+      // Stop mock interview if active
+      if (mockIntervalRef.current) {
+        clearInterval(mockIntervalRef.current)
+        mockIntervalRef.current = null
+      }
+
+      // Terminate the session if we have a session ID and not in mock mode
+      if (sessionData?.id && !mockMode) {
+        addLog(`Terminating session: ${sessionData.id}`)
+
+        const response = await fetch("/api/terminate-session", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sessionId: sessionData.id,
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          addLog(`Session termination response: ${JSON.stringify(data)}`)
+        } else {
+          const errorText = await response.text()
+          addLog(`Error terminating session: ${response.status} ${errorText}`)
+        }
+      }
+
+      // Clean up resources
+      cleanup()
+
+      // Update state
+      setInterviewActive(false)
+      addLog("Interview ended")
+    } catch (error) {
+      addLog(`Error ending interview: ${error instanceof Error ? error.message : String(error)}`)
+    } finally {
+      setIsTerminating(false)
+    }
+  }
+
+  // Function to clean up resources
+  const cleanup = () => {
+    // Clear audio level monitoring
+    if (audioLevelIntervalRef.current) {
+      window.clearInterval(audioLevelIntervalRef.current)
+      audioLevelIntervalRef.current = null
     }
 
-    return () => {
-      if (intervalId) clearInterval(intervalId)
+    // Clear mock interview interval
+    if (mockIntervalRef.current) {
+      clearInterval(mockIntervalRef.current)
+      mockIntervalRef.current = null
     }
-  }, [isActive])
+
+    // Close audio context
+    if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+      audioContextRef.current.close().catch(console.error)
+      audioContextRef.current = null
+      analyserRef.current = null
+    }
+
+    // Close data channel
+    if (dataChannelRef.current) {
+      dataChannelRef.current.close()
+      dataChannelRef.current = null
+    }
+
+    // Close peer connection
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close()
+      peerConnectionRef.current = null
+      setPeerConnection(null)
+    }
+
+    // Stop all tracks in the local stream
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop())
+      localStreamRef.current = null
+      setLocalStream(null)
+    }
+
+    // Remove audio element
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.srcObject = null
+      if (audioRef.current.parentNode) {
+        audioRef.current.parentNode.removeChild(audioRef.current)
+      }
+      audioRef.current = null
+    }
+
+    // Clear timer
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current)
+      timerIntervalRef.current = null
+    }
+  }
 
   // Format time as MM:SS
   const formatTime = (seconds: number) => {
@@ -115,125 +648,35 @@ export default function TestInterviewPage() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
   }
 
-  const handleStartInterview = async () => {
-    try {
-      await start(selectedRole)
-    } catch (err) {
-      console.error("Failed to start interview:", err)
-    }
-  }
-
-  const toggleMute = () => {
-    const audioElements = document.querySelectorAll("audio")
-    audioElements.forEach((audio) => {
-      audio.muted = !isMuted
-    })
-    setIsMuted(!isMuted)
-  }
-
-  const renderConnectionStats = () => {
-    if (!connectionStats) return <p>No connection stats available</p>
-
-    return (
-      <div className="text-xs font-mono space-y-1">
-        <div className="grid grid-cols-2 gap-2">
-          <div>Packets Received:</div>
-          <div>{connectionStats.packetsReceived || "N/A"}</div>
-
-          <div>Packets Lost:</div>
-          <div>{connectionStats.packetsLost || "0"}</div>
-
-          <div>Packet Loss Rate:</div>
-          <div>
-            {connectionStats.packetsReceived && connectionStats.packetsLost
-              ? `${((connectionStats.packetsLost / connectionStats.packetsReceived) * 100).toFixed(2)}%`
-              : "0%"}
-          </div>
-
-          <div>Jitter:</div>
-          <div>{connectionStats.jitter ? `${(connectionStats.jitter * 1000).toFixed(2)}ms` : "N/A"}</div>
-
-          <div>Round Trip Time:</div>
-          <div>
-            {connectionStats.currentRoundTripTime
-              ? `${(connectionStats.currentRoundTripTime * 1000).toFixed(0)}ms`
-              : "N/A"}
-          </div>
-
-          <div>Audio Level:</div>
-          <div>
-            {connectionStats.audioLevel !== undefined ? `${(connectionStats.audioLevel * 100).toFixed(0)}%` : "N/A"}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Helper function to render network error messages with helpful suggestions
-  const renderNetworkError = (errorMessage: string) => {
-    const isNetworkError =
-      errorMessage.includes("network") ||
-      errorMessage.includes("connection") ||
-      errorMessage.includes("ICE") ||
-      errorMessage.includes("STUN") ||
-      errorMessage.includes("TURN") ||
-      errorMessage.includes("WebRTC") ||
-      errorMessage.includes("audio")
-
-    return (
-      <div className="bg-red-100 dark:bg-red-900/20 p-4 rounded-md text-red-700 dark:text-red-300">
-        <div className="flex items-start gap-2">
-          {isNetworkError ? (
-            <WifiOff className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          ) : (
-            <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          )}
-          <div>
-            <p className="font-medium">Connection Error:</p>
-            <p>{errorMessage}</p>
-            {isNetworkError && (
-              <div className="mt-3 space-y-2 text-sm">
-                <p className="font-medium">Suggestions:</p>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li>Check your internet connection</li>
-                  <li>Try using a different network (switch from WiFi to mobile data)</li>
-                  <li>Disable any VPN or proxy services</li>
-                  <li>Try using a different browser</li>
-                  <li>Make sure your firewall isn't blocking WebRTC connections</li>
-                </ul>
-                <div className="mt-3">
-                  <Button variant="outline" size="sm" asChild className="text-xs">
-                    <Link href="/test-interview-mock" className="flex items-center gap-1">
-                      <ExternalLink className="h-3 w-3" />
-                      Try Mock Interview Mode Instead
-                    </Link>
-                  </Button>
-                </div>
+  return (
+    <div className="container py-10">
+      <Card className="w-full max-w-4xl mx-auto">
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle>Interview Experience Test</CardTitle>
+            {interviewActive && (
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                <span className="font-mono">{formatTime(elapsedTime)}</span>
               </div>
             )}
           </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="container py-8">
-      <h1 className="text-3xl font-bold mb-2 text-center">Test Interview Session</h1>
-      <p className="text-center text-muted-foreground mb-8">
-        This page allows you to test the real-time voice interview functionality
-      </p>
-
-      <div className="max-w-3xl mx-auto">
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Test Configuration</CardTitle>
-          </CardHeader>
-          <CardContent>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {!sessionData && !interviewActive && !mockMode ? (
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Job Role</label>
-                <Select value={selectedRole} onValueChange={setSelectedRole} disabled={isActive || isConnecting}>
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertTitle>Test the complete interview experience</AlertTitle>
+                <AlertDescription>
+                  This page will test the entire interview flow from session creation to termination. Make sure you have
+                  a microphone connected and allow microphone access when prompted.
+                </AlertDescription>
+              </Alert>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Select Job Position:</label>
+                <Select value={jobTitle} onValueChange={setJobTitle}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a job role" />
                   </SelectTrigger>
@@ -247,220 +690,245 @@ export default function TestInterviewPage() {
                 </Select>
               </div>
 
-              <div className="flex items-center justify-between">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowDebug(!showDebug)}
-                  className="flex items-center gap-1"
-                >
-                  <Bug className="h-4 w-4" />
-                  {showDebug ? "Hide Debug Info" : "Show Debug Info"}
-                </Button>
+              <Button onClick={createSession} disabled={creatingSession} className="w-full">
+                {creatingSession ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating Session...
+                  </>
+                ) : (
+                  "Start Interview Test"
+                )}
+              </Button>
 
-                <div className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  <span className={timeRemaining < 60 ? "text-red-500 animate-pulse" : ""}>
-                    {formatTime(timeRemaining)}
-                  </span>
-                </div>
-              </div>
+              {sessionError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{sessionError}</AlertDescription>
+                </Alert>
+              )}
             </div>
-          </CardContent>
-        </Card>
+          ) : (
+            <Tabs defaultValue="interview">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="interview">Interview</TabsTrigger>
+                <TabsTrigger value="status">Connection Status</TabsTrigger>
+                <TabsTrigger value="logs">Logs</TabsTrigger>
+              </TabsList>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="interview">Interview</TabsTrigger>
-            <TabsTrigger value="diagnostics" disabled={!isActive}>
-              Connection Diagnostics
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="interview">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Mock Interview: {selectedRole}</CardTitle>
-                  {isActive && (
-                    <div className="flex items-center gap-2">
-                      <ConnectionQualityIndicator
-                        peerConnection={peerConnectionRef.current}
-                        className="bg-background/80 border"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={toggleMute}
-                        aria-label={isMuted ? "Unmute" : "Mute"}
-                      >
-                        {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-                {error && renderNetworkError(error)}
-
-                {showDebug && debug && (
-                  <div className="bg-blue-100 dark:bg-blue-900/20 p-4 rounded-md text-blue-700 dark:text-blue-300 text-sm font-mono overflow-x-auto">
-                    <p className="font-medium mb-2">Debug Info:</p>
-                    <p>{debug}</p>
-                  </div>
+              <TabsContent value="interview" className="space-y-4">
+                {mockMode && (
+                  <Alert
+                    variant="warning"
+                    className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800"
+                  >
+                    <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    <AlertTitle className="text-amber-800 dark:text-amber-300">Mock Mode Active</AlertTitle>
+                    <AlertDescription className="text-amber-700 dark:text-amber-400">
+                      {mockDetails?.message || "Running in mock mode due to API connection issues."}
+                    </AlertDescription>
+                  </Alert>
                 )}
 
-                <div className="min-h-[300px] p-4 rounded-md bg-muted">
-                  {status === "idle" && (
-                    <div className="text-center py-8">
-                      <h3 className="text-lg font-medium mb-2">Ready to test the interview functionality?</h3>
-                      <p className="text-muted-foreground mb-4">
-                        This will start a real-time voice conversation with an AI interviewer for a {selectedRole}{" "}
-                        position.
-                      </p>
-                      <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">Before starting:</p>
-                        <ul className="text-sm text-muted-foreground list-disc list-inside text-left max-w-md mx-auto">
-                          <li>Ensure your microphone is working</li>
-                          <li>Make sure your speakers or headphones are connected</li>
-                          <li>You can end the interview at any time</li>
-                        </ul>
-                      </div>
-                      <Button onClick={handleStartInterview} className="mt-6" size="lg">
-                        Start Test Interview
-                      </Button>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`p-3 rounded-full ${interviewActive ? "bg-green-100 dark:bg-green-900/20" : "bg-amber-100 dark:bg-amber-900/20"}`}
+                    >
+                      {interviewActive ? (
+                        <Mic
+                          className={`h-6 w-6 ${isMuted ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400 animate-pulse"}`}
+                        />
+                      ) : (
+                        <MicOff className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                      )}
                     </div>
-                  )}
 
-                  {isConnecting && (
-                    <div className="flex flex-col items-center justify-center h-[300px]">
-                      <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary" />
-                      <h3 className="text-lg font-medium mb-2">Connecting to OpenAI...</h3>
-                      <p className="text-muted-foreground text-center max-w-md">
-                        Establishing secure WebRTC connection. This may take a few moments.
-                      </p>
-                    </div>
-                  )}
-
-                  {isActive && (
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center mb-4">
-                        <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/20">
-                          <Mic className="h-6 w-6 text-green-600 dark:text-green-400 animate-pulse" />
+                    {interviewActive && (
+                      <div className="flex items-center gap-2">
+                        <div className="text-xs font-medium">Audio Level:</div>
+                        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full w-24 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-100 ${
+                              audioLevel > 50 ? "bg-green-500" : audioLevel > 20 ? "bg-blue-500" : "bg-gray-400"
+                            }`}
+                            style={{ width: `${audioLevel}%` }}
+                          />
                         </div>
                       </div>
+                    )}
+                  </div>
 
-                      <div className="text-center mb-4">
-                        <p>Interview in progress. Speak clearly into your microphone.</p>
+                  {interviewActive && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={toggleMute}
+                      aria-label={isMuted ? "Unmute" : "Mute"}
+                    >
+                      {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                    </Button>
+                  )}
+                </div>
+
+                <div className="min-h-[300px] p-4 rounded-md bg-muted">
+                  {!interviewActive && sessionData && !mockMode && (
+                    <div className="flex flex-col items-center justify-center h-full">
+                      <p className="mb-4">Connecting to AI interviewer...</p>
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  )}
+
+                  {interviewActive && (
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                      {messages.length === 0 && (
+                        <div className="text-center text-muted-foreground italic">
+                          <p>The interviewer will begin shortly...</p>
+                        </div>
+                      )}
+
+                      {messages.map((msg, index) => (
+                        <div
+                          key={index}
+                          className={`p-3 rounded-lg ${
+                            msg.role === "assistant" ? "bg-primary/10 ml-4" : "bg-secondary/10 mr-4"
+                          }`}
+                        >
+                          <p className="text-sm font-medium mb-1">{msg.role === "assistant" ? "Interviewer" : "You"}</p>
+                          <p>{msg.content}</p>
+                        </div>
+                      ))}
+
+                      <div ref={messagesEndRef} />
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="status" className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-muted p-4 rounded-md">
+                    <h3 className="text-sm font-medium mb-2">Session Information</h3>
+                    {sessionData ? (
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Session ID:</span>
+                          <span className="text-sm font-mono">{sessionData.id}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Model:</span>
+                          <span className="text-sm">{sessionData.model}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Voice:</span>
+                          <span className="text-sm">{sessionData.voice}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Status:</span>
+                          <Badge variant={interviewActive ? "default" : "outline"}>
+                            {interviewActive ? "Active" : "Connecting"}
+                          </Badge>
+                        </div>
                       </div>
-
-                      <div className="mt-4 space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                        {messages.length === 0 && (
-                          <div className="text-center text-muted-foreground italic">
-                            <p>The interviewer will begin shortly...</p>
-                          </div>
-                        )}
-                        {messages.map((msg, index) => (
-                          <div
-                            key={index}
-                            className={`p-3 rounded-lg ${
-                              msg.role === "assistant" ? "bg-primary/10 ml-4" : "bg-secondary/10 mr-4"
-                            }`}
+                    ) : mockMode ? (
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Mode:</span>
+                          <Badge
+                            variant="outline"
+                            className="bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
                           >
-                            <p className="text-sm font-medium mb-1">
-                              {msg.role === "assistant" ? "Interviewer" : "You"}
-                            </p>
-                            <p>{msg.content}</p>
-                          </div>
-                        ))}
+                            Mock
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Error Type:</span>
+                          <span className="text-sm">{mockDetails?.errorType || "unknown"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Job Title:</span>
+                          <span className="text-sm">{mockDetails?.jobTitle || jobTitle}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Status:</span>
+                          <Badge variant={interviewActive ? "default" : "outline"}>
+                            {interviewActive ? "Active (Mock)" : "Inactive"}
+                          </Badge>
+                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  {status === "ended" && (
-                    <div className="text-center py-8">
-                      <h3 className="text-lg font-medium mb-2">Interview Complete</h3>
-                      <p className="text-muted-foreground mb-4">
-                        The test interview has ended. You can start a new one to continue testing.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-
-              <CardFooter className="flex justify-between">
-                {isActive && (
-                  <Button variant="destructive" onClick={stop}>
-                    End Interview
-                  </Button>
-                )}
-                {!isActive && status !== "idle" && (
-                  <Button variant="outline" onClick={() => window.location.reload()}>
-                    Start New Test
-                  </Button>
-                )}
-                {status === "ended" && (
-                  <Button asChild>
-                    <Link href="/feedback">View Feedback</Link>
-                  </Button>
-                )}
-              </CardFooter>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="diagnostics">
-            <Card>
-              <CardHeader>
-                <CardTitle>Connection Diagnostics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="p-4 border rounded-md">
-                    <h3 className="text-sm font-medium mb-2">WebRTC Connection Stats</h3>
-                    {renderConnectionStats()}
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No session data available</p>
+                    )}
                   </div>
 
-                  <div className="p-4 border rounded-md">
-                    <h3 className="text-sm font-medium mb-2">Connection Status</h3>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>ICE Connection State:</div>
-                      <div>{peerConnectionRef.current?.iceConnectionState || "N/A"}</div>
-
-                      <div>ICE Gathering State:</div>
-                      <div>{peerConnectionRef.current?.iceGatheringState || "N/A"}</div>
-
-                      <div>Signaling State:</div>
-                      <div>{peerConnectionRef.current?.signalingState || "N/A"}</div>
-
-                      <div>Connection State:</div>
-                      <div>{peerConnectionRef.current?.connectionState || "N/A"}</div>
-                    </div>
-                  </div>
-
-                  <div className="p-4 border rounded-md">
-                    <h3 className="text-sm font-medium mb-2">Audio Levels</h3>
-                    <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-green-500 transition-all duration-300"
-                        style={{
-                          width: `${connectionStats?.audioLevel ? Math.min(connectionStats.audioLevel * 100, 100) : 0}%`,
-                        }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-center mt-1">
-                      {connectionStats?.audioLevel
-                        ? `${(connectionStats.audioLevel * 100).toFixed(0)}%`
-                        : "No audio detected"}
-                    </p>
+                  <div className="bg-muted p-4 rounded-md">
+                    <h3 className="text-sm font-medium mb-2">WebRTC Connection</h3>
+                    {!mockMode ? (
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Connection State:</span>
+                          <Badge variant={connectionState === "connected" ? "default" : "outline"}>
+                            {connectionState}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">ICE Connection:</span>
+                          <Badge
+                            variant={
+                              iceConnectionState === "connected" || iceConnectionState === "completed"
+                                ? "default"
+                                : "outline"
+                            }
+                          >
+                            {iceConnectionState}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Signaling State:</span>
+                          <Badge variant={signalingState === "stable" ? "default" : "outline"}>{signalingState}</Badge>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">WebRTC not active in mock mode</p>
+                    )}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+              </TabsContent>
+
+              <TabsContent value="logs">
+                <div className="bg-muted p-4 rounded-md max-h-[400px] overflow-y-auto">
+                  {logs.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No logs yet</p>
+                  ) : (
+                    <pre className="text-xs font-mono">
+                      {logs.map((log, index) => (
+                        <div key={index}>{log}</div>
+                      ))}
+                    </pre>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          )}
+        </CardContent>
+
+        <CardFooter className="flex justify-end">
+          {interviewActive && (
+            <Button variant="destructive" onClick={endInterview} disabled={isTerminating}>
+              {isTerminating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Terminating...
+                </>
+              ) : (
+                "End Interview"
+              )}
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
     </div>
   )
 }
