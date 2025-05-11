@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation"
 import { useInterviewSession } from "@/hooks/useInterviewSession"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mic, Clock, Volume2, VolumeX, AlertCircle, WifiOff, ExternalLink } from "lucide-react"
+import { Mic, Clock, Volume2, VolumeX, AlertCircle, WifiOff, ExternalLink, RefreshCw } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ConnectionQualityIndicator } from "@/components/connection-quality-indicator"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
 
 interface InterviewRoomProps {
@@ -24,6 +25,11 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
   const [isMuted, setIsMuted] = useState(false)
   const [isInitializing, setIsInitializing] = useState(true)
   const [apiError, setApiError] = useState<string | null>(null)
+  const [apiErrorCode, setApiErrorCode] = useState<string | null>(null)
+  const [apiErrorDetails, setApiErrorDetails] = useState<any>(null)
+  const [isTestingApi, setIsTestingApi] = useState(false)
+  const [apiTestResult, setApiTestResult] = useState<any>(null)
+  const [availableModels, setAvailableModels] = useState<string[]>([])
 
   // Add a new state variable to track if we're using Xirsys
   const [usingXirsys, setUsingXirsys] = useState<boolean | null>(null)
@@ -119,12 +125,16 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
   const handleStartInterview = async () => {
     try {
       setApiError(null)
+      setApiErrorCode(null)
+      setApiErrorDetails(null)
       await start(jobTitle)
     } catch (err) {
       console.error("Failed to start interview:", err)
 
       // Extract more detailed error information
       let errorMessage = "An unknown error occurred while starting the interview"
+      let errorCode = "unknown_error"
+      let errorDetails = null
 
       if (err instanceof Error) {
         errorMessage = err.message
@@ -132,9 +142,30 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
         errorMessage = JSON.stringify(err)
       }
 
+      // Try to parse the error response if it's a JSON string
+      try {
+        if (errorMessage.includes("{") && errorMessage.includes("}")) {
+          const jsonStartIndex = errorMessage.indexOf("{")
+          const jsonString = errorMessage.substring(jsonStartIndex)
+          const errorJson = JSON.parse(jsonString)
+
+          if (errorJson.message) errorMessage = errorJson.message
+          if (errorJson.code) errorCode = errorJson.code
+          errorDetails = errorJson
+
+          console.log("Parsed error details:", errorJson)
+        }
+      } catch (parseError) {
+        console.error("Error parsing error response:", parseError)
+      }
+
       // Check for specific error patterns
       if (errorMessage.includes("Token API error: 500")) {
-        errorMessage = "Server error: Unable to connect to OpenAI. Please try again later or contact support."
+        if (errorCode === "missing_api_key") {
+          errorMessage = "OpenAI API key is missing. Please check the environment variables."
+        } else {
+          errorMessage = "Server error: Unable to connect to OpenAI. Please try again later or contact support."
+        }
       } else if (errorMessage.includes("Token API error: 401") || errorMessage.includes("Token API error: 403")) {
         errorMessage = "Authentication error: API key may be invalid or expired. Please contact support."
       } else if (errorMessage.includes("Token API error: 429")) {
@@ -144,6 +175,8 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
       }
 
       setApiError(errorMessage)
+      setApiErrorCode(errorCode)
+      setApiErrorDetails(errorDetails)
 
       // Add more detailed logging for debugging
       if (typeof err === "object" && err !== null) {
@@ -173,11 +206,98 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     }
   }
 
+  // Function to test OpenAI API connectivity
+  const testOpenAiApi = async () => {
+    setIsTestingApi(true)
+    setApiTestResult(null)
+
+    try {
+      const response = await fetch("/api/test-openai")
+      const data = await response.json()
+      setApiTestResult(data)
+
+      // Store available models for use in the UI
+      if (data.openaiResponse?.sampleModels) {
+        setAvailableModels(data.openaiResponse.sampleModels)
+      }
+
+      // If the test is successful but we had an error before, try starting the interview again
+      if (data.status === "success" && apiError) {
+        setApiError("API connection successful. You can try starting the interview again.")
+        setApiErrorCode(null)
+      }
+    } catch (error) {
+      setApiTestResult({
+        status: "error",
+        message: "Failed to connect to test endpoint",
+        error: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      setIsTestingApi(false)
+    }
+  }
+
+  // Render missing API key error
+  const renderMissingApiKeyError = () => {
+    return (
+      <Alert variant="destructive" className="mb-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>OpenAI API Key Issue</AlertTitle>
+        <AlertDescription>
+          <p className="mb-2">
+            There's an issue with the OpenAI API key. This is required for the interview functionality to work.
+          </p>
+
+          {apiErrorDetails && (
+            <div className="mt-2 p-2 bg-white dark:bg-gray-800 rounded border text-xs font-mono overflow-x-auto">
+              <p className="font-medium mb-1">Error Details:</p>
+              <pre className="whitespace-pre-wrap">{JSON.stringify(apiErrorDetails, null, 2)}</pre>
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={testOpenAiApi} disabled={isTestingApi} className="text-xs">
+              {isTestingApi ? (
+                <>
+                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                  Testing API...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Test OpenAI Connection
+                </>
+              )}
+            </Button>
+            <Button variant="outline" size="sm" asChild className="text-xs">
+              <Link href="/test-interview-mock" className="flex items-center gap-1">
+                <ExternalLink className="h-3 w-3" />
+                Try Mock Interview Mode
+              </Link>
+            </Button>
+          </div>
+
+          {apiTestResult && (
+            <div className="mt-3 p-2 bg-white dark:bg-gray-800 rounded border text-xs font-mono overflow-x-auto">
+              <p className="font-medium mb-1">API Test Result:</p>
+              <pre className="whitespace-pre-wrap">{JSON.stringify(apiTestResult, null, 2)}</pre>
+            </div>
+          )}
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
   // Helper function to render network error messages with helpful suggestions
   const renderNetworkError = (errorMessage: string) => {
     // Don't show any error for User-Initiated Abort - this is expected behavior
     if (errorMessage.includes("User-Initiated Abort") || errorMessage.includes("Server initiated disconnect")) {
       return null
+    }
+
+    // Check if this is a missing API key error
+    if (apiErrorCode === "missing_api_key" || errorMessage.includes("API key is missing")) {
+      return renderMissingApiKeyError()
     }
 
     const isNetworkError =
@@ -228,17 +348,65 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
                 <ul className="list-disc pl-5 space-y-1">
                   <li>Try again in a few minutes</li>
                   <li>Check if the OpenAI service is experiencing issues</li>
+                  <li>Your account may not have access to the required model (gpt-4o-realtime-preview-2024-12-17)</li>
                   <li>Contact support if the problem persists</li>
                 </ul>
-                <div className="mt-3">
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={testOpenAiApi}
+                    disabled={isTestingApi}
+                    className="text-xs"
+                  >
+                    {isTestingApi ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                        Testing API...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        Test OpenAI Connection
+                      </>
+                    )}
+                  </Button>
                   <Button variant="outline" size="sm" asChild className="text-xs">
                     <Link href="/test-interview-mock" className="flex items-center gap-1">
                       <ExternalLink className="h-3 w-3" />
-                      Try Mock Interview Mode Instead
+                      Try Mock Interview Mode
                     </Link>
                   </Button>
                 </div>
               </div>
+
+              {apiTestResult && (
+                <div className="mt-3 p-2 bg-white dark:bg-gray-800 rounded border text-xs font-mono overflow-x-auto">
+                  <p className="font-medium mb-1">API Test Result:</p>
+                  <pre className="whitespace-pre-wrap">{JSON.stringify(apiTestResult, null, 2)}</pre>
+                </div>
+              )}
+
+              {availableModels.length > 0 && (
+                <div className="mt-3 p-2 bg-white dark:bg-gray-800 rounded border text-xs">
+                  <p className="font-medium mb-1">Available Models:</p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {availableModels.map((model, index) => (
+                      <li
+                        key={index}
+                        className={model.includes("realtime") ? "text-green-600 dark:text-green-400" : ""}
+                      >
+                        {model}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-amber-600 dark:text-amber-400">
+                    {availableModels.some((m) => m.includes("realtime"))
+                      ? "You have access to realtime models, but there might be an issue with the specific model we're trying to use."
+                      : "You don't appear to have access to any realtime models, which are required for this feature."}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -326,26 +494,56 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
         ) : error ? (
           renderNetworkError(error)
         ) : apiError ? (
-          <div className="bg-red-100 dark:bg-red-900/20 p-4 rounded-md text-red-700 dark:text-red-300">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium">API Error:</p>
-                <p>{apiError}</p>
-                <p className="text-sm mt-2">
-                  There was an issue connecting to the OpenAI API. Please try again later or contact support.
-                </p>
-                <div className="mt-3">
-                  <Button variant="outline" size="sm" asChild className="text-xs">
-                    <Link href="/test-interview-mock" className="flex items-center gap-1">
-                      <ExternalLink className="h-3 w-3" />
-                      Try Mock Interview Mode Instead
-                    </Link>
-                  </Button>
+          apiErrorCode === "missing_api_key" ? (
+            renderMissingApiKeyError()
+          ) : (
+            <div className="bg-red-100 dark:bg-red-900/20 p-4 rounded-md text-red-700 dark:text-red-300">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">API Error:</p>
+                  <p>{apiError}</p>
+                  <p className="text-sm mt-2">
+                    There was an issue connecting to the OpenAI API. Please try again later or contact support.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={testOpenAiApi}
+                      disabled={isTestingApi}
+                      className="text-xs"
+                    >
+                      {isTestingApi ? (
+                        <>
+                          <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                          Testing API...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          Test OpenAI Connection
+                        </>
+                      )}
+                    </Button>
+                    <Button variant="outline" size="sm" asChild className="text-xs">
+                      <Link href="/test-interview-mock" className="flex items-center gap-1">
+                        <ExternalLink className="h-3 w-3" />
+                        Try Mock Interview Mode
+                      </Link>
+                    </Button>
+                  </div>
+
+                  {apiTestResult && (
+                    <div className="mt-3 p-2 bg-white dark:bg-gray-800 rounded border text-xs font-mono overflow-x-auto">
+                      <p className="font-medium mb-1">API Test Result:</p>
+                      <pre className="whitespace-pre-wrap">{JSON.stringify(apiTestResult, null, 2)}</pre>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
+          )
         ) : (
           <>
             <div className="min-h-[300px] p-4 rounded-md bg-muted">
@@ -473,6 +671,11 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
         {!isActive && status !== "idle" && (
           <Button variant="outline" onClick={() => window.location.reload()}>
             Start New Interview
+          </Button>
+        )}
+        {status === "ended" && (
+          <Button asChild>
+            <Link href="/feedback">View Feedback</Link>
           </Button>
         )}
       </CardFooter>
