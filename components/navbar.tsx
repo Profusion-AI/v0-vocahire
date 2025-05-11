@@ -22,6 +22,9 @@ export function Navbar() {
             <Link href="/test-interview-mock" className="text-sm font-medium text-blue-600 hover:underline">
               Mock Test (No API)
             </Link>
+            <Link href="/api-diagnostics" className="text-sm font-medium text-green-600 hover:underline">
+              API Diagnostics
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-4">

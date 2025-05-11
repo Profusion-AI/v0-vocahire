@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 
-// Skip authentication for now to simplify debugging
 export async function GET() {
   try {
     console.log("ICE servers API route called")
@@ -11,9 +10,6 @@ export async function GET() {
     console.log("TURN credentials available:", !!turnUsername && !!turnCredential)
 
     // Use a variety of reliable public STUN servers for redundancy
-    // Avoid using IPv6-only STUN servers as they can cause issues
-    // Avoid xirsys servers since they're causing errors
-    // Removed stunprotocol.org as it's causing timeouts
     const iceServers = [
       // Google's STUN servers are very reliable and support IPv4
       { urls: "stun:stun.l.google.com:19302" },
@@ -21,21 +17,29 @@ export async function GET() {
       { urls: "stun:stun2.l.google.com:19302" },
       { urls: "stun:stun3.l.google.com:19302" },
       { urls: "stun:stun4.l.google.com:19302" },
+
+      // Additional public STUN servers for redundancy
+      { urls: "stun:stun.stunprotocol.org:3478" },
+      { urls: "stun:stun.voip.blackberry.com:3478" },
+      { urls: "stun:stun.nextcloud.com:443" },
     ]
 
     // Add TURN servers if credentials are available
-    // But don't use xirsys since it's causing errors
     if (turnUsername && turnCredential) {
-      // Use a different TURN server if available
-      // For now, we'll comment out the xirsys servers since they're causing issues
-      /*
+      // Add both UDP and TCP TURN servers for better connectivity
       iceServers.push({
-        urls: ["turn:global.xirsys.net:3478?transport=udp", "turn:global.xirsys.net:5349?transport=tcp"],
+        urls: [
+          "turn:global.turn.twilio.com:3478?transport=udp",
+          "turn:global.turn.twilio.com:3478?transport=tcp",
+          "turn:global.turn.twilio.com:443?transport=tcp",
+        ],
         username: turnUsername,
         credential: turnCredential,
       })
-      */
-      console.log("TURN servers temporarily disabled due to connection issues")
+
+      console.log("Added TURN servers with credentials")
+    } else {
+      console.log("No TURN credentials available, using STUN servers only")
     }
 
     // Return the configuration

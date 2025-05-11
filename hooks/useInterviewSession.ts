@@ -11,6 +11,7 @@ interface InterviewSessionState {
   }>
   error?: string
   debug?: string
+  isFallbackMode?: boolean
 }
 
 interface UseInterviewSessionReturn extends InterviewSessionState {
@@ -18,6 +19,7 @@ interface UseInterviewSessionReturn extends InterviewSessionState {
   stop: (reason?: string) => void
   isConnecting: boolean
   isActive: boolean
+  sendTextMessage?: (text: string) => void
 }
 
 // Mock interview data for fallback mode
@@ -38,6 +40,7 @@ export function useInterviewSession(): UseInterviewSessionReturn {
   const [state, setState] = useState<InterviewSessionState>({
     status: "idle",
     messages: [],
+    isFallbackMode: false,
   })
 
   const peerConnection = useRef<RTCPeerConnection | null>(null)
@@ -45,12 +48,17 @@ export function useInterviewSession(): UseInterviewSessionReturn {
   const localStream = useRef<MediaStream | null>(null)
   const sessionId = useRef<string | null>(null)
   const connectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const audioAnalyserRef = useRef<AnalyserNode | null>(null)
+  const reconnectAttemptsRef = useRef<number>(0)
+  const maxReconnectAttemptsRef = useRef<number>(3)
 
   // Mock mode refs
   const isMockMode = useRef<boolean>(false)
   const mockQuestionIndex = useRef<number>(0)
   const mockIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastJobRole = useRef<string>("")
+  const fallbackReasonRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (typeof window !== "undefined" && !audioElement.current) {
@@ -117,18 +125,82 @@ export function useInterviewSession(): UseInterviewSessionReturn {
         addDebugMessage("Audio element cleared")
       }
 
+      // Close audio context if it exists
+      if (audioContextRef.current) {
+        try {
+          audioContextRef.current.close()
+          audioContextRef.current = null
+          audioAnalyserRef.current = null
+        } catch (err) {
+          addDebugMessage(`Error closing audio context: ${err}`)
+        }
+      }
+
       // Reset mock mode
       isMockMode.current = false
       mockQuestionIndex.current = 0
+      reconnectAttemptsRef.current = 0
 
       setState((prev) => ({
         ...prev,
         status: prev.status === "error" && reason !== "user_initiated" ? "error" : "ended",
         debug: `Interview session ended. Reason: ${reason}`,
+        isFallbackMode: prev.isFallbackMode, // Preserve fallback mode status
       }))
     },
     [addDebugMessage],
   )
+
+  // Function to handle connection failure and switch to fallback mode
+  const handleConnectionFailure = useCallback(
+    (reason: string) => {
+      addDebugMessage(`Connection failure: ${reason}. Switching to fallback mode.`)
+      fallbackReasonRef.current = reason
+
+      // Clean up WebRTC resources
+      if (peerConnection.current) {
+        try {
+          peerConnection.current.close()
+        } catch (err) {
+          addDebugMessage(`Error closing peer connection: ${err}`)
+        }
+        peerConnection.current = null
+      }
+
+      // Keep the interview active but in fallback mode
+      setState((prev) => ({
+        ...prev,
+        status: "active",
+        error: undefined,
+        isFallbackMode: true,
+      }))
+
+      // Add a system message about fallback mode
+      addMessage(
+        "assistant",
+        "The voice connection has been interrupted. We'll continue the interview in text mode. Please type your responses below.",
+      )
+
+      // Start fallback interview flow
+      startFallbackInterview()
+    },
+    [addDebugMessage, addMessage],
+  )
+
+  // Function to start fallback interview (text-based)
+  const startFallbackInterview = useCallback(() => {
+    addDebugMessage("Starting fallback interview (text-based)")
+    isMockMode.current = true
+
+    // Add initial interviewer message
+    setTimeout(() => {
+      addMessage(
+        "assistant",
+        `Hello! I'll be conducting your interview for the ${lastJobRole.current || "Software Engineer"} position. Could you start by telling me about your background and experience?`,
+      )
+      mockQuestionIndex.current = 1
+    }, 1000)
+  }, [addDebugMessage, addMessage])
 
   // New function to start a mock interview session
   const startMockSession = useCallback(
@@ -138,7 +210,13 @@ export function useInterviewSession(): UseInterviewSessionReturn {
       mockQuestionIndex.current = 0
       lastJobRole.current = jobRole
 
-      setState((prev) => ({ ...prev, status: "active", error: undefined, messages: [] }))
+      setState((prev) => ({
+        ...prev,
+        status: "active",
+        error: undefined,
+        messages: [],
+        isFallbackMode: true,
+      }))
 
       // Add the first question after a short delay
       setTimeout(() => {
@@ -156,34 +234,80 @@ export function useInterviewSession(): UseInterviewSessionReturn {
           return
         }
 
-        // Simulate a delay between questions
-        if (Math.random() > 0.7 && mockQuestionIndex.current < mockInterviewQuestions.length) {
-          // Add a simulated user message first (as if the user spoke)
-          addMessage("user", "(Your response would be transcribed here)")
-
-          // Then add the interviewer's next question after a short delay
-          setTimeout(() => {
-            addMessage("assistant", mockInterviewQuestions[mockQuestionIndex.current])
-            mockQuestionIndex.current++
-          }, 1500)
+        // Only add new questions if there's been a user response since the last question
+        const lastMessage = state.messages[state.messages.length - 1]
+        if (lastMessage && lastMessage.role === "user") {
+          // Add the interviewer's next question
+          addMessage("assistant", mockInterviewQuestions[mockQuestionIndex.current])
+          mockQuestionIndex.current++
         }
       }, 20000) // Ask a new question roughly every 20 seconds
 
       return true
     },
-    [addDebugMessage, addMessage],
+    [addDebugMessage, addMessage, state.messages],
+  )
+
+  // Function to handle user text input in fallback mode
+  const sendTextMessage = useCallback(
+    (text: string) => {
+      if (!text.trim()) return
+
+      // Add user message
+      addMessage("user", text)
+
+      // If we're in mock mode, the next question will be added by the interval
+      // If not, we need to generate a response
+      if (!isMockMode.current) {
+        // Simulate AI response after a short delay
+        setTimeout(() => {
+          // Generate a simple response based on the user's input
+          let response = ""
+
+          if (text.toLowerCase().includes("experience") || text.toLowerCase().includes("background")) {
+            response = `Thank you for sharing your experience. Can you tell me about a challenging project you worked on recently?`
+          } else if (text.toLowerCase().includes("project") || text.toLowerCase().includes("challenge")) {
+            response = `That sounds interesting. How did you approach problem-solving in that situation?`
+          } else if (text.toLowerCase().includes("problem") || text.toLowerCase().includes("solution")) {
+            response = `Great approach. What would you say are your key strengths and areas for improvement?`
+          } else if (text.toLowerCase().includes("strength") || text.toLowerCase().includes("weakness")) {
+            response = `Thank you for sharing that. Where do you see yourself in 5 years?`
+          } else if (text.toLowerCase().includes("year") || text.toLowerCase().includes("future")) {
+            response = `Interesting goals. How do you stay updated with the latest trends in your field?`
+          } else if (text.toLowerCase().includes("learn") || text.toLowerCase().includes("trend")) {
+            response = `That's a good approach to learning. Do you have any questions for me about the position?`
+          } else if (text.toLowerCase().includes("question")) {
+            response = `Thank you for your time today. We'll be in touch with next steps.`
+          } else {
+            response = `Thank you for sharing that. Can you tell me more about how your skills align with this ${lastJobRole.current || "Software Engineer"} position?`
+          }
+
+          addMessage("assistant", response)
+        }, 1500)
+      }
+    },
+    [addMessage],
   )
 
   const startSession = useCallback(
     async (jobRole = "Software Engineer") => {
       addDebugMessage(`Attempting to start session for ${jobRole}`)
       try {
-        setState((prev) => ({ ...prev, status: "connecting", error: undefined, debug: "Starting...", messages: [] }))
+        setState((prev) => ({
+          ...prev,
+          status: "connecting",
+          error: undefined,
+          debug: "Starting...",
+          messages: [],
+          isFallbackMode: false,
+        }))
         lastJobRole.current = jobRole
 
         // Reset all relevant states for a new session attempt
         mockQuestionIndex.current = 0
         isMockMode.current = false
+        fallbackReasonRef.current = null
+        reconnectAttemptsRef.current = 0
 
         if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current)
         if (mockIntervalRef.current) clearTimeout(mockIntervalRef.current)
@@ -244,7 +368,7 @@ export function useInterviewSession(): UseInterviewSessionReturn {
         // Set a timeout for connection
         connectTimeoutRef.current = setTimeout(() => {
           addDebugMessage("Connection timed out. Falling back to mock mode.")
-          startMockSession(jobRole)
+          handleConnectionFailure("Connection timeout")
         }, 15000) // 15 second timeout
 
         // For now, we'll just simulate a connection failure and fall back to mock mode
@@ -257,7 +381,7 @@ export function useInterviewSession(): UseInterviewSessionReturn {
 
           // For testing purposes, always fall back to mock mode
           addDebugMessage("Simulating connection failure. Falling back to mock mode.")
-          startMockSession(jobRole)
+          handleConnectionFailure("Simulated connection failure")
         }, 3000) // 3 second delay for simulation
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
@@ -274,7 +398,7 @@ export function useInterviewSession(): UseInterviewSessionReturn {
         stopSession("start_session_error")
       }
     },
-    [addDebugMessage, setError, stopSession, startMockSession],
+    [addDebugMessage, setError, stopSession, startMockSession, handleConnectionFailure],
   )
 
   useEffect(() => {
@@ -291,5 +415,6 @@ export function useInterviewSession(): UseInterviewSessionReturn {
     stop: stopSession,
     isConnecting: state.status === "connecting",
     isActive: state.status === "active",
+    sendTextMessage: state.isFallbackMode ? sendTextMessage : undefined,
   }
 }

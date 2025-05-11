@@ -71,14 +71,26 @@ export async function GET() {
       )
     }
 
+    // Extract realtime models if any
+    const realtimeModels =
+      modelsData.data?.filter((model: any) => model.id.includes("realtime")).map((model: any) => model.id) || []
+
     // Test 2: Check if the realtime API is accessible
     console.log("Test 2: Checking realtime API accessibility...")
 
     // Try different model names
-    const modelOptions = ["gpt-4o-mini-realtime", "gpt-4o-realtime", "gpt-4-turbo-realtime", "gpt-4-realtime"]
+    const modelOptions = [
+      "gpt-4o-mini-realtime",
+      "gpt-4o-realtime",
+      "gpt-4-turbo-realtime",
+      "gpt-4-realtime",
+      "gpt-3.5-turbo-realtime",
+    ]
+    const voiceOptions = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
 
     const realtimeResults = []
 
+    // Test each model with the default voice
     for (const model of modelOptions) {
       console.log(`Testing realtime API with model: ${model}`)
 
@@ -117,12 +129,22 @@ export async function GET() {
 
         realtimeResults.push({
           model,
+          voice: "alloy",
           status: realtimeResponse.status,
           ok: realtimeResponse.ok,
           contentType,
           isJsonResponse,
           isHtmlResponse,
-          response: isHtmlResponse ? "HTML response (truncated)" : parsedResponse || realtimeText.substring(0, 500),
+          response: isHtmlResponse
+            ? "HTML response (truncated)"
+            : parsedResponse
+              ? {
+                  id: parsedResponse.id,
+                  hasClientSecret: !!parsedResponse.client_secret,
+                  hasClientSecretValue: !!parsedResponse.client_secret?.value,
+                  // Don't include the actual token value
+                }
+              : realtimeText.substring(0, 500),
         })
 
         // If we got a successful response, we can stop testing
@@ -134,9 +156,83 @@ export async function GET() {
         console.error(`Error testing realtime API with model ${model}:`, error)
         realtimeResults.push({
           model,
+          voice: "alloy",
           status: "error",
           error: String(error),
         })
+      }
+    }
+
+    // If no model worked with the default voice, try the first model with different voices
+    if (!realtimeResults.some((r) => r.ok) && modelOptions.length > 0) {
+      const firstModel = modelOptions[0]
+
+      for (const voice of voiceOptions) {
+        if (voice === "alloy") continue // Skip the default voice we already tried
+
+        console.log(`Testing realtime API with model: ${firstModel} and voice: ${voice}`)
+
+        try {
+          const realtimeResponse = await fetch("https://api.openai.com/v1/audio/realtime/sessions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+              "OpenAI-Beta": "realtime",
+            },
+            body: JSON.stringify({
+              model: firstModel,
+              voice: voice,
+            }),
+          })
+
+          const realtimeText = await realtimeResponse.text()
+          const contentType = realtimeResponse.headers.get("content-type") || ""
+          const isJsonResponse = contentType.includes("application/json")
+          const isHtmlResponse = contentType.includes("text/html") || realtimeText.trim().startsWith("<")
+
+          let parsedResponse = null
+          if (isJsonResponse && !isHtmlResponse) {
+            try {
+              parsedResponse = JSON.parse(realtimeText)
+            } catch (e) {
+              console.error(`Failed to parse JSON response for ${firstModel} with voice ${voice}:`, e)
+            }
+          }
+
+          realtimeResults.push({
+            model: firstModel,
+            voice,
+            status: realtimeResponse.status,
+            ok: realtimeResponse.ok,
+            contentType,
+            isJsonResponse,
+            isHtmlResponse,
+            response: isHtmlResponse
+              ? "HTML response (truncated)"
+              : parsedResponse
+                ? {
+                    id: parsedResponse.id,
+                    hasClientSecret: !!parsedResponse.client_secret,
+                    hasClientSecretValue: !!parsedResponse.client_secret?.value,
+                  }
+                : realtimeText.substring(0, 500),
+          })
+
+          // If we got a successful response, we can stop testing
+          if (realtimeResponse.ok && isJsonResponse && !isHtmlResponse) {
+            console.log(`Successfully accessed realtime API with model: ${firstModel} and voice: ${voice}`)
+            break
+          }
+        } catch (error) {
+          console.error(`Error testing realtime API with model ${firstModel} and voice ${voice}:`, error)
+          realtimeResults.push({
+            model: firstModel,
+            voice,
+            status: "error",
+            error: String(error),
+          })
+        }
       }
     }
 
@@ -149,7 +245,8 @@ export async function GET() {
           status: modelsResponse.status,
           ok: modelsResponse.ok,
           modelCount: modelsData.data?.length || 0,
-          hasRealtimeModels: modelsData.data?.some((model: any) => model.id.includes("realtime")) || false,
+          hasRealtimeModels: realtimeModels.length > 0,
+          realtimeModels,
           sampleModels: modelsData.data?.slice(0, 10).map((model: any) => model.id) || [],
         },
         realtimeApi: realtimeResults,
@@ -157,6 +254,23 @@ export async function GET() {
       recommendations: realtimeResults.some((r) => r.ok)
         ? "Your API key has access to the Realtime API."
         : "Your API key may not have access to the Realtime API. Please check your OpenAI account permissions.",
+      possibleIssues: realtimeResults.some((r) => r.isHtmlResponse)
+        ? [
+            "Received HTML response instead of JSON. This could indicate:",
+            "1. Your API key doesn't have access to the Realtime API",
+            "2. The Realtime API endpoint has changed",
+            "3. There's a network issue or proxy interfering with the request",
+            "4. OpenAI may be experiencing service issues",
+          ]
+        : [],
+      nextSteps: realtimeResults.some((r) => r.ok)
+        ? ["Proceed with implementing the client-side WebRTC connection"]
+        : [
+            "Check your OpenAI account for Realtime API access",
+            "Verify the API endpoint in the OpenAI documentation",
+            "Try a different API key with confirmed Realtime API access",
+            "Check OpenAI status page for any service issues",
+          ],
     })
   } catch (error) {
     console.error("Error testing OpenAI API:", error)

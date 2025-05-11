@@ -102,7 +102,8 @@ export async function POST(request: Request) {
     }
 
     // First, verify API access with a simple models list call
-    console.log("Verifying OpenAI API access...")
+    // This helps determine if the API key is valid at all before attempting realtime API
+    console.log("Verifying basic OpenAI API access...")
     try {
       const modelsResponse = await fetch("https://api.openai.com/v1/models", {
         method: "GET",
@@ -132,18 +133,19 @@ export async function POST(request: Request) {
           throw new Error("OpenAI API returned unexpected format")
         }
 
-        // Check if the realtime model is available
-        const hasRealtimeModel = modelsData.data.some(
-          (model: any) => model.id.includes("gpt-4o") && model.id.includes("realtime"),
-        )
+        // Check if any realtime models are available
+        const realtimeModels = modelsData.data
+          .filter((model: any) => model.id.includes("realtime"))
+          .map((model: any) => model.id)
 
         console.log("OpenAI API access verified successfully")
-        console.log("Has realtime model:", hasRealtimeModel)
+        console.log("Available realtime models:", realtimeModels.length > 0 ? realtimeModels : "None found")
 
-        // If the realtime model is not available, log a warning
-        if (!hasRealtimeModel) {
+        // If no realtime models are found, log a warning but continue
+        // The key might still have access but the models might not be listed
+        if (realtimeModels.length === 0) {
           console.warn(
-            "WARNING: No realtime models found in the available models list. This may indicate that your API key doesn't have access to the realtime API.",
+            "WARNING: No realtime models found in the available models list. This may indicate that your API key doesn't have access to the realtime API, or that realtime models aren't listed in the models endpoint.",
           )
         }
       } catch (parseError) {
@@ -151,7 +153,7 @@ export async function POST(request: Request) {
         throw new Error("Failed to parse OpenAI models response")
       }
     } catch (apiAccessError) {
-      console.error("Failed to verify OpenAI API access:", apiAccessError)
+      console.error("Failed to verify basic OpenAI API access:", apiAccessError)
       return new NextResponse(
         JSON.stringify({
           error: "OpenAI API access error",
@@ -166,36 +168,35 @@ export async function POST(request: Request) {
       )
     }
 
-    // Create the request body according to the OpenAI Realtime API documentation
-    // Try different model names if the first one fails
+    // Define multiple model options to try in order of preference
+    // This is important because model names might change or different keys might have access to different models
     const modelOptions = [
-      "gpt-4o-mini-realtime", // First choice
+      "gpt-4o-mini-realtime", // First choice - newest model
       "gpt-4o-realtime", // Second choice
       "gpt-4-turbo-realtime", // Third choice
       "gpt-4-realtime", // Fourth choice
+      "gpt-3.5-turbo-realtime", // Fifth choice - fallback
     ]
 
-    // Start with the first model option
-    const currentModelIndex = 0
-    const requestBody = {
-      model: modelOptions[currentModelIndex],
-      voice: "alloy", // Choose a voice: alloy, echo, fable, onyx, nova, or shimmer
-    }
+    // Define voice options
+    const voiceOptions = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
+    const defaultVoice = "alloy"
 
-    console.log("Initial OpenAI request body:", requestBody)
+    // Log the realtime API endpoint we're using
+    const realtimeSessionsEndpoint = "https://api.openai.com/v1/audio/realtime/sessions"
+    console.log("Using OpenAI realtime sessions endpoint:", realtimeSessionsEndpoint)
 
-    // Function to make the request with the current model
-    const makeRealtimeSessionRequest = async (modelName: string) => {
-      console.log(`Attempting to create realtime session with model: ${modelName}`)
+    // Function to make the request with a specific model and voice
+    const makeRealtimeSessionRequest = async (modelName: string, voice: string) => {
+      console.log(`Attempting to create realtime session with model: ${modelName}, voice: ${voice}`)
 
       const requestBody = {
         model: modelName,
-        voice: "alloy",
+        voice: voice,
       }
 
-      // Make the request to create a realtime session
-      console.log("Making request to OpenAI realtime sessions API...")
-      console.log("Request URL:", "https://api.openai.com/v1/audio/realtime/sessions")
+      // Log request details (without exposing the full API key)
+      console.log("Request URL:", realtimeSessionsEndpoint)
       console.log("Request headers:", {
         Authorization: "Bearer sk-***" + (apiKey ? apiKey.substring(apiKey.length - 4) : ""),
         "Content-Type": "application/json",
@@ -203,7 +204,8 @@ export async function POST(request: Request) {
       })
       console.log("Request body:", requestBody)
 
-      const response = await fetch("https://api.openai.com/v1/audio/realtime/sessions", {
+      // Make the request to create a realtime session
+      const response = await fetch(realtimeSessionsEndpoint, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -217,9 +219,9 @@ export async function POST(request: Request) {
       const text = await response.text()
 
       // Log response details
-      console.log("OpenAI API response status:", response.status)
-      console.log("OpenAI API response statusText:", response.statusText)
-      console.log("OpenAI API response headers:", Object.fromEntries([...response.headers.entries()]))
+      console.log(`Response status for ${modelName}:`, response.status)
+      console.log(`Response statusText for ${modelName}:`, response.statusText)
+      console.log(`Response headers for ${modelName}:`, Object.fromEntries([...response.headers.entries()]))
 
       // Check content type to see if it's JSON or HTML
       const contentType = response.headers.get("content-type") || ""
@@ -227,59 +229,89 @@ export async function POST(request: Request) {
       const isHtmlResponse = contentType.includes("text/html") || text.trim().startsWith("<")
 
       // Log content type and response format
-      console.log("Response content type:", contentType)
-      console.log("Is JSON response:", isJsonResponse)
-      console.log("Is HTML response:", isHtmlResponse)
+      console.log(`Response content type for ${modelName}:`, contentType)
+      console.log(`Is JSON response for ${modelName}:`, isJsonResponse)
+      console.log(`Is HTML response for ${modelName}:`, isHtmlResponse)
 
       // Log a safe substring of the response body
       const safeResponseText = text.length > 500 ? text.substring(0, 500) + "..." : text
-      console.log("OpenAI API response body:", safeResponseText)
+      console.log(`Response body for ${modelName}:`, safeResponseText)
 
-      return { response, text, isJsonResponse, isHtmlResponse }
+      return { response, text, isJsonResponse, isHtmlResponse, modelName, voice }
     }
 
     // Try each model in sequence until one works or we run out of options
-    let response, text, isJsonResponse, isHtmlResponse
-    let lastError = null
+    let lastResult = null
+    let successfulResult = null
 
-    for (let i = 0; i < modelOptions.length; i++) {
+    // First try with the default voice
+    for (const model of modelOptions) {
       try {
-        const result = await makeRealtimeSessionRequest(modelOptions[i])
-        response = result.response
-        text = result.text
-        isJsonResponse = result.isJsonResponse
-        isHtmlResponse = result.isHtmlResponse
+        const result = await makeRealtimeSessionRequest(model, defaultVoice)
+        lastResult = result
 
         // If the response is successful, break out of the loop
-        if (response.ok && isJsonResponse && !isHtmlResponse) {
-          console.log(`Successfully created realtime session with model: ${modelOptions[i]}`)
+        if (result.response.ok && result.isJsonResponse && !result.isHtmlResponse) {
+          console.log(`Successfully created realtime session with model: ${model}`)
+          successfulResult = result
           break
         }
 
-        // If we got an HTML response or an error, try the next model
-        console.log(`Failed to create realtime session with model: ${modelOptions[i]}. Status: ${response.status}`)
-        lastError = {
-          status: response.status,
-          statusText: response.statusText,
-          text: text,
-          isHtml: isHtmlResponse,
-        }
+        console.log(`Failed to create realtime session with model: ${model}. Status: ${result.response.status}`)
       } catch (error) {
-        console.error(`Error making request with model ${modelOptions[i]}:`, error)
-        lastError = error
+        console.error(`Error making request with model ${model}:`, error)
+        lastResult = {
+          error,
+          modelName: model,
+          voice: defaultVoice,
+        }
+      }
+    }
+
+    // If no model worked with the default voice, try other voices with the first model
+    if (!successfulResult && modelOptions.length > 0) {
+      const firstModel = modelOptions[0]
+      for (const voice of voiceOptions) {
+        if (voice === defaultVoice) continue // Skip the default voice we already tried
+
+        try {
+          const result = await makeRealtimeSessionRequest(firstModel, voice)
+          lastResult = result
+
+          // If the response is successful, break out of the loop
+          if (result.response.ok && result.isJsonResponse && !result.isHtmlResponse) {
+            console.log(`Successfully created realtime session with model: ${firstModel} and voice: ${voice}`)
+            successfulResult = result
+            break
+          }
+
+          console.log(
+            `Failed to create realtime session with model: ${firstModel} and voice: ${voice}. Status: ${result.response.status}`,
+          )
+        } catch (error) {
+          console.error(`Error making request with model ${firstModel} and voice ${voice}:`, error)
+          lastResult = {
+            error,
+            modelName: firstModel,
+            voice,
+          }
+        }
       }
     }
 
     // If we didn't get a successful response, handle the error
-    if (!response || !response.ok || isHtmlResponse || !isJsonResponse) {
-      console.error("All model options failed to create a realtime session")
+    if (!successfulResult) {
+      console.error("All model and voice combinations failed to create a realtime session")
+
+      // Get the last result for error reporting
+      const { response, text, isJsonResponse, isHtmlResponse } = lastResult || {}
 
       if (isHtmlResponse) {
         console.error(
           "Received HTML response instead of JSON. This could indicate a network issue, incorrect endpoint, or lack of access to the Realtime API.",
         )
         // Extract a meaningful error message from HTML if possible
-        const errorMatch = text.match(/<title>(.*?)<\/title>/) || text.match(/<h1>(.*?)<\/h1>/)
+        const errorMatch = text?.match(/<title>(.*?)<\/title>/) || text?.match(/<h1>(.*?)<\/h1>/)
         const htmlErrorMessage = errorMatch ? errorMatch[1] : "Received HTML response instead of JSON"
 
         return new NextResponse(
@@ -327,10 +359,12 @@ export async function POST(request: Request) {
       return new NextResponse(
         JSON.stringify({
           error: `OpenAI API error: ${response?.status || "Unknown"}`,
-          message: errorMessage,
+          message: errorMessage || "Failed to create a realtime session with any model or voice combination",
           code: errorCode,
           type: errorType,
           details: details,
+          triedModels: modelOptions,
+          triedVoices: [defaultVoice, ...voiceOptions.filter((v) => v !== defaultVoice)],
         }),
         {
           status: response?.status || 500,
@@ -339,7 +373,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // Parse the successful response
+    // We have a successful result, parse the JSON response
+    const { text, modelName, voice } = successfulResult
     let data
     try {
       data = JSON.parse(text)
@@ -383,12 +418,14 @@ export async function POST(request: Request) {
 
     // Success! Return the token and session ID
     console.log("Successfully obtained OpenAI token and session ID")
+    console.log(`Using model: ${modelName}, voice: ${voice}`)
+
     return NextResponse.json({
       token: data.client_secret.value,
       sessionId: data.id,
-      jobRole, // Still return jobRole to the client
-      model: requestBody.model,
-      voice: requestBody.voice,
+      jobRole, // Return jobRole to the client
+      model: modelName,
+      voice: voice,
     })
   } catch (error) {
     // Get detailed error information

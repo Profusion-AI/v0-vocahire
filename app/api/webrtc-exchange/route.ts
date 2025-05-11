@@ -37,6 +37,8 @@ export async function POST(request: Request) {
 
     try {
       // Send the SDP offer directly to OpenAI's realtime API
+      // This is the correct approach - the client provides the SDP offer,
+      // and we forward it to OpenAI and return the SDP answer
       console.log("Sending SDP offer to OpenAI realtime API...")
       console.log("Request URL:", "https://api.openai.com/v1/audio/realtime")
       console.log("Request headers:", {
@@ -59,9 +61,9 @@ export async function POST(request: Request) {
       })
 
       // Log response details
-      console.log("OpenAI realtime API response status:", response.status)
-      console.log("OpenAI realtime API response statusText:", response.statusText)
-      console.log("OpenAI realtime API response headers:", Object.fromEntries([...response.headers.entries()]))
+      console.log("OpenAI WebRTC exchange response status:", response.status)
+      console.log("OpenAI WebRTC exchange response statusText:", response.statusText)
+      console.log("OpenAI WebRTC exchange response headers:", Object.fromEntries([...response.headers.entries()]))
 
       // Get response content type
       const contentType = response.headers.get("content-type") || ""
@@ -77,7 +79,7 @@ export async function POST(request: Request) {
 
       // Log a safe substring of the response
       const safeResponseText = responseText.length > 500 ? responseText.substring(0, 500) + "..." : responseText
-      console.log("OpenAI realtime API response body:", safeResponseText)
+      console.log("OpenAI WebRTC exchange response body:", safeResponseText)
 
       // Check if it looks like HTML even if content-type doesn't say so
       const looksLikeHtml = responseText.trim().startsWith("<")
