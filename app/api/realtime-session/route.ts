@@ -12,8 +12,8 @@ export async function POST(request: Request) {
   const openaiEnvVars = envVars.filter((key) => key.includes("OPENAI") || key.includes("OPEN_AI"))
   console.log("OpenAI-related environment variables:", openaiEnvVars)
 
-  // Try to get the API key from multiple possible environment variable names
-  const apiKey = process.env.OPENAI_API_KEY || process.env.OPEN_AI_API_KEY || process.env.OPENAI_KEY
+  // Get the OpenAI API key
+  const apiKey = process.env.OPENAI_API_KEY
 
   // Log environment information (without exposing sensitive values)
   console.log("Environment check:", {
@@ -21,16 +21,6 @@ export async function POST(request: Request) {
     openAiKeySet: !!apiKey,
     openAiKeyLength: apiKey ? apiKey.length : 0,
     openAiKeyPrefix: apiKey ? apiKey.substring(0, 3) + "..." : "not-set",
-    // Check which environment variable was used
-    foundInVariable: apiKey
-      ? process.env.OPENAI_API_KEY
-        ? "OPENAI_API_KEY"
-        : process.env.OPEN_AI_API_KEY
-          ? "OPEN_AI_API_KEY"
-          : process.env.OPENAI_KEY
-            ? "OPENAI_KEY"
-            : "unknown"
-      : "none",
   })
 
   // For development testing, we'll allow unauthenticated access with a special header
@@ -67,14 +57,14 @@ export async function POST(request: Request) {
 
     // Check if OpenAI API key is available
     if (!apiKey) {
-      console.error("OpenAI API key is missing - checked multiple environment variable names")
+      console.error("OpenAI API key is missing")
       return new NextResponse(
         JSON.stringify({
           error: "Configuration error: OpenAI API key is missing",
           message: "The API key is not available in the environment variables",
-          checkedVariables: ["OPENAI_API_KEY", "OPEN_AI_API_KEY", "OPENAI_KEY"],
-          availableOpenAIVars: openaiEnvVars,
+          checkedVariable: "OPENAI_API_KEY",
           code: "missing_api_key",
+          fallbackMode: true,
         }),
         {
           status: 500,
@@ -93,6 +83,7 @@ export async function POST(request: Request) {
           keyPrefix: apiKey.substring(0, 3),
           keyLength: apiKey.length,
           code: "invalid_api_key_format",
+          fallbackMode: true,
         }),
         {
           status: 500,
@@ -121,6 +112,23 @@ export async function POST(request: Request) {
 
       if (!modelsResponse.ok) {
         console.error(`OpenAI models API error: ${modelsResponse.status} - ${modelsText.substring(0, 500)}`)
+
+        // Return a more specific error for unauthorized access
+        if (modelsResponse.status === 401) {
+          return new NextResponse(
+            JSON.stringify({
+              error: "OpenAI API key is invalid",
+              message: "The provided API key was rejected by OpenAI. Please check your API key and try again.",
+              code: "invalid_api_key",
+              fallbackMode: true,
+            }),
+            {
+              status: 401,
+              headers: { "Content-Type": "application/json" },
+            },
+          )
+        }
+
         throw new Error(`OpenAI API access verification failed: ${modelsResponse.status}`)
       }
 
@@ -160,6 +168,7 @@ export async function POST(request: Request) {
           message: "Failed to verify access to the OpenAI API. Please check your API key and network connection.",
           details: apiAccessError instanceof Error ? apiAccessError.message : String(apiAccessError),
           code: "api_access_error",
+          fallbackMode: true,
         }),
         {
           status: 500,
@@ -323,6 +332,8 @@ export async function POST(request: Request) {
             code: "html_response",
             details:
               "Your API key may not have access to the Realtime API. Please check your OpenAI account permissions.",
+            fallbackMode: true,
+            fallbackReason: "realtime_api_access_denied",
           }),
           {
             status: 500,
@@ -365,6 +376,8 @@ export async function POST(request: Request) {
           details: details,
           triedModels: modelOptions,
           triedVoices: [defaultVoice, ...voiceOptions.filter((v) => v !== defaultVoice)],
+          fallbackMode: true,
+          fallbackReason: "realtime_api_error",
         }),
         {
           status: response?.status || 500,
@@ -386,6 +399,7 @@ export async function POST(request: Request) {
           error: "Failed to parse OpenAI response",
           message: "The response from OpenAI was not valid JSON",
           code: "invalid_json_response",
+          fallbackMode: true,
         }),
         {
           status: 500,
@@ -408,6 +422,7 @@ export async function POST(request: Request) {
           message: "The response from OpenAI did not contain the expected fields",
           code: "invalid_response_structure",
           responseData: data,
+          fallbackMode: true,
         }),
         {
           status: 500,
@@ -446,6 +461,8 @@ export async function POST(request: Request) {
         message: errorMessage,
         details: errorStack ? errorStack.split("\n").slice(0, 3).join("\n") : undefined,
         code: "unknown_error",
+        fallbackMode: true,
+        fallbackReason: "token_generation_failed",
       },
       { status: 500 },
     )

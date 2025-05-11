@@ -13,7 +13,7 @@ export async function GET() {
   console.log("OpenAI-related environment variables:", openaiEnvVars)
 
   // Log environment information (without exposing sensitive values)
-  const apiKey = process.env.OPENAI_API_KEY || process.env.OPEN_AI_API_KEY || process.env.OPENAI_KEY
+  const apiKey = process.env.OPENAI_API_KEY
   console.log("Environment check:", {
     nodeEnv: process.env.NODE_ENV,
     openAiKeySet: !!apiKey,

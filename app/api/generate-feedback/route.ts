@@ -1,0 +1,91 @@
+import { NextResponse } from "next/server"
+import { generateInterviewFeedback, parseFeedback } from "@/lib/openai"
+import { getAuthSession } from "@/lib/auth-utils"
+
+export async function POST(request: Request) {
+  try {
+    // Check authentication
+    const session = await getAuthSession()
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Parse request body
+    const body = await request.json()
+    const { messages, fillerWordCounts, resumeData } = body
+
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return NextResponse.json({ error: "Invalid messages data" }, { status: 400 })
+    }
+
+    // Format messages for the OpenAI API
+    const formattedMessages = messages.map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    }))
+
+    // Add system message with resume data if available
+    let systemPrompt = `You are an expert interview coach providing feedback on a mock interview. 
+    Analyze the conversation and provide constructive feedback in the following categories:
+    1. Communication Skills
+    2. Technical Knowledge
+    3. Problem-Solving Approach
+    4. Areas for Improvement
+    
+    For each category, provide a rating (Excellent, Good, Satisfactory, Needs Improvement) and specific, actionable feedback.`
+
+    // Add filler word analysis if available
+    if (fillerWordCounts && Object.keys(fillerWordCounts).length > 0) {
+      const totalCount = Object.values(fillerWordCounts).reduce((sum, count) => sum + count, 0)
+      const topFillers = Object.entries(fillerWordCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 3)
+        .map(([word, count]) => `"${word}" (${count} times)`)
+        .join(", ")
+
+      systemPrompt += `\n\nThe candidate used filler words ${totalCount} times during the interview. 
+      The most common filler words were: ${topFillers}. 
+      Include this information in your feedback on Communication Skills.`
+    }
+
+    // Add resume data if available
+    if (resumeData) {
+      systemPrompt += `\n\nThe candidate is applying for a ${resumeData.jobTitle} position.`
+
+      if (resumeData.skills) {
+        systemPrompt += `\nTheir key skills include: ${resumeData.skills}`
+      }
+
+      if (resumeData.experience) {
+        systemPrompt += `\nTheir work experience includes: ${resumeData.experience}`
+      }
+
+      systemPrompt += `\n\nTailor your feedback to be relevant for a ${resumeData.jobTitle} role.`
+    }
+
+    // Generate feedback using OpenAI
+    console.log("Generating feedback with OpenAI...")
+    const rawFeedback = await generateInterviewFeedback([
+      { role: "system", content: systemPrompt },
+      ...formattedMessages,
+    ])
+
+    // Parse the feedback into structured format
+    const parsedFeedback = parseFeedback(rawFeedback)
+
+    return NextResponse.json({
+      success: true,
+      rawFeedback,
+      feedback: parsedFeedback,
+    })
+  } catch (error) {
+    console.error("Error generating feedback:", error)
+    return NextResponse.json(
+      {
+        error: "Failed to generate feedback",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
+  }
+}

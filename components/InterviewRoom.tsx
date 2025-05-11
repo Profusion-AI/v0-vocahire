@@ -26,13 +26,19 @@ import { ConnectionQualityIndicator } from "@/components/connection-quality-indi
 import { Progress } from "@/components/ui/progress"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import Link from "next/link"
+import { countFillerWords, getTotalFillerWordCount } from "@/lib/filler-words"
+import type { ResumeData } from "@/components/resume-input"
 
 interface InterviewRoomProps {
-  onComplete?: (messages: Array<{ role: string; content: string; timestamp: number }>) => void
+  onComplete?: (
+    messages: Array<{ role: string; content: string; timestamp: number }>,
+    fillerWordCounts?: { [key: string]: number },
+  ) => void
   jobTitle?: string
+  resumeData?: ResumeData
 }
 
-export default function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: InterviewRoomProps) {
+export default function InterviewRoom({ onComplete, jobTitle = "Software Engineer", resumeData }: InterviewRoomProps) {
   const router = useRouter()
 
   // State for session status
@@ -90,6 +96,10 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
   const [isFallbackMode, setIsFallbackMode] = useState(false)
   const [fallbackReason, setFallbackReason] = useState<string | null>(null)
   const [showFallbackMessage, setShowFallbackMessage] = useState(false)
+
+  // State for filler word tracking
+  const [fillerWordCounts, setFillerWordCounts] = useState<{ [key: string]: number }>({})
+  const [totalFillerWords, setTotalFillerWords] = useState(0)
 
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -490,12 +500,37 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
 
         // Send system prompt to set up the interview context
         try {
+          let systemPromptContent = `You are an AI interviewer conducting a mock interview for a ${jobTitle} position. 
+  Ask relevant questions about the candidate's experience, skills, and fit for the role. 
+  Keep your responses conversational and engaging. 
+  The interview should last about 10 minutes.`
+
+          // Add resume data if available
+          if (resumeData) {
+            systemPromptContent += `\n\nThe candidate has provided the following resume information:`
+
+            if (resumeData.skills) {
+              systemPromptContent += `\nSkills: ${resumeData.skills}`
+            }
+
+            if (resumeData.experience) {
+              systemPromptContent += `\nExperience: ${resumeData.experience}`
+            }
+
+            if (resumeData.education) {
+              systemPromptContent += `\nEducation: ${resumeData.education}`
+            }
+
+            if (resumeData.achievements) {
+              systemPromptContent += `\nAchievements: ${resumeData.achievements}`
+            }
+
+            systemPromptContent += `\n\nTailor your questions to explore these areas and assess the candidate's fit for the ${jobTitle} role.`
+          }
+
           const systemPrompt = {
             type: "system",
-            content: `You are an AI interviewer conducting a mock interview for a ${jobTitle} position. 
-            Ask relevant questions about the candidate's experience, skills, and fit for the role. 
-            Keep your responses conversational and engaging. 
-            The interview should last about 10 minutes.`,
+            content: systemPromptContent,
           }
 
           dataChannel.send(JSON.stringify(systemPrompt))
@@ -645,6 +680,25 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
   // Function to add a message to the conversation
   const addMessage = (role: "user" | "assistant", content: string) => {
     setMessages((prev) => [...prev, { role, content, timestamp: Date.now() }])
+
+    // Track filler words in user messages
+    if (role === "user") {
+      const newCounts = countFillerWords(content)
+      const newTotal = getTotalFillerWordCount(newCounts)
+
+      setFillerWordCounts((prev) => {
+        const updated = { ...prev }
+
+        // Merge the counts
+        Object.entries(newCounts).forEach(([word, count]) => {
+          updated[word] = (updated[word] || 0) + count
+        })
+
+        return updated
+      })
+
+      setTotalFillerWords((prev) => prev + newTotal)
+    }
   }
 
   // Function to handle user text input in fallback mode
@@ -878,15 +932,18 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     setStatus("ended")
     setIsActive(false)
 
+    // Store interview data in localStorage for the feedback page
+    localStorage.setItem("vocahire_interview_messages", JSON.stringify(messages))
+    localStorage.setItem("vocahire_filler_words", JSON.stringify(fillerWordCounts))
+
     // In a real implementation, you would save the interview data to your database
     // and then redirect to the feedback page
-
     setTimeout(() => {
       router.push("/feedback")
     }, 2000)
 
     if (onComplete) {
-      onComplete(messages)
+      onComplete(messages, fillerWordCounts)
     }
   }
 
@@ -1001,7 +1058,11 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     setApiTestResult(null)
 
     try {
-      const response = await fetch("/api/test-openai")
+      const response = await fetch("/api/test-openai", {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+      })
       const data = await response.json()
       setApiTestResult(data)
 
@@ -1027,7 +1088,11 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     setRealtimeApiTestResult(null)
 
     try {
-      const response = await fetch("/api/test-realtime-api")
+      const response = await fetch("/api/test-realtime-api", {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+      })
       const data = await response.json()
       setRealtimeApiTestResult(data)
 
@@ -1176,7 +1241,7 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
                     ) : (
                       <>
                         <RefreshCw className="h-3 w-3 mr-1" />
-                        Test Realtime API Access
+                        Test Realtime API
                       </>
                     )}
                   </Button>
@@ -1625,6 +1690,31 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
                         className="h-full bg-green-500 transition-all duration-100"
                         style={{ width: `${Math.min(audioLevel * 100, 100)}%` }}
                       ></div>
+                    </div>
+                  )}
+
+                  {/* Filler word counter */}
+                  {!isFallbackMode && isActive && (
+                    <div className="mt-2 flex items-center justify-end gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        Filler words:{" "}
+                        <span className={totalFillerWords > 10 ? "text-amber-500 font-medium" : ""}>
+                          {totalFillerWords}
+                        </span>
+                      </span>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full">
+                              <Info className="h-3 w-3" />
+                              <span className="sr-only">Filler word info</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Words like "um", "uh", "like", etc.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   )}
 

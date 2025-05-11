@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect, useRef } from "react"
 import { useInterviewSession } from "@/hooks/useInterviewSession"
 import { Button } from "@/components/ui/button"
@@ -9,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ConnectionQualityIndicator } from "@/components/connection-quality-indicator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function TestInterviewPage() {
   const { status, messages, start, stop, isConnecting, isActive, error, debug } = useInterviewSession()
@@ -19,6 +22,8 @@ export default function TestInterviewPage() {
   const [selectedRole, setSelectedRole] = useState("Software Engineer")
   const [activeTab, setActiveTab] = useState("interview")
   const [connectionStats, setConnectionStats] = useState<any>(null)
+  const [userInput, setUserInput] = useState("")
+  const [isFallbackMode, setIsFallbackMode] = useState(false)
 
   // Reference to the peer connection for stats
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
@@ -43,6 +48,13 @@ export default function TestInterviewPage() {
       }
     }
   }, [])
+
+  // Check if we're in fallback mode based on error
+  useEffect(() => {
+    if (error && isActive) {
+      setIsFallbackMode(true)
+    }
+  }, [error, isActive])
 
   // Timer countdown when interview is active
   useEffect(() => {
@@ -99,14 +111,14 @@ export default function TestInterviewPage() {
       }
     }
 
-    if (isActive) {
+    if (isActive && !isFallbackMode && peerConnectionRef.current) {
       intervalId = setInterval(getConnectionStats, 2000)
     }
 
     return () => {
       if (intervalId) clearInterval(intervalId)
     }
-  }, [isActive])
+  }, [isActive, isFallbackMode])
 
   // Format time as MM:SS
   const formatTime = (seconds: number) => {
@@ -120,6 +132,7 @@ export default function TestInterviewPage() {
       await start(selectedRole)
     } catch (err) {
       console.error("Failed to start interview:", err)
+      setIsFallbackMode(true)
     }
   }
 
@@ -129,6 +142,58 @@ export default function TestInterviewPage() {
       audio.muted = !isMuted
     })
     setIsMuted(!isMuted)
+  }
+
+  const handleUserTextInput = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!userInput.trim()) return
+
+    // Add user message
+    const newMessage = {
+      role: "user" as const,
+      content: userInput,
+      timestamp: Date.now(),
+    }
+
+    // Update messages state
+    const updatedMessages = [...messages, newMessage]
+
+    // Clear input
+    setUserInput("")
+
+    // Simulate AI response after a short delay
+    setTimeout(() => {
+      // Generate a simple response based on the user's input
+      let response = ""
+
+      if (userInput.toLowerCase().includes("experience") || userInput.toLowerCase().includes("background")) {
+        response = `Thank you for sharing your experience. Can you tell me about a challenging project you worked on recently?`
+      } else if (userInput.toLowerCase().includes("project") || userInput.toLowerCase().includes("challenge")) {
+        response = `That sounds interesting. How did you approach problem-solving in that situation?`
+      } else if (userInput.toLowerCase().includes("problem") || userInput.toLowerCase().includes("solution")) {
+        response = `Great approach. What would you say are your key strengths and areas for improvement?`
+      } else if (userInput.toLowerCase().includes("strength") || userInput.toLowerCase().includes("weakness")) {
+        response = `Thank you for sharing that. Where do you see yourself in 5 years?`
+      } else if (userInput.toLowerCase().includes("year") || userInput.toLowerCase().includes("future")) {
+        response = `Interesting goals. How do you stay updated with the latest trends in your field?`
+      } else if (userInput.toLowerCase().includes("learn") || userInput.toLowerCase().includes("trend")) {
+        response = `That's a good approach to learning. Do you have any questions for me about the position?`
+      } else if (userInput.toLowerCase().includes("question")) {
+        response = `Thank you for your time today. We'll be in touch with next steps.`
+      } else {
+        response = `Thank you for sharing that. Can you tell me more about how your skills align with this ${selectedRole} position?`
+      }
+
+      // Add assistant message
+      const assistantMessage = {
+        role: "assistant" as const,
+        content: response,
+        timestamp: Date.now(),
+      }
+
+      // Update messages state again
+      updatedMessages.push(assistantMessage)
+    }, 1500)
   }
 
   const renderConnectionStats = () => {
@@ -269,10 +334,26 @@ export default function TestInterviewPage() {
           </CardContent>
         </Card>
 
+        {isFallbackMode && isActive && (
+          <Alert className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Using Text-Based Interview Mode</AlertTitle>
+            <AlertDescription>
+              <p className="mb-2">
+                We're using text-based interview mode because the voice interview service is currently unavailable.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                You can type your responses in the text box below. The AI interviewer will respond with follow-up
+                questions.
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-4">
             <TabsTrigger value="interview">Interview</TabsTrigger>
-            <TabsTrigger value="diagnostics" disabled={!isActive}>
+            <TabsTrigger value="diagnostics" disabled={!isActive || isFallbackMode}>
               Connection Diagnostics
             </TabsTrigger>
           </TabsList>
@@ -282,7 +363,7 @@ export default function TestInterviewPage() {
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>Mock Interview: {selectedRole}</CardTitle>
-                  {isActive && (
+                  {isActive && !isFallbackMode && (
                     <div className="flex items-center gap-2">
                       <ConnectionQualityIndicator
                         peerConnection={peerConnectionRef.current}
@@ -303,7 +384,7 @@ export default function TestInterviewPage() {
               </CardHeader>
 
               <CardContent className="space-y-4">
-                {error && renderNetworkError(error)}
+                {error && !isFallbackMode && renderNetworkError(error)}
 
                 {showDebug && debug && (
                   <div className="bg-blue-100 dark:bg-blue-900/20 p-4 rounded-md text-blue-700 dark:text-blue-300 text-sm font-mono overflow-x-auto">
@@ -347,13 +428,19 @@ export default function TestInterviewPage() {
                   {isActive && (
                     <div className="space-y-4">
                       <div className="flex justify-between items-center mb-4">
-                        <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/20">
-                          <Mic className="h-6 w-6 text-green-600 dark:text-green-400 animate-pulse" />
-                        </div>
+                        {!isFallbackMode && (
+                          <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/20">
+                            <Mic className="h-6 w-6 text-green-600 dark:text-green-400 animate-pulse" />
+                          </div>
+                        )}
                       </div>
 
                       <div className="text-center mb-4">
-                        <p>Interview in progress. Speak clearly into your microphone.</p>
+                        {isFallbackMode ? (
+                          <p>Text-based interview in progress. Type your responses below.</p>
+                        ) : (
+                          <p>Interview in progress. Speak clearly into your microphone.</p>
+                        )}
                       </div>
 
                       <div className="mt-4 space-y-3 max-h-[300px] overflow-y-auto pr-2">
@@ -376,6 +463,24 @@ export default function TestInterviewPage() {
                           </div>
                         ))}
                       </div>
+
+                      {/* Text input for fallback mode */}
+                      {isActive && isFallbackMode && (
+                        <form onSubmit={handleUserTextInput} className="mt-4">
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={userInput}
+                              onChange={(e) => setUserInput(e.target.value)}
+                              placeholder="Type your response here..."
+                              className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                            <Button type="submit" disabled={!userInput.trim()}>
+                              Send
+                            </Button>
+                          </div>
+                        </form>
+                      )}
                     </div>
                   )}
 

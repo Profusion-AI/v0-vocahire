@@ -4,7 +4,7 @@ export async function GET() {
   console.log("=== /api/test-realtime-api endpoint called ===")
 
   // Get the OpenAI API key
-  const apiKey = process.env.OPENAI_API_KEY || process.env.OPEN_AI_API_KEY || process.env.OPENAI_KEY
+  const apiKey = process.env.OPENAI_API_KEY
 
   if (!apiKey) {
     console.error("OpenAI API key is missing")
@@ -15,7 +15,7 @@ export async function GET() {
         environment: {
           nodeEnv: process.env.NODE_ENV,
           keySet: false,
-          checkedVariables: ["OPENAI_API_KEY", "OPEN_AI_API_KEY", "OPENAI_KEY"],
+          checkedVariable: "OPENAI_API_KEY",
         },
       },
       { status: 500 },

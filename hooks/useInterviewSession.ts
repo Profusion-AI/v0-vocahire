@@ -4,49 +4,62 @@ import { useState, useEffect, useRef, useCallback } from "react"
 
 interface InterviewSessionState {
   status: "idle" | "connecting" | "active" | "ended" | "error"
-  messages: Array<{
-    role: "user" | "assistant"
-    content: string
-    timestamp: number
-  }>
-  error?: string
-  debug?: string
-  isFallbackMode?: boolean
-}
-
-interface UseInterviewSessionReturn extends InterviewSessionState {
-  start: (jobRole?: string) => Promise<void>
-  stop: (reason?: string) => void
+  messages: Array<{ role: "user" | "assistant"; content: string; timestamp: number }>
   isConnecting: boolean
   isActive: boolean
-  sendTextMessage?: (text: string) => void
+  error: string | null
+  debug: string | null
 }
 
-// Mock interview data for fallback mode
-const mockInterviewQuestions = [
-  "Hello! I'll be conducting your interview today. Could you start by telling me a bit about your background and experience?",
-  "That's interesting. Can you tell me about a challenging project you worked on recently?",
-  "How do you approach problem-solving in your work?",
-  "What are your strengths and weaknesses as a professional?",
-  "Where do you see yourself in 5 years?",
-  "How do you handle tight deadlines and pressure?",
-  "Tell me about a time when you had to learn a new technology quickly.",
-  "How do you stay updated with the latest trends in your field?",
-  "What questions do you have for me about the position?",
-  "Thank you for your time today. We'll be in touch with next steps.",
-]
-
-export function useInterviewSession(): UseInterviewSessionReturn {
+export function useInterviewSession() {
   const [state, setState] = useState<InterviewSessionState>({
     status: "idle",
     messages: [],
-    isFallbackMode: false,
+    isConnecting: false,
+    isActive: false,
+    error: null,
+    debug: null,
   })
 
-  const peerConnection = useRef<RTCPeerConnection | null>(null)
+  // Refs to store WebRTC-related objects
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
+  const dataChannelRef = useRef<RTCDataChannel | null>(null)
+  const localStreamRef = useRef<MediaStream | null>(null)
+  const sessionInfoRef = useRef<{ id: string; token: string } | null>(null)
+
+  // Mock interview data for fallback mode
+  const mockInterviewQuestions = [
+    "Hello! I'll be conducting your interview today. Could you start by telling me a bit about your background and experience?",
+    "That's interesting. Can you tell me about a challenging project you worked on recently?",
+    "How do you approach problem-solving in your work?",
+    "What are your strengths and weaknesses as a professional?",
+    "Where do you see yourself in 5 years?",
+    "How do you handle tight deadlines and pressure?",
+    "Tell me about a time when you had to learn a new technology quickly.",
+    "How do you stay updated with the latest trends in your field?",
+    "What questions do you have for me about the position?",
+    "Thank you for your time today. We'll be in touch with next steps.",
+  ]
+
+  // Add a debug message
+  const addDebugMessage = useCallback((message: string) => {
+    console.log("Debug:", message)
+    setState((prev) => ({
+      ...prev,
+      debug: `${new Date().toISOString()} - ${message}\n${prev.debug || ""}`.substring(0, 1000),
+    }))
+  }, [])
+
+  // Add a message to the conversation
+  const addMessage = useCallback((role: "user" | "assistant", content: string) => {
+    setState((prev) => ({
+      ...prev,
+      messages: [...prev.messages, { role, content, timestamp: Date.now() }],
+    }))
+  }, [])
+
+  // Refs
   const audioElement = useRef<HTMLAudioElement | null>(null)
-  const localStream = useRef<MediaStream | null>(null)
-  const sessionId = useRef<string | null>(null)
   const connectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const audioAnalyserRef = useRef<AnalyserNode | null>(null)
@@ -59,6 +72,7 @@ export function useInterviewSession(): UseInterviewSessionReturn {
   const mockIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastJobRole = useRef<string>("")
   const fallbackReasonRef = useRef<string | null>(null)
+  const sessionId = useRef<string | null>(null)
 
   useEffect(() => {
     if (typeof window !== "undefined" && !audioElement.current) {
@@ -69,21 +83,6 @@ export function useInterviewSession(): UseInterviewSessionReturn {
         audio.srcObject = null
       }
     }
-  }, [])
-
-  const addMessage = useCallback((role: "user" | "assistant", content: string) => {
-    setState((prev) => ({
-      ...prev,
-      messages: [...prev.messages, { role, content, timestamp: Date.now() }],
-    }))
-  }, [])
-
-  const addDebugMessage = useCallback((message: string) => {
-    console.log("Debug:", message)
-    setState((prev) => ({
-      ...prev,
-      debug: `${new Date().toISOString()} - ${message}\n${prev.debug || ""}`.substring(0, 1000),
-    }))
   }, [])
 
   const setError = useCallback((errorMessage: string) => {
@@ -100,24 +99,24 @@ export function useInterviewSession(): UseInterviewSessionReturn {
       connectTimeoutRef.current = null
       mockIntervalRef.current = null
 
-      if (peerConnection.current) {
+      if (peerConnectionRef.current) {
         try {
-          if (peerConnection.current.signalingState !== "closed") peerConnection.current.close()
+          if (peerConnectionRef.current.signalingState !== "closed") peerConnectionRef.current.close()
           addDebugMessage("Peer connection closed")
         } catch (err) {
           addDebugMessage(`Error closing PC: ${err}`)
         }
-        peerConnection.current = null
+        peerConnectionRef.current = null
       }
 
-      if (localStream.current) {
+      if (localStreamRef.current) {
         try {
-          localStream.current.getTracks().forEach((track) => track.stop())
+          localStreamRef.current.getTracks().forEach((track) => track.stop())
           addDebugMessage("Local audio tracks stopped")
         } catch (err) {
           addDebugMessage(`Error stopping audio tracks: ${err}`)
         }
-        localStream.current = null
+        localStreamRef.current = null
       }
 
       if (audioElement.current) {
@@ -145,7 +144,8 @@ export function useInterviewSession(): UseInterviewSessionReturn {
         ...prev,
         status: prev.status === "error" && reason !== "user_initiated" ? "error" : "ended",
         debug: `Interview session ended. Reason: ${reason}`,
-        isFallbackMode: prev.isFallbackMode, // Preserve fallback mode status
+        isConnecting: false,
+        isActive: false,
       }))
     },
     [addDebugMessage],
@@ -158,13 +158,13 @@ export function useInterviewSession(): UseInterviewSessionReturn {
       fallbackReasonRef.current = reason
 
       // Clean up WebRTC resources
-      if (peerConnection.current) {
+      if (peerConnectionRef.current) {
         try {
-          peerConnection.current.close()
+          peerConnectionRef.current.close()
         } catch (err) {
           addDebugMessage(`Error closing peer connection: ${err}`)
         }
-        peerConnection.current = null
+        peerConnectionRef.current = null
       }
 
       // Keep the interview active but in fallback mode
@@ -172,7 +172,8 @@ export function useInterviewSession(): UseInterviewSessionReturn {
         ...prev,
         status: "active",
         error: undefined,
-        isFallbackMode: true,
+        isConnecting: false,
+        isActive: true,
       }))
 
       // Add a system message about fallback mode
@@ -215,7 +216,8 @@ export function useInterviewSession(): UseInterviewSessionReturn {
         status: "active",
         error: undefined,
         messages: [],
-        isFallbackMode: true,
+        isConnecting: false,
+        isActive: true,
       }))
 
       // Add the first question after a short delay
@@ -289,56 +291,20 @@ export function useInterviewSession(): UseInterviewSessionReturn {
     [addMessage],
   )
 
-  const startSession = useCallback(
+  // Start the interview
+  const start = useCallback(
     async (jobRole = "Software Engineer") => {
-      addDebugMessage(`Attempting to start session for ${jobRole}`)
       try {
         setState((prev) => ({
           ...prev,
           status: "connecting",
-          error: undefined,
-          debug: "Starting...",
-          messages: [],
-          isFallbackMode: false,
+          isConnecting: true,
+          error: null,
         }))
-        lastJobRole.current = jobRole
 
-        // Reset all relevant states for a new session attempt
-        mockQuestionIndex.current = 0
-        isMockMode.current = false
-        fallbackReasonRef.current = null
-        reconnectAttemptsRef.current = 0
+        addDebugMessage(`Starting interview for job role: ${jobRole}`)
 
-        if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current)
-        if (mockIntervalRef.current) clearTimeout(mockIntervalRef.current)
-
-        addDebugMessage("Requesting microphone...")
-        try {
-          localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true })
-          addDebugMessage("Microphone granted.")
-        } catch (micError) {
-          addDebugMessage(`Microphone error: ${micError}`)
-          throw new Error("Could not access microphone. Please check your browser permissions.")
-        }
-
-        // First, try to test the OpenAI API to see if we have a valid API key
-        try {
-          addDebugMessage("Testing OpenAI API connection...")
-          const testResponse = await fetch("/api/test-openai")
-          const testData = await testResponse.json()
-
-          if (testData.status !== "success" || !testData.openaiResponse?.hasRealtimeModels) {
-            addDebugMessage("OpenAI API test failed or no realtime models available. Falling back to mock mode.")
-            return startMockSession(jobRole)
-          }
-
-          addDebugMessage("OpenAI API test successful. Proceeding with real-time session.")
-        } catch (testError) {
-          addDebugMessage(`OpenAI API test error: ${testError}. Falling back to mock mode.`)
-          return startMockSession(jobRole)
-        }
-
-        addDebugMessage("Fetching OpenAI token...")
+        // First, try to get a token from our API
         const tokenResponse = await fetch("/api/realtime-session", {
           method: "POST",
           headers: {
@@ -347,74 +313,149 @@ export function useInterviewSession(): UseInterviewSessionReturn {
           body: JSON.stringify({ jobRole }),
         })
 
-        if (!tokenResponse.ok) {
-          const errorText = await tokenResponse.text()
-          addDebugMessage(`Token API error: ${tokenResponse.status} - ${errorText}`)
+        const data = await tokenResponse.json()
 
-          // If we get a 500 error, it's likely due to missing API key or other server issues
-          // Fall back to mock mode
-          if (tokenResponse.status === 500) {
-            addDebugMessage("Token API error 500. Falling back to mock mode.")
-            return startMockSession(jobRole)
-          }
+        // Check if we should use fallback mode
+        if (data.fallbackMode) {
+          addDebugMessage(`API indicated fallback mode is needed: ${data.fallbackReason || "unknown reason"}`)
 
-          throw new Error(`Token API error: ${tokenResponse.status}`)
+          // Set up fallback mode
+          setState((prev) => ({
+            ...prev,
+            status: "active",
+            isConnecting: false,
+            isActive: true,
+            error: data.message || "Realtime API unavailable. Using text-based interview mode.",
+          }))
+
+          // Start fallback interview with a delay
+          setTimeout(() => {
+            addMessage(
+              "assistant",
+              `Hello! I'll be conducting your interview for the ${jobRole} position. Could you start by telling me about your background and experience?`,
+            )
+          }, 1000)
+
+          return
         }
 
-        const { token, sessionId: sid } = await tokenResponse.json()
-        sessionId.current = sid
-        addDebugMessage(`Token received: ${sid}`)
-
-        // Set a timeout for connection
-        connectTimeoutRef.current = setTimeout(() => {
-          addDebugMessage("Connection timed out. Falling back to mock mode.")
-          handleConnectionFailure("Connection timeout")
-        }, 15000) // 15 second timeout
-
-        // For now, we'll just simulate a connection failure and fall back to mock mode
-        // In a real implementation, you would set up the WebRTC connection here
-        setTimeout(() => {
-          if (connectTimeoutRef.current) {
-            clearTimeout(connectTimeoutRef.current)
-            connectTimeoutRef.current = null
+        // If we got a successful response, continue with WebRTC setup
+        if (tokenResponse.ok && data.token && data.sessionId) {
+          addDebugMessage(`Received token for session: ${data.sessionId}`)
+          sessionInfoRef.current = {
+            id: data.sessionId,
+            token: data.token,
           }
 
-          // For testing purposes, always fall back to mock mode
-          addDebugMessage("Simulating connection failure. Falling back to mock mode.")
-          handleConnectionFailure("Simulated connection failure")
-        }, 3000) // 3 second delay for simulation
+          // Set up WebRTC connection (simplified for this example)
+          // In a real implementation, this would be more complex
+          setState((prev) => ({
+            ...prev,
+            status: "active",
+            isConnecting: false,
+            isActive: true,
+          }))
+
+          // Simulate an interview start with a welcome message
+          setTimeout(() => {
+            addMessage(
+              "assistant",
+              `Hello! I'll be conducting your interview for the ${jobRole} position. Could you start by telling me about your background and experience?`,
+            )
+          }, 1000)
+        } else {
+          // Handle error
+          throw new Error(data.message || "Failed to initialize interview session")
+        }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error)
-        addDebugMessage(`Error starting interview: ${errorMessage}`)
+        console.error("Failed to start interview:", error)
 
-        // If we encounter an error with the real-time session, fall back to mock mode
-        if (!isMockMode.current) {
-          addDebugMessage("Error with real-time session. Falling back to mock mode.")
-          stopSession("real_time_error")
-          return startMockSession(jobRole)
-        }
+        // Set error state
+        setState((prev) => ({
+          ...prev,
+          status: "error",
+          isConnecting: false,
+          error: error instanceof Error ? error.message : String(error),
+        }))
 
-        setError(errorMessage)
-        stopSession("start_session_error")
+        // Start fallback interview mode
+        addDebugMessage("Starting fallback interview mode due to error")
+
+        // Set up fallback mode
+        setState((prev) => ({
+          ...prev,
+          status: "active",
+          isConnecting: false,
+          isActive: true,
+          error: "Using text-based interview mode due to connection issues.",
+        }))
+
+        // Start fallback interview with a delay
+        setTimeout(() => {
+          addMessage(
+            "assistant",
+            `Hello! I'll be conducting your interview for the ${jobRole} position. Could you start by telling me about your background and experience?`,
+          )
+        }, 1000)
       }
     },
-    [addDebugMessage, setError, stopSession, startMockSession, handleConnectionFailure],
+    [addDebugMessage, addMessage],
   )
+
+  // Stop the interview
+  const stop = useCallback(() => {
+    addDebugMessage("Stopping interview")
+
+    // Clean up WebRTC resources
+    if (dataChannelRef.current) {
+      dataChannelRef.current.close()
+      dataChannelRef.current = null
+    }
+
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close()
+      peerConnectionRef.current = null
+    }
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop())
+      localStreamRef.current = null
+    }
+
+    setState((prev) => ({
+      ...prev,
+      status: "ended",
+      isActive: false,
+      isConnecting: false,
+    }))
+  }, [addDebugMessage])
 
   useEffect(() => {
     // Cleanup on unmount
     return () => {
       addDebugMessage("Component unmounting")
       stopSession("unmount")
+      if (dataChannelRef.current) {
+        dataChannelRef.current.close()
+      }
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close()
+      }
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => track.stop())
+      }
     }
   }, [stopSession, addDebugMessage])
 
   return {
-    ...state,
-    start: startSession,
-    stop: stopSession,
-    isConnecting: state.status === "connecting",
-    isActive: state.status === "active",
-    sendTextMessage: state.isFallbackMode ? sendTextMessage : undefined,
+    status: state.status,
+    messages: state.messages,
+    isConnecting: state.isConnecting,
+    isActive: state.isActive,
+    error: state.error,
+    debug: state.debug,
+    start,
+    stop,
+    sendTextMessage: state.status === "active" ? sendTextMessage : undefined,
   }
 }

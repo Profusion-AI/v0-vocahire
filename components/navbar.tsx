@@ -10,6 +10,9 @@ export function Navbar() {
             VocaHire Coach
           </Link>
           <nav className="hidden md:flex gap-6">
+            <Link href="/prepare" className="text-sm font-medium hover:underline">
+              Prepare
+            </Link>
             <Link href="/interview" className="text-sm font-medium hover:underline">
               Interview
             </Link>
