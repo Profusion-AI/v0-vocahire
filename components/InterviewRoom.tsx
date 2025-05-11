@@ -2,12 +2,10 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { useInterviewSession } from "@/hooks/useInterviewSession"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mic, Clock, Volume2, VolumeX, AlertCircle, WifiOff, ExternalLink, RefreshCw } from "lucide-react"
+import { Mic, Clock, Volume2, VolumeX, AlertCircle, WifiOff, ExternalLink, RefreshCw, Loader2 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ConnectionQualityIndicator } from "@/components/connection-quality-indicator"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
 
@@ -18,62 +16,63 @@ interface InterviewRoomProps {
 
 export default function InterviewRoom({ onComplete, jobTitle = "Software Engineer" }: InterviewRoomProps) {
   const router = useRouter()
-  const { status, messages, start, stop, isConnecting, isActive, error, debug } = useInterviewSession()
 
+  // State for session status
+  const [status, setStatus] = useState<"idle" | "connecting" | "active" | "ended" | "error">("idle")
+  const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: string; timestamp: number }>>(
+    [],
+  )
+  const [error, setError] = useState<string | null>(null)
+  const [debug, setDebug] = useState<string | null>(null)
+
+  // State for interview
   const [timeRemaining, setTimeRemaining] = useState(600) // 10 minutes in seconds
   const [isPermissionGranted, setIsPermissionGranted] = useState<boolean | null>(null)
   const [isMuted, setIsMuted] = useState(false)
   const [isInitializing, setIsInitializing] = useState(true)
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [isActive, setIsActive] = useState(false)
+
+  // State for API testing
   const [apiError, setApiError] = useState<string | null>(null)
   const [apiErrorCode, setApiErrorCode] = useState<string | null>(null)
   const [apiErrorDetails, setApiErrorDetails] = useState<any>(null)
   const [isTestingApi, setIsTestingApi] = useState(false)
   const [apiTestResult, setApiTestResult] = useState<any>(null)
-  const [availableModels, setAvailableModels] = useState<string[]>([])
 
-  // Add a new state variable to track if we're using Xirsys
-  const [usingXirsys, setUsingXirsys] = useState<boolean | null>(null)
+  // State for mock mode
+  const [isMockMode, setIsMockMode] = useState(false)
 
+  // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
+  const dataChannelRef = useRef<RTCDataChannel | null>(null)
+  const localStreamRef = useRef<MediaStream | null>(null)
+  const sessionInfoRef = useRef<{ id: string; token: string } | null>(null)
+  const mockIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const mockQuestionIndex = useRef<number>(0)
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const connectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Get access to the peer connection for the connection quality indicator
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      // This is a hack to access the peer connection from the hook
-      // In a real app, you would refactor the hook to expose the peer connection
-      const checkForPeerConnection = () => {
-        // @ts-ignore - accessing a private property for demo purposes
-        if (window._vocahirePeerConnection) {
-          peerConnectionRef.current = window._vocahirePeerConnection
-        }
-      }
+  // Mock interview questions
+  const mockInterviewQuestions = [
+    "Hello! I'll be conducting your interview today. Could you start by telling me a bit about your background and experience?",
+    "That's interesting. Can you tell me about a challenging project you worked on recently?",
+    "How do you approach problem-solving in your work?",
+    "What are your strengths and weaknesses as a professional?",
+    "Where do you see yourself in 5 years?",
+    "How do you handle tight deadlines and pressure?",
+    "Tell me about a time when you had to learn a new technology quickly.",
+    "How do you stay updated with the latest trends in your field?",
+    "What questions do you have for me about the position?",
+    "Thank you for your time today. We'll be in touch with next steps.",
+  ]
 
-      // Check every second for the peer connection
-      const intervalId = setInterval(checkForPeerConnection, 1000)
-      checkForPeerConnection() // Check immediately
-
-      return () => {
-        clearInterval(intervalId)
-      }
-    }
-  }, [])
-
-  // Add this effect to check if we're using Xirsys servers when the connection is established
-  useEffect(() => {
-    if (peerConnectionRef.current && isActive) {
-      // Check if any of the ICE servers are from Xirsys
-      const configuration = peerConnectionRef.current.getConfiguration()
-      const hasXirsysServer = configuration.iceServers?.some((server) => {
-        const urls = Array.isArray(server.urls) ? server.urls : [server.urls]
-        return urls.some((url) => url.includes("xirsys"))
-      })
-
-      setUsingXirsys(hasXirsysServer || false)
-    } else {
-      setUsingXirsys(null)
-    }
-  }, [isActive])
+  // Helper function to add debug messages
+  const addDebugMessage = (message: string) => {
+    console.log("Debug:", message)
+    setDebug((prev) => `${new Date().toISOString()} - ${message}\n${prev || ""}`.substring(0, 1000))
+  }
 
   // Check for microphone permission
   useEffect(() => {
@@ -115,6 +114,13 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     }
   }, [isActive, timeRemaining])
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanup()
+    }
+  }, [])
+
   // Format time as MM:SS
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -122,12 +128,342 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
   }
 
+  // Function to set up WebRTC connection
+  const setupWebRTC = async (sessionId: string, token: string) => {
+    try {
+      addDebugMessage("Setting up WebRTC connection...")
+
+      // Create a new RTCPeerConnection with ICE servers
+      const iceServers = [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" },
+        { urls: "stun:stun3.l.google.com:19302" },
+        { urls: "stun:stun4.l.google.com:19302" },
+      ]
+
+      const pc = new RTCPeerConnection({
+        iceServers,
+        iceCandidatePoolSize: 10,
+      })
+
+      peerConnectionRef.current = pc
+      // @ts-ignore - For debugging purposes
+      if (typeof window !== "undefined") window._vocahirePeerConnection = pc
+
+      // Set up event handlers
+      pc.oniceconnectionstatechange = () => {
+        addDebugMessage(`ICE connection state changed: ${pc.iceConnectionState}`)
+
+        if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+          addDebugMessage("WebRTC connection established successfully")
+          if (connectTimeoutRef.current) {
+            clearTimeout(connectTimeoutRef.current)
+            connectTimeoutRef.current = null
+          }
+          setIsConnecting(false)
+          setIsActive(true)
+          setStatus("active")
+        } else if (
+          pc.iceConnectionState === "failed" ||
+          pc.iceConnectionState === "disconnected" ||
+          pc.iceConnectionState === "closed"
+        ) {
+          addDebugMessage(`WebRTC connection failed: ${pc.iceConnectionState}`)
+          if (isActive) {
+            // Only show error if we were previously active
+            setError(`WebRTC connection failed: ${pc.iceConnectionState}`)
+            setStatus("error")
+          } else if (isConnecting) {
+            // If we're still connecting, fall back to mock mode
+            addDebugMessage("WebRTC connection failed during setup. Falling back to mock mode.")
+            startMockInterview(jobTitle)
+          }
+        }
+      }
+
+      pc.onconnectionstatechange = () => {
+        addDebugMessage(`Connection state changed: ${pc.connectionState}`)
+      }
+
+      pc.onsignalingstatechange = () => {
+        addDebugMessage(`Signaling state changed: ${pc.signalingState}`)
+      }
+
+      // Handle incoming audio tracks
+      pc.ontrack = (event) => {
+        addDebugMessage(`Received remote track: ${event.track.kind}`)
+
+        if (event.track.kind === "audio") {
+          // Create an audio element if it doesn't exist
+          if (!audioRef.current) {
+            const audio = new Audio()
+            audio.autoplay = true
+            audioRef.current = audio
+          }
+
+          // Create a MediaStream with the received track
+          const remoteStream = new MediaStream([event.track])
+
+          // Set the remote stream as the source for the audio element
+          if (audioRef.current) {
+            audioRef.current.srcObject = remoteStream
+            audioRef.current.play().catch((error) => {
+              addDebugMessage(`Error playing audio: ${error}`)
+            })
+          }
+        }
+      }
+
+      // Create a data channel for text communication
+      const dataChannel = pc.createDataChannel("oai-events")
+      dataChannelRef.current = dataChannel
+
+      dataChannel.onopen = () => {
+        addDebugMessage("Data channel opened")
+
+        // Send system prompt to set up the interview context
+        try {
+          const systemPrompt = {
+            type: "system",
+            content: `You are an AI interviewer conducting a mock interview for a ${jobTitle} position. 
+            Ask relevant questions about the candidate's experience, skills, and fit for the role. 
+            Keep your responses conversational and engaging. 
+            The interview should last about 10 minutes.`,
+          }
+
+          dataChannel.send(JSON.stringify(systemPrompt))
+          addDebugMessage("Sent system prompt")
+        } catch (err) {
+          addDebugMessage(`Error sending system prompt: ${err}`)
+        }
+      }
+
+      dataChannel.onclose = () => {
+        addDebugMessage("Data channel closed")
+      }
+
+      dataChannel.onerror = (error) => {
+        addDebugMessage(`Data channel error: ${error}`)
+      }
+
+      dataChannel.onmessage = (event) => {
+        addDebugMessage(`Received message on data channel: ${event.data}`)
+
+        try {
+          const data = JSON.parse(event.data)
+
+          // Handle different message types
+          if (data.type === "transcript") {
+            // This is the user's transcribed speech
+            addMessage("user", data.transcript)
+          } else if (data.type === "message") {
+            // This is the assistant's response
+            addMessage("assistant", data.content)
+          } else if (data.type === "error") {
+            addDebugMessage(`Error from OpenAI: ${JSON.stringify(data.error)}`)
+          }
+        } catch (err) {
+          addDebugMessage(`Error parsing data channel message: ${err}`)
+        }
+      }
+
+      // Add local audio track to the peer connection
+      if (localStreamRef.current) {
+        localStreamRef.current.getAudioTracks().forEach((track) => {
+          pc.addTrack(track, localStreamRef.current!)
+          addDebugMessage(`Added local audio track: ${track.id}`)
+        })
+      } else {
+        throw new Error("No local audio stream available")
+      }
+
+      // Create an offer
+      addDebugMessage("Creating offer...")
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+      })
+
+      // Set local description
+      await pc.setLocalDescription(offer)
+      addDebugMessage("Local description set")
+
+      // Wait for ICE gathering to complete or timeout after 5 seconds
+      await new Promise<void>((resolve) => {
+        const checkState = () => {
+          if (pc.iceGatheringState === "complete") {
+            resolve()
+          }
+        }
+
+        const gatheringTimeout = setTimeout(() => {
+          addDebugMessage("ICE gathering timed out, proceeding with available candidates")
+          resolve()
+        }, 5000)
+
+        pc.onicegatheringstatechange = () => {
+          addDebugMessage(`ICE gathering state changed: ${pc.iceGatheringState}`)
+          checkState()
+        }
+
+        checkState() // Check immediately in case it's already complete
+
+        // Clean up the timeout when resolved
+        return () => clearTimeout(gatheringTimeout)
+      })
+
+      // Get the current SDP offer
+      if (!pc.localDescription || !pc.localDescription.sdp) {
+        throw new Error("No local description available")
+      }
+
+      const sdpOffer = pc.localDescription.sdp
+      addDebugMessage(`SDP offer created (${sdpOffer.length} chars)`)
+
+      // Send the SDP offer to the server to exchange with OpenAI
+      addDebugMessage("Sending SDP offer to server...")
+      const response = await fetch("/api/webrtc-exchange", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId,
+          token,
+          sdp: sdpOffer,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        addDebugMessage(`WebRTC exchange error: ${response.status} - ${errorText}`)
+        throw new Error(`WebRTC exchange error: ${response.status}`)
+      }
+
+      // Get the SDP answer from the server
+      const { sdp: sdpAnswer, useMockMode } = await response.json()
+      addDebugMessage(`Received SDP answer (${sdpAnswer.length} chars)`)
+
+      // Check if we should use mock mode
+      if (useMockMode) {
+        addDebugMessage("Server indicated we should use mock mode. Cleaning up WebRTC and switching to mock mode.")
+        cleanup()
+        return startMockInterview(jobTitle)
+      }
+
+      // Set the remote description
+      await pc.setRemoteDescription({
+        type: "answer",
+        sdp: sdpAnswer,
+      })
+      addDebugMessage("Remote description set")
+
+      // Connection should now be establishing
+      addDebugMessage("WebRTC connection setup complete, waiting for connection...")
+
+      return true
+    } catch (error) {
+      addDebugMessage(`Error setting up WebRTC: ${error}`)
+      throw error
+    }
+  }
+
+  // Function to add a message to the conversation
+  const addMessage = (role: "user" | "assistant", content: string) => {
+    setMessages((prev) => [...prev, { role, content, timestamp: Date.now() }])
+  }
+
+  // Function to start the interview
   const handleStartInterview = async () => {
     try {
       setApiError(null)
       setApiErrorCode(null)
       setApiErrorDetails(null)
-      await start(jobTitle)
+      setError(null)
+      setIsConnecting(true)
+      setStatus("connecting")
+      setIsMockMode(false)
+      addDebugMessage(`Starting interview for job title: ${jobTitle}`)
+
+      // Request microphone access
+      try {
+        addDebugMessage("Requesting microphone access...")
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        localStreamRef.current = stream
+        addDebugMessage(`Microphone access granted. Audio tracks: ${stream.getAudioTracks().length}`)
+      } catch (err) {
+        addDebugMessage(`Error getting microphone access: ${err instanceof Error ? err.message : String(err)}`)
+        throw new Error("Could not access microphone. Please check your browser permissions.")
+      }
+
+      // First, try to test the OpenAI API to see if we have a valid API key
+      try {
+        addDebugMessage("Testing OpenAI API connection...")
+        const testResponse = await fetch("/api/test-openai")
+        const testData = await testResponse.json()
+
+        if (testData.status !== "success") {
+          addDebugMessage("OpenAI API test failed. Falling back to mock mode.")
+          return startMockInterview(jobTitle)
+        }
+
+        addDebugMessage("OpenAI API test successful. Proceeding with real-time session.")
+      } catch (testError) {
+        addDebugMessage(`OpenAI API test error: ${testError}. Falling back to mock mode.`)
+        return startMockInterview(jobTitle)
+      }
+
+      // Try to get a real-time session token
+      addDebugMessage("Fetching OpenAI token...")
+      const tokenResponse = await fetch("/api/realtime-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ jobRole: jobTitle }),
+      })
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text()
+        addDebugMessage(`Token API error: ${tokenResponse.status} - ${errorText}`)
+
+        // If we get a 500 error, it's likely due to missing API key or other server issues
+        // Fall back to mock mode
+        if (tokenResponse.status === 500) {
+          addDebugMessage("Token API error 500. Falling back to mock mode.")
+          return startMockInterview(jobTitle)
+        }
+
+        throw new Error(`Token API error: ${tokenResponse.status}`)
+      }
+
+      const { token, sessionId, model, voice, useMockMode } = await tokenResponse.json()
+      addDebugMessage(`Token received: ${sessionId} (model: ${model}, voice: ${voice})`)
+
+      // Check if the server wants us to use mock mode
+      if (useMockMode) {
+        addDebugMessage("Server indicated we should use mock mode. Switching to mock mode.")
+        return startMockInterview(jobTitle)
+      }
+
+      // Store session info for later use
+      sessionInfoRef.current = { id: sessionId, token }
+
+      // Set a timeout for connection
+      connectTimeoutRef.current = setTimeout(() => {
+        if (status === "connecting") {
+          addDebugMessage("Connection timed out. Falling back to mock mode.")
+          startMockInterview(jobTitle)
+        }
+      }, 20000) // 20 second timeout
+
+      // Set up WebRTC connection
+      try {
+        await setupWebRTC(sessionId, token)
+      } catch (err) {
+        addDebugMessage(`WebRTC setup error: ${err}. Falling back to mock mode.`)
+        startMockInterview(jobTitle)
+      }
     } catch (err) {
       console.error("Failed to start interview:", err)
 
@@ -152,41 +488,117 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
           if (errorJson.message) errorMessage = errorJson.message
           if (errorJson.code) errorCode = errorJson.code
           errorDetails = errorJson
-
-          console.log("Parsed error details:", errorJson)
         }
       } catch (parseError) {
         console.error("Error parsing error response:", parseError)
       }
 
-      // Check for specific error patterns
-      if (errorMessage.includes("Token API error: 500")) {
-        if (errorCode === "missing_api_key") {
-          errorMessage = "OpenAI API key is missing. Please check the environment variables."
-        } else {
-          errorMessage = "Server error: Unable to connect to OpenAI. Please try again later or contact support."
-        }
-      } else if (errorMessage.includes("Token API error: 401") || errorMessage.includes("Token API error: 403")) {
-        errorMessage = "Authentication error: API key may be invalid or expired. Please contact support."
-      } else if (errorMessage.includes("Token API error: 429")) {
-        errorMessage = "Rate limit exceeded: Too many requests to OpenAI. Please try again in a few minutes."
-      } else if (errorMessage.includes("Failed to fetch") || errorMessage.includes("NetworkError")) {
-        errorMessage = "Network error: Unable to connect to the server. Please check your internet connection."
-      }
-
       setApiError(errorMessage)
       setApiErrorCode(errorCode)
       setApiErrorDetails(errorDetails)
+      setError(errorMessage)
+      setStatus("error")
+      setIsConnecting(false)
 
-      // Add more detailed logging for debugging
-      if (typeof err === "object" && err !== null) {
-        console.error("Error details:", JSON.stringify(err, null, 2))
+      // Try to fall back to mock mode if possible
+      if (localStreamRef.current) {
+        addDebugMessage("Error with real-time session. Falling back to mock mode.")
+        startMockInterview(jobTitle)
       }
     }
   }
 
+  // Function to start a mock interview
+  const startMockInterview = (jobTitle: string) => {
+    // Clean up any existing connection attempts
+    if (connectTimeoutRef.current) {
+      clearTimeout(connectTimeoutRef.current)
+      connectTimeoutRef.current = null
+    }
+
+    // Clean up any existing WebRTC connection
+    cleanup()
+
+    addDebugMessage(`Starting mock interview for ${jobTitle}`)
+    setIsMockMode(true)
+    setIsConnecting(false)
+    setIsActive(true)
+    setStatus("active")
+    mockQuestionIndex.current = 0
+    setMessages([])
+
+    // Add initial interviewer message after a short delay
+    setTimeout(() => {
+      setMessages([
+        {
+          role: "assistant",
+          content: `Hello! I'm your AI interviewer for the ${jobTitle} position. Could you please introduce yourself and tell me about your background?`,
+          timestamp: Date.now(),
+        },
+      ])
+      mockQuestionIndex.current = 1
+    }, 1500)
+
+    // Set up mock interview responses
+    // Simulate user speaking by adding a message every 30 seconds
+    mockIntervalRef.current = setInterval(() => {
+      if (mockQuestionIndex.current < mockInterviewQuestions.length) {
+        // Add a simulated user message first (as if the user spoke)
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "user",
+            content: "(Your response would be transcribed here)",
+            timestamp: Date.now(),
+          },
+        ])
+
+        // Then add the interviewer's next question after a short delay
+        setTimeout(() => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: mockInterviewQuestions[mockQuestionIndex.current],
+              timestamp: Date.now(),
+            },
+          ])
+        }, 1500)
+
+        mockQuestionIndex.current++
+      } else {
+        // End the mock interview when we run out of questions
+        if (mockIntervalRef.current) {
+          clearInterval(mockIntervalRef.current)
+          mockIntervalRef.current = null
+        }
+      }
+    }, 30000) // Every 30 seconds
+
+    // Start the timer
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current)
+    }
+    setTimeRemaining(600) // Reset to 10 minutes
+    timerIntervalRef.current = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          handleInterviewComplete()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return true
+  }
+
+  // Function to handle interview completion
   const handleInterviewComplete = () => {
-    stop()
+    addDebugMessage("Interview completed")
+    cleanup()
+    setStatus("ended")
+    setIsActive(false)
 
     // In a real implementation, you would save the interview data to your database
     // and then redirect to the feedback page
@@ -199,11 +611,88 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     }
   }
 
+  // Function to toggle mute
   const toggleMute = () => {
-    if (audioRef.current) {
+    if (localStreamRef.current) {
+      const newMuteState = !isMuted
+      // Toggle mute state for all audio tracks
+      localStreamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = !newMuteState
+      })
+      setIsMuted(newMuteState)
+      addDebugMessage(`Microphone ${newMuteState ? "muted" : "unmuted"}`)
+    } else if (audioRef.current) {
       audioRef.current.muted = !audioRef.current.muted
       setIsMuted(!isMuted)
     }
+  }
+
+  // Function to clean up resources
+  const cleanup = () => {
+    addDebugMessage("Cleaning up resources")
+
+    // Clear mock interview interval
+    if (mockIntervalRef.current) {
+      clearInterval(mockIntervalRef.current)
+      mockIntervalRef.current = null
+    }
+
+    // Clear timer interval
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current)
+      timerIntervalRef.current = null
+    }
+
+    // Clear connection timeout
+    if (connectTimeoutRef.current) {
+      clearTimeout(connectTimeoutRef.current)
+      connectTimeoutRef.current = null
+    }
+
+    // Close data channel
+    if (dataChannelRef.current) {
+      try {
+        if (dataChannelRef.current.readyState === "open") {
+          dataChannelRef.current.close()
+        }
+        dataChannelRef.current = null
+      } catch (err) {
+        addDebugMessage(`Error closing data channel: ${err}`)
+      }
+    }
+
+    // Close peer connection
+    if (peerConnectionRef.current) {
+      try {
+        peerConnectionRef.current.close()
+        peerConnectionRef.current = null
+      } catch (err) {
+        addDebugMessage(`Error closing peer connection: ${err}`)
+      }
+    }
+
+    // Stop all tracks in the local stream
+    if (localStreamRef.current) {
+      try {
+        localStreamRef.current.getTracks().forEach((track) => track.stop())
+        localStreamRef.current = null
+      } catch (err) {
+        addDebugMessage(`Error stopping audio tracks: ${err}`)
+      }
+    }
+
+    // Clean up audio element
+    if (audioRef.current) {
+      try {
+        audioRef.current.pause()
+        audioRef.current.srcObject = null
+      } catch (err) {
+        addDebugMessage(`Error cleaning up audio element: ${err}`)
+      }
+    }
+
+    // Reset session info
+    sessionInfoRef.current = null
   }
 
   // Function to test OpenAI API connectivity
@@ -215,11 +704,6 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
       const response = await fetch("/api/test-openai")
       const data = await response.json()
       setApiTestResult(data)
-
-      // Store available models for use in the UI
-      if (data.openaiResponse?.sampleModels) {
-        setAvailableModels(data.openaiResponse.sampleModels)
-      }
 
       // If the test is successful but we had an error before, try starting the interview again
       if (data.status === "success" && apiError) {
@@ -309,110 +793,6 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
       errorMessage.includes("WebRTC") ||
       errorMessage.includes("audio")
 
-    const isDataChannelError = errorMessage.includes("DataChannel")
-
-    const isApiError =
-      errorMessage.includes("API error") || errorMessage.includes("Token") || errorMessage.includes("OpenAI")
-
-    if (isDataChannelError) {
-      // Existing data channel error handling...
-      return (
-        <div className="bg-amber-100 dark:bg-amber-900/20 p-4 rounded-md text-amber-700 dark:text-amber-300">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="font-medium">Connection Notice:</p>
-              <p>
-                The text messaging channel was closed by the server, but the interview can continue with audio only.
-              </p>
-              <p className="text-sm mt-2">
-                This is normal behavior with OpenAI's Realtime API and doesn't affect the quality of your interview.
-                Please continue speaking clearly into your microphone.
-              </p>
-            </div>
-          </div>
-        </div>
-      )
-    }
-
-    if (isApiError) {
-      return (
-        <div className="bg-red-100 dark:bg-red-900/20 p-4 rounded-md text-red-700 dark:text-red-300">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="font-medium">API Connection Error:</p>
-              <p>{errorMessage}</p>
-              <div className="mt-3 space-y-2 text-sm">
-                <p className="font-medium">Possible solutions:</p>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li>Try again in a few minutes</li>
-                  <li>Check if the OpenAI service is experiencing issues</li>
-                  <li>Your account may not have access to the required model (gpt-4o-realtime-preview-2024-12-17)</li>
-                  <li>Contact support if the problem persists</li>
-                </ul>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={testOpenAiApi}
-                    disabled={isTestingApi}
-                    className="text-xs"
-                  >
-                    {isTestingApi ? (
-                      <>
-                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                        Testing API...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-3 w-3 mr-1" />
-                        Test OpenAI Connection
-                      </>
-                    )}
-                  </Button>
-                  <Button variant="outline" size="sm" asChild className="text-xs">
-                    <Link href="/test-interview-mock" className="flex items-center gap-1">
-                      <ExternalLink className="h-3 w-3" />
-                      Try Mock Interview Mode
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-
-              {apiTestResult && (
-                <div className="mt-3 p-2 bg-white dark:bg-gray-800 rounded border text-xs font-mono overflow-x-auto">
-                  <p className="font-medium mb-1">API Test Result:</p>
-                  <pre className="whitespace-pre-wrap">{JSON.stringify(apiTestResult, null, 2)}</pre>
-                </div>
-              )}
-
-              {availableModels.length > 0 && (
-                <div className="mt-3 p-2 bg-white dark:bg-gray-800 rounded border text-xs">
-                  <p className="font-medium mb-1">Available Models:</p>
-                  <ul className="list-disc pl-5 space-y-1">
-                    {availableModels.map((model, index) => (
-                      <li
-                        key={index}
-                        className={model.includes("realtime") ? "text-green-600 dark:text-green-400" : ""}
-                      >
-                        {model}
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="mt-2 text-amber-600 dark:text-amber-400">
-                    {availableModels.some((m) => m.includes("realtime"))
-                      ? "You have access to realtime models, but there might be an issue with the specific model we're trying to use."
-                      : "You don't appear to have access to any realtime models, which are required for this feature."}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )
-    }
-
     return (
       <div className="bg-red-100 dark:bg-red-900/20 p-4 rounded-md text-red-700 dark:text-red-300">
         <div className="flex items-start gap-2">
@@ -456,15 +836,9 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
         <div className="flex justify-between items-center">
           <CardTitle>Mock Interview: {jobTitle}</CardTitle>
           <div className="flex items-center gap-4">
-            {isActive && (
-              <ConnectionQualityIndicator
-                peerConnection={peerConnectionRef.current}
-                className="bg-background/80 border"
-              />
-            )}
-            {isActive && usingXirsys !== null && (
-              <div className="text-xs px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
-                {usingXirsys ? "Xirsys TURN" : "Standard STUN"}
+            {isMockMode && (
+              <div className="text-xs px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300">
+                Mock Mode
               </div>
             )}
             <div className="flex items-center gap-2 text-lg font-mono">
@@ -491,9 +865,9 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
               and refresh the page.
             </p>
           </div>
-        ) : error ? (
+        ) : error && !isMockMode ? (
           renderNetworkError(error)
-        ) : apiError ? (
+        ) : apiError && !isMockMode ? (
           apiErrorCode === "missing_api_key" ? (
             renderMissingApiKeyError()
           ) : (
@@ -567,29 +941,28 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
                     <Button onClick={handleStartInterview} size="lg">
                       Start Interview
                     </Button>
-                    <Button variant="outline" size="lg" asChild>
-                      <Link href="/test-interview-mock" className="flex items-center gap-1">
-                        <ExternalLink className="h-4 w-4" />
-                        Try Mock Mode (No WebRTC)
-                      </Link>
+                    <Button variant="outline" size="lg" onClick={() => startMockInterview(jobTitle)}>
+                      Start Mock Interview
                     </Button>
                   </div>
                 </div>
               )}
 
-              {(isConnecting || isActive) && (
+              {isConnecting && (
+                <div className="flex flex-col items-center justify-center h-[300px]">
+                  <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary" />
+                  <h3 className="text-lg font-medium mb-2">Connecting to OpenAI...</h3>
+                  <p className="text-muted-foreground text-center max-w-md">
+                    Establishing secure connection. This may take a few moments.
+                  </p>
+                </div>
+              )}
+
+              {isActive && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center mb-4">
-                    <div
-                      className={`p-3 rounded-full ${
-                        isActive ? "bg-green-100 dark:bg-green-900/20" : "bg-amber-100 dark:bg-amber-900/20"
-                      }`}
-                    >
-                      {isActive ? (
-                        <Mic className="h-6 w-6 text-green-600 dark:text-green-400 animate-pulse" />
-                      ) : (
-                        <Mic className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                      )}
+                    <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/20">
+                      <Mic className="h-6 w-6 text-green-600 dark:text-green-400 animate-pulse" />
                     </div>
                     {isActive && (
                       <Button
@@ -605,20 +978,16 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
                   </div>
 
                   <div className="text-center mb-4">
-                    {isConnecting && (
-                      <div className="flex flex-col items-center">
-                        <p>Connecting to interviewer...</p>
-                        <div className="mt-2 flex items-center gap-2">
-                          <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
-                          <span className="text-sm text-muted-foreground">Establishing secure connection</span>
-                        </div>
-                      </div>
+                    {isActive && (
+                      <p>
+                        Interview in progress.{" "}
+                        {isMockMode ? "This is a simulated interview." : "Speak clearly into your microphone."}
+                      </p>
                     )}
-                    {isActive && <p>Interview in progress. Speak clearly into your microphone.</p>}
                   </div>
 
                   <div className="mt-4 space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                    {messages.length === 0 && isActive && (
+                    {messages.length === 0 && (
                       <div className="text-center text-muted-foreground italic">
                         <p>The interviewer will begin shortly...</p>
                       </div>
