@@ -101,49 +101,215 @@ export async function POST(request: Request) {
       )
     }
 
-    // Create the request body according to the OpenAI Realtime API documentation
-    const requestBody = {
-      model: "gpt-4o", // Use the appropriate model
+    // First, verify API access with a simple models list call
+    console.log("Verifying OpenAI API access...")
+    try {
+      const modelsResponse = await fetch("https://api.openai.com/v1/models", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+      })
+
+      // Get response as text first to safely log it
+      const modelsText = await modelsResponse.text()
+
+      console.log("OpenAI models API response status:", modelsResponse.status)
+      console.log("OpenAI models API response statusText:", modelsResponse.statusText)
+
+      if (!modelsResponse.ok) {
+        console.error(`OpenAI models API error: ${modelsResponse.status} - ${modelsText.substring(0, 500)}`)
+        throw new Error(`OpenAI API access verification failed: ${modelsResponse.status}`)
+      }
+
+      // Try to parse the response as JSON
+      try {
+        const modelsData = JSON.parse(modelsText)
+        // Check if the response contains models
+        if (!modelsData.data || !Array.isArray(modelsData.data)) {
+          console.error("OpenAI models API returned unexpected format:", modelsText.substring(0, 500))
+          throw new Error("OpenAI API returned unexpected format")
+        }
+
+        // Check if the realtime model is available
+        const hasRealtimeModel = modelsData.data.some(
+          (model: any) => model.id.includes("gpt-4o") && model.id.includes("realtime"),
+        )
+
+        console.log("OpenAI API access verified successfully")
+        console.log("Has realtime model:", hasRealtimeModel)
+
+        // If the realtime model is not available, log a warning
+        if (!hasRealtimeModel) {
+          console.warn(
+            "WARNING: No realtime models found in the available models list. This may indicate that your API key doesn't have access to the realtime API.",
+          )
+        }
+      } catch (parseError) {
+        console.error("Error parsing OpenAI models response:", parseError)
+        throw new Error("Failed to parse OpenAI models response")
+      }
+    } catch (apiAccessError) {
+      console.error("Failed to verify OpenAI API access:", apiAccessError)
+      return new NextResponse(
+        JSON.stringify({
+          error: "OpenAI API access error",
+          message: "Failed to verify access to the OpenAI API. Please check your API key and network connection.",
+          details: apiAccessError instanceof Error ? apiAccessError.message : String(apiAccessError),
+          code: "api_access_error",
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        },
+      )
     }
 
-    console.log("OpenAI request body:", requestBody)
+    // Create the request body according to the OpenAI Realtime API documentation
+    // Try different model names if the first one fails
+    const modelOptions = [
+      "gpt-4o-mini-realtime", // First choice
+      "gpt-4o-realtime", // Second choice
+      "gpt-4-turbo-realtime", // Third choice
+      "gpt-4-realtime", // Fourth choice
+    ]
 
-    // Make the request to create a realtime session
-    // IMPORTANT: Using the correct endpoint URL for the OpenAI API
-    console.log("Making request to OpenAI realtime sessions API...")
-    const response = await fetch("https://api.openai.com/v1/audio/speech", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "tts-1",
+    // Start with the first model option
+    const currentModelIndex = 0
+    const requestBody = {
+      model: modelOptions[currentModelIndex],
+      voice: "alloy", // Choose a voice: alloy, echo, fable, onyx, nova, or shimmer
+    }
+
+    console.log("Initial OpenAI request body:", requestBody)
+
+    // Function to make the request with the current model
+    const makeRealtimeSessionRequest = async (modelName: string) => {
+      console.log(`Attempting to create realtime session with model: ${modelName}`)
+
+      const requestBody = {
+        model: modelName,
         voice: "alloy",
-        input: `Hello, I'm your AI interviewer for a ${jobRole} position. Let's start the interview. Could you please introduce yourself and tell me about your background?`,
-      }),
-    })
+      }
 
-    // Get response as text first to safely log it
-    const text = await response.text()
+      // Make the request to create a realtime session
+      console.log("Making request to OpenAI realtime sessions API...")
+      console.log("Request URL:", "https://api.openai.com/v1/audio/realtime/sessions")
+      console.log("Request headers:", {
+        Authorization: "Bearer sk-***" + (apiKey ? apiKey.substring(apiKey.length - 4) : ""),
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "realtime",
+      })
+      console.log("Request body:", requestBody)
 
-    // Log response details
-    console.log("OpenAI API response status:", response.status)
-    console.log("OpenAI API response statusText:", response.statusText)
-    console.log("OpenAI API response headers:", Object.fromEntries([...response.headers.entries()]))
+      const response = await fetch("https://api.openai.com/v1/audio/realtime/sessions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "OpenAI-Beta": "realtime", // Required for the realtime API
+        },
+        body: JSON.stringify(requestBody),
+      })
 
-    // Log a safe substring of the response body
-    const safeResponseText = text.length > 500 ? text.substring(0, 500) + "..." : text
-    console.log("OpenAI API response body:", safeResponseText)
+      // Get response as text first to safely log it
+      const text = await response.text()
 
-    if (!response.ok) {
-      let details
+      // Log response details
+      console.log("OpenAI API response status:", response.status)
+      console.log("OpenAI API response statusText:", response.statusText)
+      console.log("OpenAI API response headers:", Object.fromEntries([...response.headers.entries()]))
+
+      // Check content type to see if it's JSON or HTML
+      const contentType = response.headers.get("content-type") || ""
+      const isJsonResponse = contentType.includes("application/json")
+      const isHtmlResponse = contentType.includes("text/html") || text.trim().startsWith("<")
+
+      // Log content type and response format
+      console.log("Response content type:", contentType)
+      console.log("Is JSON response:", isJsonResponse)
+      console.log("Is HTML response:", isHtmlResponse)
+
+      // Log a safe substring of the response body
+      const safeResponseText = text.length > 500 ? text.substring(0, 500) + "..." : text
+      console.log("OpenAI API response body:", safeResponseText)
+
+      return { response, text, isJsonResponse, isHtmlResponse }
+    }
+
+    // Try each model in sequence until one works or we run out of options
+    let response, text, isJsonResponse, isHtmlResponse
+    let lastError = null
+
+    for (let i = 0; i < modelOptions.length; i++) {
       try {
-        details = JSON.parse(text)
-        console.error("OpenAI API error details:", details)
-      } catch (e) {
-        console.error("Failed to parse OpenAI error response:", e)
-        details = { error: text }
+        const result = await makeRealtimeSessionRequest(modelOptions[i])
+        response = result.response
+        text = result.text
+        isJsonResponse = result.isJsonResponse
+        isHtmlResponse = result.isHtmlResponse
+
+        // If the response is successful, break out of the loop
+        if (response.ok && isJsonResponse && !isHtmlResponse) {
+          console.log(`Successfully created realtime session with model: ${modelOptions[i]}`)
+          break
+        }
+
+        // If we got an HTML response or an error, try the next model
+        console.log(`Failed to create realtime session with model: ${modelOptions[i]}. Status: ${response.status}`)
+        lastError = {
+          status: response.status,
+          statusText: response.statusText,
+          text: text,
+          isHtml: isHtmlResponse,
+        }
+      } catch (error) {
+        console.error(`Error making request with model ${modelOptions[i]}:`, error)
+        lastError = error
+      }
+    }
+
+    // If we didn't get a successful response, handle the error
+    if (!response || !response.ok || isHtmlResponse || !isJsonResponse) {
+      console.error("All model options failed to create a realtime session")
+
+      if (isHtmlResponse) {
+        console.error(
+          "Received HTML response instead of JSON. This could indicate a network issue, incorrect endpoint, or lack of access to the Realtime API.",
+        )
+        // Extract a meaningful error message from HTML if possible
+        const errorMatch = text.match(/<title>(.*?)<\/title>/) || text.match(/<h1>(.*?)<\/h1>/)
+        const htmlErrorMessage = errorMatch ? errorMatch[1] : "Received HTML response instead of JSON"
+
+        return new NextResponse(
+          JSON.stringify({
+            error: "Invalid API response format",
+            message:
+              "The OpenAI API returned HTML instead of JSON. This could indicate a network issue, incorrect endpoint, or lack of access to the Realtime API.",
+            htmlError: htmlErrorMessage,
+            code: "html_response",
+            details:
+              "Your API key may not have access to the Realtime API. Please check your OpenAI account permissions.",
+          }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          },
+        )
+      }
+
+      // Handle other error types
+      let details = { error: text }
+
+      // Only try to parse as JSON if it looks like JSON
+      if (isJsonResponse && !isHtmlResponse) {
+        try {
+          details = JSON.parse(text)
+          console.error("OpenAI API error details:", details)
+        } catch (e) {
+          console.error("Failed to parse OpenAI error response:", e)
+        }
       }
 
       // Return a more specific error message
@@ -152,7 +318,7 @@ export async function POST(request: Request) {
       const errorMessage = details.error?.message || text
 
       console.error("OpenAI API error summary:", {
-        status: response.status,
+        status: response?.status,
         code: errorCode,
         type: errorType,
         message: errorMessage,
@@ -160,34 +326,69 @@ export async function POST(request: Request) {
 
       return new NextResponse(
         JSON.stringify({
-          error: `OpenAI API error: ${response.status}`,
+          error: `OpenAI API error: ${response?.status || "Unknown"}`,
           message: errorMessage,
           code: errorCode,
           type: errorType,
           details: details,
         }),
         {
-          status: response.status,
+          status: response?.status || 500,
           headers: { "Content-Type": "application/json" },
         },
       )
     }
 
-    // Since we're using the speech API as a fallback, we'll create a mock session
-    // This is a temporary solution until we can properly implement the realtime API
-    const mockSessionId = `mock-${Date.now()}`
-    const mockToken = "mock-token"
+    // Parse the successful response
+    let data
+    try {
+      data = JSON.parse(text)
+      console.log("Successfully parsed OpenAI response")
+    } catch (parseError) {
+      console.error("Error parsing OpenAI response:", parseError)
+      return new NextResponse(
+        JSON.stringify({
+          error: "Failed to parse OpenAI response",
+          message: "The response from OpenAI was not valid JSON",
+          code: "invalid_json_response",
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        },
+      )
+    }
+
+    // Validate the response structure according to the documentation
+    if (!data.client_secret?.value || !data.id) {
+      console.error("OpenAI response missing required fields:", {
+        hasClientSecret: !!data.client_secret,
+        hasClientSecretValue: !!data.client_secret?.value,
+        hasId: !!data.id,
+      })
+
+      return new NextResponse(
+        JSON.stringify({
+          error: "Invalid OpenAI response structure",
+          message: "The response from OpenAI did not contain the expected fields",
+          code: "invalid_response_structure",
+          responseData: data,
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        },
+      )
+    }
 
     // Success! Return the token and session ID
-    console.log("Successfully generated speech. Using mock session for now.")
+    console.log("Successfully obtained OpenAI token and session ID")
     return NextResponse.json({
-      token: mockToken,
-      sessionId: mockSessionId,
-      jobRole,
+      token: data.client_secret.value,
+      sessionId: data.id,
+      jobRole, // Still return jobRole to the client
       model: requestBody.model,
-      voice: "alloy",
-      useMockMode: true, // Signal to the client to use mock mode
-      speechData: text, // This will be the audio data from the speech API
+      voice: requestBody.voice,
     })
   } catch (error) {
     // Get detailed error information
@@ -200,19 +401,6 @@ export async function POST(request: Request) {
       message: errorMessage,
       stack: errorStack,
     })
-
-    // Check for specific error patterns
-    if (errorMessage.includes("fetch failed") || errorMessage.includes("network")) {
-      return NextResponse.json(
-        {
-          error: "Network error connecting to OpenAI",
-          message: "Failed to connect to OpenAI API. Please check your internet connection and try again.",
-          details: errorMessage,
-          code: "network_error",
-        },
-        { status: 503 }, // Service Unavailable
-      )
-    }
 
     // Generic error response
     return NextResponse.json(

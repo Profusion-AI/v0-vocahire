@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mic, Clock, Volume2, VolumeX, AlertCircle, WifiOff, ExternalLink, RefreshCw, Loader2 } from "lucide-react"
+import { Mic, Clock, Volume2, VolumeX, AlertCircle, RefreshCw, Loader2, ExternalLink } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
@@ -39,9 +39,11 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
   const [apiErrorDetails, setApiErrorDetails] = useState<any>(null)
   const [isTestingApi, setIsTestingApi] = useState(false)
   const [apiTestResult, setApiTestResult] = useState<any>(null)
+  const [isTestingRealtimeApi, setIsTestingRealtimeApi] = useState(false)
+  const [realtimeApiTestResult, setRealtimeApiTestResult] = useState<any>(null)
 
-  // State for mock mode
-  const [isMockMode, setIsMockMode] = useState(false)
+  // State for audio indicators
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false)
 
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -49,24 +51,8 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
   const dataChannelRef = useRef<RTCDataChannel | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
   const sessionInfoRef = useRef<{ id: string; token: string } | null>(null)
-  const mockIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const mockQuestionIndex = useRef<number>(0)
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const connectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  // Mock interview questions
-  const mockInterviewQuestions = [
-    "Hello! I'll be conducting your interview today. Could you start by telling me a bit about your background and experience?",
-    "That's interesting. Can you tell me about a challenging project you worked on recently?",
-    "How do you approach problem-solving in your work?",
-    "What are your strengths and weaknesses as a professional?",
-    "Where do you see yourself in 5 years?",
-    "How do you handle tight deadlines and pressure?",
-    "Tell me about a time when you had to learn a new technology quickly.",
-    "How do you stay updated with the latest trends in your field?",
-    "What questions do you have for me about the position?",
-    "Thank you for your time today. We'll be in touch with next steps.",
-  ]
 
   // Helper function to add debug messages
   const addDebugMessage = (message: string) => {
@@ -170,15 +156,10 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
           pc.iceConnectionState === "closed"
         ) {
           addDebugMessage(`WebRTC connection failed: ${pc.iceConnectionState}`)
-          if (isActive) {
-            // Only show error if we were previously active
-            setError(`WebRTC connection failed: ${pc.iceConnectionState}`)
-            setStatus("error")
-          } else if (isConnecting) {
-            // If we're still connecting, fall back to mock mode
-            addDebugMessage("WebRTC connection failed during setup. Falling back to mock mode.")
-            startMockInterview(jobTitle)
-          }
+          setError(`WebRTC connection failed: ${pc.iceConnectionState}`)
+          setStatus("error")
+          setIsConnecting(false)
+          setIsActive(false)
         }
       }
 
@@ -200,6 +181,17 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
             const audio = new Audio()
             audio.autoplay = true
             audioRef.current = audio
+
+            // Set up audio playing detection
+            audio.onplaying = () => {
+              setIsAudioPlaying(true)
+              addDebugMessage("Audio started playing")
+            }
+
+            audio.onpause = audio.onended = () => {
+              setIsAudioPlaying(false)
+              addDebugMessage("Audio stopped playing")
+            }
           }
 
           // Create a MediaStream with the received track
@@ -258,8 +250,9 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
             // This is the user's transcribed speech
             addMessage("user", data.transcript)
           } else if (data.type === "message") {
-            // This is the assistant's response
-            addMessage("assistant", data.content)
+            // This is the assistant's response - we don't display it in the UI
+            // Just log it for debugging
+            addDebugMessage(`Assistant message (audio only): ${data.content}`)
           } else if (data.type === "error") {
             addDebugMessage(`Error from OpenAI: ${JSON.stringify(data.error)}`)
           }
@@ -337,19 +330,25 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
       if (!response.ok) {
         const errorText = await response.text()
         addDebugMessage(`WebRTC exchange error: ${response.status} - ${errorText}`)
+
+        // Try to parse the error response
+        try {
+          const errorData = JSON.parse(errorText)
+          if (errorData.code === "html_response") {
+            throw new Error(
+              "The OpenAI API returned HTML instead of an SDP answer. Your API key may not have access to the Realtime API.",
+            )
+          }
+        } catch (parseError) {
+          // If we can't parse the error, just use the original error text
+        }
+
         throw new Error(`WebRTC exchange error: ${response.status}`)
       }
 
       // Get the SDP answer from the server
-      const { sdp: sdpAnswer, useMockMode } = await response.json()
+      const { sdp: sdpAnswer } = await response.json()
       addDebugMessage(`Received SDP answer (${sdpAnswer.length} chars)`)
-
-      // Check if we should use mock mode
-      if (useMockMode) {
-        addDebugMessage("Server indicated we should use mock mode. Cleaning up WebRTC and switching to mock mode.")
-        cleanup()
-        return startMockInterview(jobTitle)
-      }
 
       // Set the remote description
       await pc.setRemoteDescription({
@@ -370,6 +369,15 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
 
   // Function to add a message to the conversation
   const addMessage = (role: "user" | "assistant", content: string) => {
+    // For assistant messages, we don't display them in the UI
+    if (role === "assistant") {
+      // In a real implementation, this would trigger audio playback
+      // but we don't add it to the visible messages
+      console.log("Assistant message for audio only:", content)
+      return
+    }
+
+    // Only add user messages to the UI
     setMessages((prev) => [...prev, { role, content, timestamp: Date.now() }])
   }
 
@@ -382,7 +390,6 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
       setError(null)
       setIsConnecting(true)
       setStatus("connecting")
-      setIsMockMode(false)
       addDebugMessage(`Starting interview for job title: ${jobTitle}`)
 
       // Request microphone access
@@ -403,14 +410,14 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
         const testData = await testResponse.json()
 
         if (testData.status !== "success") {
-          addDebugMessage("OpenAI API test failed. Falling back to mock mode.")
-          return startMockInterview(jobTitle)
+          addDebugMessage("OpenAI API test failed.")
+          throw new Error("OpenAI API test failed. The service is currently unavailable.")
         }
 
         addDebugMessage("OpenAI API test successful. Proceeding with real-time session.")
       } catch (testError) {
-        addDebugMessage(`OpenAI API test error: ${testError}. Falling back to mock mode.`)
-        return startMockInterview(jobTitle)
+        addDebugMessage(`OpenAI API test error: ${testError}`)
+        throw new Error("Failed to connect to OpenAI API. The service is currently unavailable.")
       }
 
       // Try to get a real-time session token
@@ -427,24 +434,23 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
         const errorText = await tokenResponse.text()
         addDebugMessage(`Token API error: ${tokenResponse.status} - ${errorText}`)
 
-        // If we get a 500 error, it's likely due to missing API key or other server issues
-        // Fall back to mock mode
-        if (tokenResponse.status === 500) {
-          addDebugMessage("Token API error 500. Falling back to mock mode.")
-          return startMockInterview(jobTitle)
+        // Try to parse the error response
+        try {
+          const errorData = JSON.parse(errorText)
+          if (errorData.code === "html_response") {
+            throw new Error(
+              "The OpenAI API returned HTML instead of JSON. Your API key may not have access to the Realtime API.",
+            )
+          }
+        } catch (parseError) {
+          // If we can't parse the error, just use the original error text
         }
 
-        throw new Error(`Token API error: ${tokenResponse.status}`)
+        throw new Error(`Failed to initialize interview session. Status: ${tokenResponse.status}`)
       }
 
-      const { token, sessionId, model, voice, useMockMode } = await tokenResponse.json()
+      const { token, sessionId, model, voice } = await tokenResponse.json()
       addDebugMessage(`Token received: ${sessionId} (model: ${model}, voice: ${voice})`)
-
-      // Check if the server wants us to use mock mode
-      if (useMockMode) {
-        addDebugMessage("Server indicated we should use mock mode. Switching to mock mode.")
-        return startMockInterview(jobTitle)
-      }
 
       // Store session info for later use
       sessionInfoRef.current = { id: sessionId, token }
@@ -452,8 +458,11 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
       // Set a timeout for connection
       connectTimeoutRef.current = setTimeout(() => {
         if (status === "connecting") {
-          addDebugMessage("Connection timed out. Falling back to mock mode.")
-          startMockInterview(jobTitle)
+          addDebugMessage("Connection timed out.")
+          setError("Connection timed out. The service is currently unavailable.")
+          setStatus("error")
+          setIsConnecting(false)
+          cleanup()
         }
       }, 20000) // 20 second timeout
 
@@ -461,14 +470,14 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
       try {
         await setupWebRTC(sessionId, token)
       } catch (err) {
-        addDebugMessage(`WebRTC setup error: ${err}. Falling back to mock mode.`)
-        startMockInterview(jobTitle)
+        addDebugMessage(`WebRTC setup error: ${err}`)
+        throw new Error("Failed to establish voice connection. The service is currently unavailable.")
       }
     } catch (err) {
       console.error("Failed to start interview:", err)
 
       // Extract more detailed error information
-      let errorMessage = "An unknown error occurred while starting the interview"
+      let errorMessage = "An unknown error occurred. The service is currently unavailable."
       let errorCode = "unknown_error"
       let errorDetails = null
 
@@ -488,6 +497,15 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
           if (errorJson.message) errorMessage = errorJson.message
           if (errorJson.code) errorCode = errorJson.code
           errorDetails = errorJson
+
+          // Handle HTML response error specifically
+          if (errorCode === "html_response") {
+            errorMessage =
+              "The service is currently unavailable due to a network issue or API access restrictions. Please try again later."
+            addDebugMessage(
+              "Received HTML response instead of JSON/SDP. This could be due to a network proxy, incorrect API endpoint, or lack of access to the Realtime API.",
+            )
+          }
         }
       } catch (parseError) {
         console.error("Error parsing error response:", parseError)
@@ -499,98 +517,8 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
       setError(errorMessage)
       setStatus("error")
       setIsConnecting(false)
-
-      // Try to fall back to mock mode if possible
-      if (localStreamRef.current) {
-        addDebugMessage("Error with real-time session. Falling back to mock mode.")
-        startMockInterview(jobTitle)
-      }
+      cleanup()
     }
-  }
-
-  // Function to start a mock interview
-  const startMockInterview = (jobTitle: string) => {
-    // Clean up any existing connection attempts
-    if (connectTimeoutRef.current) {
-      clearTimeout(connectTimeoutRef.current)
-      connectTimeoutRef.current = null
-    }
-
-    // Clean up any existing WebRTC connection
-    cleanup()
-
-    addDebugMessage(`Starting mock interview for ${jobTitle}`)
-    setIsMockMode(true)
-    setIsConnecting(false)
-    setIsActive(true)
-    setStatus("active")
-    mockQuestionIndex.current = 0
-    setMessages([])
-
-    // Add initial interviewer message after a short delay
-    setTimeout(() => {
-      setMessages([
-        {
-          role: "assistant",
-          content: `Hello! I'm your AI interviewer for the ${jobTitle} position. Could you please introduce yourself and tell me about your background?`,
-          timestamp: Date.now(),
-        },
-      ])
-      mockQuestionIndex.current = 1
-    }, 1500)
-
-    // Set up mock interview responses
-    // Simulate user speaking by adding a message every 30 seconds
-    mockIntervalRef.current = setInterval(() => {
-      if (mockQuestionIndex.current < mockInterviewQuestions.length) {
-        // Add a simulated user message first (as if the user spoke)
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "user",
-            content: "(Your response would be transcribed here)",
-            timestamp: Date.now(),
-          },
-        ])
-
-        // Then add the interviewer's next question after a short delay
-        setTimeout(() => {
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: "assistant",
-              content: mockInterviewQuestions[mockQuestionIndex.current],
-              timestamp: Date.now(),
-            },
-          ])
-        }, 1500)
-
-        mockQuestionIndex.current++
-      } else {
-        // End the mock interview when we run out of questions
-        if (mockIntervalRef.current) {
-          clearInterval(mockIntervalRef.current)
-          mockIntervalRef.current = null
-        }
-      }
-    }, 30000) // Every 30 seconds
-
-    // Start the timer
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current)
-    }
-    setTimeRemaining(600) // Reset to 10 minutes
-    timerIntervalRef.current = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          handleInterviewComplete()
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-
-    return true
   }
 
   // Function to handle interview completion
@@ -630,12 +558,6 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
   // Function to clean up resources
   const cleanup = () => {
     addDebugMessage("Cleaning up resources")
-
-    // Clear mock interview interval
-    if (mockIntervalRef.current) {
-      clearInterval(mockIntervalRef.current)
-      mockIntervalRef.current = null
-    }
 
     // Clear timer interval
     if (timerIntervalRef.current) {
@@ -721,50 +643,98 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     }
   }
 
+  // Function to test OpenAI Realtime API connectivity
+  const testRealtimeApi = async () => {
+    setIsTestingRealtimeApi(true)
+    setRealtimeApiTestResult(null)
+
+    try {
+      const response = await fetch("/api/test-realtime-api")
+      const data = await response.json()
+      setRealtimeApiTestResult(data)
+
+      // If the test is successful but we had an error before, try starting the interview again
+      if (data.status === "success" && apiError) {
+        setApiError("Realtime API connection successful. You can try starting the interview again.")
+        setApiErrorCode(null)
+      }
+    } catch (error) {
+      setRealtimeApiTestResult({
+        status: "error",
+        message: "Failed to connect to test endpoint",
+        error: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      setIsTestingRealtimeApi(false)
+    }
+  }
+
   // Render missing API key error
   const renderMissingApiKeyError = () => {
     return (
       <Alert variant="destructive" className="mb-4">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>OpenAI API Key Issue</AlertTitle>
+        <AlertTitle>Service Unavailable</AlertTitle>
         <AlertDescription>
           <p className="mb-2">
-            There's an issue with the OpenAI API key. This is required for the interview functionality to work.
+            The interview service is currently unavailable. Please try again later or contact support.
           </p>
 
-          {apiErrorDetails && (
+          {process.env.NODE_ENV === "development" && apiErrorDetails && (
             <div className="mt-2 p-2 bg-white dark:bg-gray-800 rounded border text-xs font-mono overflow-x-auto">
               <p className="font-medium mb-1">Error Details:</p>
               <pre className="whitespace-pre-wrap">{JSON.stringify(apiErrorDetails, null, 2)}</pre>
             </div>
           )}
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={testOpenAiApi} disabled={isTestingApi} className="text-xs">
-              {isTestingApi ? (
-                <>
-                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                  Testing API...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-3 w-3 mr-1" />
-                  Test OpenAI Connection
-                </>
-              )}
-            </Button>
-            <Button variant="outline" size="sm" asChild className="text-xs">
-              <Link href="/test-interview-mock" className="flex items-center gap-1">
-                <ExternalLink className="h-3 w-3" />
-                Try Mock Interview Mode
-              </Link>
-            </Button>
-          </div>
+          {process.env.NODE_ENV === "development" && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={testOpenAiApi} disabled={isTestingApi} className="text-xs">
+                {isTestingApi ? (
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                    Testing API...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Test OpenAI Connection
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={testRealtimeApi}
+                disabled={isTestingRealtimeApi}
+                className="text-xs"
+              >
+                {isTestingRealtimeApi ? (
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                    Testing Realtime API...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Test Realtime API
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
 
-          {apiTestResult && (
+          {process.env.NODE_ENV === "development" && apiTestResult && (
             <div className="mt-3 p-2 bg-white dark:bg-gray-800 rounded border text-xs font-mono overflow-x-auto">
               <p className="font-medium mb-1">API Test Result:</p>
               <pre className="whitespace-pre-wrap">{JSON.stringify(apiTestResult, null, 2)}</pre>
+            </div>
+          )}
+
+          {process.env.NODE_ENV === "development" && realtimeApiTestResult && (
+            <div className="mt-3 p-2 bg-white dark:bg-gray-800 rounded border text-xs font-mono overflow-x-auto">
+              <p className="font-medium mb-1">Realtime API Test Result:</p>
+              <pre className="whitespace-pre-wrap">{JSON.stringify(realtimeApiTestResult, null, 2)}</pre>
             </div>
           )}
         </AlertDescription>
@@ -772,8 +742,8 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     )
   }
 
-  // Helper function to render network error messages with helpful suggestions
-  const renderNetworkError = (errorMessage: string) => {
+  // Helper function to render error messages
+  const renderErrorMessage = (errorMessage: string) => {
     // Don't show any error for User-Initiated Abort - this is expected behavior
     if (errorMessage.includes("User-Initiated Abort") || errorMessage.includes("Server initiated disconnect")) {
       return null
@@ -784,44 +754,119 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
       return renderMissingApiKeyError()
     }
 
-    const isNetworkError =
-      errorMessage.includes("network") ||
-      errorMessage.includes("connection") ||
-      errorMessage.includes("ICE") ||
-      errorMessage.includes("STUN") ||
-      errorMessage.includes("TURN") ||
-      errorMessage.includes("WebRTC") ||
-      errorMessage.includes("audio")
+    // Check if this is an HTML response error (likely due to API access restrictions)
+    if (
+      apiErrorCode === "html_response" ||
+      errorMessage.includes("HTML response") ||
+      errorMessage.includes("API access restrictions")
+    ) {
+      return (
+        <div className="bg-red-100 dark:bg-red-900/20 p-4 rounded-md text-red-700 dark:text-red-300">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium">API Access Restricted</p>
+              <p className="mb-2">
+                The OpenAI Realtime API appears to be unavailable with your current API key. This could be because:
+              </p>
+              <ul className="list-disc pl-5 mb-3 space-y-1">
+                <li>Your API key doesn't have access to the Realtime API</li>
+                <li>The Realtime API is in beta and requires special access</li>
+                <li>There may be a network issue preventing access to the API</li>
+              </ul>
+
+              {process.env.NODE_ENV === "development" && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={testRealtimeApi}
+                    disabled={isTestingRealtimeApi}
+                    className="text-xs"
+                  >
+                    {isTestingRealtimeApi ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                        Testing Realtime API...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        Test Realtime API Access
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="outline" size="sm" asChild className="text-xs">
+                    <Link
+                      href="https://platform.openai.com/docs/api-reference/audio/realtime"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      OpenAI Realtime API Docs
+                    </Link>
+                  </Button>
+                </div>
+              )}
+
+              {process.env.NODE_ENV === "development" && realtimeApiTestResult && (
+                <div className="mt-3 p-2 bg-white dark:bg-gray-800 rounded border text-xs font-mono overflow-x-auto">
+                  <p className="font-medium mb-1">Realtime API Test Result:</p>
+                  <pre className="whitespace-pre-wrap">{JSON.stringify(realtimeApiTestResult, null, 2)}</pre>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )
+    }
 
     return (
       <div className="bg-red-100 dark:bg-red-900/20 p-4 rounded-md text-red-700 dark:text-red-300">
         <div className="flex items-start gap-2">
-          {isNetworkError ? (
-            <WifiOff className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          ) : (
-            <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          )}
+          <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="font-medium">Connection Error:</p>
-            <p>{errorMessage}</p>
-            {isNetworkError && (
-              <div className="mt-3 space-y-2 text-sm">
-                <p className="font-medium">Suggestions:</p>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li>Check your internet connection</li>
-                  <li>Try using a different network (switch from WiFi to mobile data)</li>
-                  <li>Disable any VPN or proxy services</li>
-                  <li>Try using a different browser</li>
-                  <li>Make sure your firewall isn't blocking WebRTC connections</li>
-                </ul>
-                <div className="mt-3">
-                  <Button variant="outline" size="sm" asChild className="text-xs">
-                    <Link href="/test-interview-mock" className="flex items-center gap-1">
-                      <ExternalLink className="h-3 w-3" />
-                      Try Mock Interview Mode Instead
-                    </Link>
-                  </Button>
-                </div>
+            <p className="font-medium">Service Unavailable</p>
+            <p>The interview service is currently unavailable. Please try again later or contact support.</p>
+
+            {process.env.NODE_ENV === "development" && (
+              <p className="text-xs mt-2 text-gray-600 dark:text-gray-400">Debug: {errorMessage}</p>
+            )}
+
+            {process.env.NODE_ENV === "development" && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={testOpenAiApi} disabled={isTestingApi} className="text-xs">
+                  {isTestingApi ? (
+                    <>
+                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                      Testing API...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Test OpenAI Connection
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={testRealtimeApi}
+                  disabled={isTestingRealtimeApi}
+                  className="text-xs"
+                >
+                  {isTestingRealtimeApi ? (
+                    <>
+                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                      Testing Realtime API...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Test Realtime API
+                    </>
+                  )}
+                </Button>
               </div>
             )}
           </div>
@@ -830,23 +875,29 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     )
   }
 
+  // Simulate user speaking (for testing)
+  const simulateUserSpeaking = () => {
+    if (isActive) {
+      const userResponses = [
+        "Hi, my name is Alex and I have 5 years of experience in software development.",
+        "I recently worked on a project where we had to migrate a legacy system to a modern architecture.",
+        "I believe my strongest skills are problem-solving and communication.",
+        "I'm looking for a role where I can grow my technical skills while also developing leadership abilities.",
+      ]
+
+      const randomResponse = userResponses[Math.floor(Math.random() * userResponses.length)]
+      addMessage("user", randomResponse)
+    }
+  }
+
   return (
     <Card className="w-full max-w-3xl mx-auto">
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle>Mock Interview: {jobTitle}</CardTitle>
-          <div className="flex items-center gap-4">
-            {isMockMode && (
-              <div className="text-xs px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300">
-                Mock Mode
-              </div>
-            )}
-            <div className="flex items-center gap-2 text-lg font-mono">
-              <Clock className="h-5 w-5" />
-              <span className={timeRemaining < 60 ? "text-red-500 animate-pulse" : ""}>
-                {formatTime(timeRemaining)}
-              </span>
-            </div>
+          <div className="flex items-center gap-2 text-lg font-mono">
+            <Clock className="h-5 w-5" />
+            <span className={timeRemaining < 60 ? "text-red-500 animate-pulse" : ""}>{formatTime(timeRemaining)}</span>
           </div>
         </div>
       </CardHeader>
@@ -865,53 +916,65 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
               and refresh the page.
             </p>
           </div>
-        ) : error && !isMockMode ? (
-          renderNetworkError(error)
-        ) : apiError && !isMockMode ? (
+        ) : error ? (
+          renderErrorMessage(error)
+        ) : apiError ? (
           apiErrorCode === "missing_api_key" ? (
             renderMissingApiKeyError()
+          ) : apiErrorCode === "html_response" ? (
+            renderErrorMessage(apiError)
           ) : (
             <div className="bg-red-100 dark:bg-red-900/20 p-4 rounded-md text-red-700 dark:text-red-300">
               <div className="flex items-start gap-2">
                 <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="font-medium">API Error:</p>
-                  <p>{apiError}</p>
-                  <p className="text-sm mt-2">
-                    There was an issue connecting to the OpenAI API. Please try again later or contact support.
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={testOpenAiApi}
-                      disabled={isTestingApi}
-                      className="text-xs"
-                    >
-                      {isTestingApi ? (
-                        <>
-                          <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                          Testing API...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="h-3 w-3 mr-1" />
-                          Test OpenAI Connection
-                        </>
-                      )}
-                    </Button>
-                    <Button variant="outline" size="sm" asChild className="text-xs">
-                      <Link href="/test-interview-mock" className="flex items-center gap-1">
-                        <ExternalLink className="h-3 w-3" />
-                        Try Mock Interview Mode
-                      </Link>
-                    </Button>
-                  </div>
+                  <p className="font-medium">Service Unavailable</p>
+                  <p>The interview service is currently unavailable. Please try again later or contact support.</p>
 
-                  {apiTestResult && (
-                    <div className="mt-3 p-2 bg-white dark:bg-gray-800 rounded border text-xs font-mono overflow-x-auto">
-                      <p className="font-medium mb-1">API Test Result:</p>
-                      <pre className="whitespace-pre-wrap">{JSON.stringify(apiTestResult, null, 2)}</pre>
+                  {process.env.NODE_ENV === "development" && (
+                    <p className="text-xs mt-2 text-gray-600 dark:text-gray-400">Debug: {apiError}</p>
+                  )}
+
+                  {process.env.NODE_ENV === "development" && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={testOpenAiApi}
+                        disabled={isTestingApi}
+                        className="text-xs"
+                      >
+                        {isTestingApi ? (
+                          <>
+                            <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                            Testing API...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            Test OpenAI Connection
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={testRealtimeApi}
+                        disabled={isTestingRealtimeApi}
+                        className="text-xs"
+                      >
+                        {isTestingRealtimeApi ? (
+                          <>
+                            <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                            Testing Realtime API...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            Test Realtime API
+                          </>
+                        )}
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -937,12 +1000,9 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
                       <li>The interview will automatically end after 10 minutes</li>
                     </ul>
                   </div>
-                  <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+                  <div className="mt-6">
                     <Button onClick={handleStartInterview} size="lg">
                       Start Interview
-                    </Button>
-                    <Button variant="outline" size="lg" onClick={() => startMockInterview(jobTitle)}>
-                      Start Mock Interview
                     </Button>
                   </div>
                 </div>
@@ -965,6 +1025,20 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
                       <Mic className="h-6 w-6 text-green-600 dark:text-green-400 animate-pulse" />
                     </div>
                     {isActive && (
+                      <div className="text-center mb-4 flex items-center justify-center gap-2">
+                        <div
+                          className={`p-2 rounded-full ${isAudioPlaying ? "bg-blue-100 dark:bg-blue-900/20" : "bg-gray-100 dark:bg-gray-800"}`}
+                        >
+                          <Volume2
+                            className={`h-5 w-5 ${isAudioPlaying ? "text-blue-600 dark:text-blue-400 animate-pulse" : "text-gray-400"}`}
+                          />
+                        </div>
+                        <p className="text-sm">
+                          {isAudioPlaying ? "Interviewer is speaking..." : "Listening to your response..."}
+                        </p>
+                      </div>
+                    )}
+                    {isActive && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -979,31 +1053,31 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
 
                   <div className="text-center mb-4">
                     {isActive && (
-                      <p>
-                        Interview in progress.{" "}
-                        {isMockMode ? "This is a simulated interview." : "Speak clearly into your microphone."}
-                      </p>
+                      <p>Interview in progress. Speak clearly and listen for the interviewer's questions.</p>
                     )}
                   </div>
 
                   <div className="mt-4 space-y-3 max-h-[300px] overflow-y-auto pr-2">
                     {messages.length === 0 && (
                       <div className="text-center text-muted-foreground italic">
-                        <p>The interviewer will begin shortly...</p>
+                        <p>Your responses will appear here as you speak...</p>
                       </div>
                     )}
                     {messages.map((msg, index) => (
-                      <div
-                        key={index}
-                        className={`p-3 rounded-lg ${
-                          msg.role === "assistant" ? "bg-primary/10 ml-4" : "bg-secondary/10 mr-4"
-                        }`}
-                      >
-                        <p className="text-sm font-medium mb-1">{msg.role === "assistant" ? "Interviewer" : "You"}</p>
+                      <div key={index} className="p-3 rounded-lg bg-secondary/10 mr-4">
+                        <p className="text-sm font-medium mb-1">You</p>
                         <p>{msg.content}</p>
                       </div>
                     ))}
                   </div>
+
+                  {process.env.NODE_ENV === "development" && (
+                    <div className="mt-4 flex justify-center">
+                      <Button variant="outline" size="sm" onClick={simulateUserSpeaking}>
+                        Simulate User Speaking (Dev Only)
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1023,7 +1097,7 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
           </>
         )}
 
-        {debug && (
+        {process.env.NODE_ENV === "development" && debug && (
           <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-md text-xs font-mono overflow-x-auto">
             <p className="font-medium mb-1">Debug Info:</p>
             <p>{debug}</p>
