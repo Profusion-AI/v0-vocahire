@@ -40,7 +40,7 @@ function createFallbackRedisClient() {
     }
   }, 60000) // Run every minute
 
-  return {\
+  const mockClient: Redis = {\
     get: async <T>(key: string): Promise<T | null> => {
       const item = storage.get(key)
       if (!item) return null
@@ -87,4 +87,6 @@ function createFallbackRedisClient() {
 ,
     // Add more methods as needed
   } as unknown as Redis
+
+return mockClient
 }
