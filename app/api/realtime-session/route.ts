@@ -82,6 +82,24 @@ export async function POST(request: Request) {
       try {
         console.log(`Attempting to create session with model: ${model}`)
 
+        // CRITICAL CHANGE: Complete session configuration in a single call
+        const sessionPayload = {
+          model: model,
+          voice: "alloy",
+          modalities: ["audio", "text"],
+          instructions: systemPrompt,
+          turn_detection: {
+            enabled: true,
+            silence_threshold: 1.0,
+            speech_threshold: 0.5,
+          },
+          input_audio_transcription: {
+            enabled: true,
+          },
+        }
+
+        console.log("Session creation payload:", JSON.stringify(sessionPayload))
+
         const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
           method: "POST",
           headers: {
@@ -89,27 +107,15 @@ export async function POST(request: Request) {
             "Content-Type": "application/json",
             "OpenAI-Beta": "realtime",
           },
-          body: JSON.stringify({
-            model: model,
-            voice: "alloy",
-            modalities: ["audio", "text"],
-            instructions: systemPrompt,
-            turn_detection: {
-              enabled: true,
-              silence_threshold: 1.0,
-              speech_threshold: 0.5,
-            },
-            input_audio_transcription: {
-              enabled: true,
-            },
-          }),
+          body: JSON.stringify(sessionPayload),
         })
 
         const raw = await response.text()
 
         // Log full response for debugging
         console.log(`Model ${model} response status: ${response.status}`)
-        console.log(`Model ${model} response (first 200 chars): ${raw.substring(0, 200)}`)
+        console.log(`Model ${model} response headers:`, Object.fromEntries([...response.headers.entries()]))
+        console.log(`Model ${model} response (first 500 chars): ${raw.substring(0, 500)}`)
 
         // Try to parse as JSON
         try {
@@ -124,15 +130,18 @@ export async function POST(request: Request) {
             lastError = data.error?.message || JSON.stringify(data.error) || `Status ${response.status}`
             lastStatus = response.status
             lastRaw = raw
+            console.error(`Failed with model ${model}: ${lastError}`)
           }
         } catch (e) {
           // Not JSON - likely HTML error
           lastError = `Non-JSON response (HTML): Status ${response.status}`
           lastStatus = response.status
           lastRaw = raw
+          console.error(`Failed with model ${model}: Non-JSON response`)
         }
       } catch (error) {
         lastError = error instanceof Error ? error.message : String(error)
+        console.error(`Exception with model ${model}: ${lastError}`)
       }
     }
 

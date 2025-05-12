@@ -60,14 +60,19 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     { id: "microphone", name: "Microphone Access", status: "pending" },
     { id: "api", name: "API Connection", status: "pending" },
     { id: "session", name: "Session Creation", status: "pending" },
-    { id: "websocket", name: "WebSocket Setup", status: "pending" },
+    { id: "webrtc", name: "WebRTC Setup", status: "pending" },
     { id: "audio", name: "Audio Connection", status: "pending" },
   ])
 
-  // State for fallback mode
+  // State for fallback mode - CRITICAL CHANGE: Disable fallback mode by default
   const [isFallbackMode, setIsFallbackMode] = useState(false)
   const [fallbackReason, setFallbackReason] = useState<string | null>(null)
   const [showFallbackMessage, setShowFallbackMessage] = useState(false)
+
+  // CRITICAL CHANGE: Add retry mechanism
+  const [retryCount, setRetryCount] = useState(0)
+  const maxRetries = 3
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // State for filler word tracking
   const [fillerWordCounts, setFillerWordCounts] = useState<{ [key: string]: number }>({})
@@ -77,7 +82,8 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
   const sessionInfoRef = useRef<{ id: string; token: string } | null>(null)
-  const webSocketRef = useRef<WebSocket | null>(null)
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
+  const dataChannelRef = useRef<RTCDataChannel | null>(null)
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const connectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
@@ -85,7 +91,7 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
   const audioDataRef = useRef<Uint8Array | null>(null)
   const audioLevelIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectAttemptsRef = useRef<number>(0)
-  const maxReconnectAttemptsRef = useRef<number>(3)
+  const maxReconnectAttemptsRef = useRef<number>(5) // CRITICAL CHANGE: Increase max reconnect attempts
 
   // Text input for fallback mode
   const [userInput, setUserInput] = useState("")
@@ -116,7 +122,7 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
 
   // Helper function to update connection steps
   const updateConnectionStep = useCallback(
-    (id: string, status: "pending" | "in-progress" | "complete" | "error", message?: string) => {
+    (id: string, status: "pending" | "in-progress" | "complete" | "error" | "retrying", message?: string) => {
       setConnectionSteps((prev) => {
         // Create a new array with the updated step
         const updatedSteps = prev.map((step) => (step.id === id ? { ...step, status, message } : step))
@@ -191,42 +197,6 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     [addDebugMessage],
   )
 
-  // Function to set up audio processing
-  const setupAudioProcessing = useCallback(
-    (stream: MediaStream, ws: WebSocket) => {
-      try {
-        addDebugMessage("Setting up audio processing...")
-
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-        const source = audioContext.createMediaStreamSource(stream)
-        const processor = audioContext.createScriptProcessor(4096, 1, 1)
-
-        source.connect(processor)
-        processor.connect(audioContext.destination)
-
-        processor.onaudioprocess = (e) => {
-          if (ws.readyState === WebSocket.OPEN) {
-            const inputData = e.inputBuffer.getChannelData(0)
-            const audioData = convertFloat32ToInt16(inputData)
-            const base64Audio = arrayBufferToBase64(audioData.buffer)
-
-            ws.send(
-              JSON.stringify({
-                type: "audio",
-                audio: base64Audio,
-              }),
-            )
-          }
-        }
-
-        addDebugMessage("Audio processing set up successfully")
-      } catch (err) {
-        addDebugMessage(`Error setting up audio processing: ${err instanceof Error ? err.message : String(err)}`)
-      }
-    },
-    [addDebugMessage],
-  )
-
   // Function to set up audio analysis for visualizing audio levels
   const setupAudioAnalysis = useCallback(
     (stream: MediaStream) => {
@@ -285,19 +255,34 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
       connectTimeoutRef.current = null
     }
 
+    // Clear retry timeout
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current)
+      retryTimeoutRef.current = null
+    }
+
     // Clear audio level interval
     if (audioLevelIntervalRef.current) {
       clearInterval(audioLevelIntervalRef.current)
       audioLevelIntervalRef.current = null
     }
 
-    // Close WebSocket
-    if (webSocketRef.current) {
+    // Close peer connection and data channel
+    if (dataChannelRef.current) {
       try {
-        webSocketRef.current.close()
-        webSocketRef.current = null
+        dataChannelRef.current.close()
+        dataChannelRef.current = null
       } catch (err) {
-        addDebugMessage(`Error closing WebSocket: ${err}`)
+        addDebugMessage(`Error closing data channel: ${err}`)
+      }
+    }
+
+    if (peerConnectionRef.current) {
+      try {
+        peerConnectionRef.current.close()
+        peerConnectionRef.current = null
+      } catch (err) {
+        addDebugMessage(`Error closing peer connection: ${err}`)
       }
     }
 
@@ -353,148 +338,6 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     }, 1000)
   }, [addDebugMessage, jobTitle, addMessage])
 
-  // Function to handle connection failure and switch to fallback mode
-  const handleConnectionFailure = useCallback(
-    (reason: string) => {
-      addDebugMessage(`Connection failure: ${reason}. Switching to fallback mode.`)
-      setFallbackReason(reason)
-      setIsFallbackMode(true)
-      setShowFallbackMessage(true)
-
-      // Clean up WebSocket resources
-      if (webSocketRef.current) {
-        try {
-          webSocketRef.current.close()
-        } catch (err) {
-          addDebugMessage(`Error closing WebSocket: ${err}`)
-        }
-        webSocketRef.current = null
-      }
-
-      // Keep the interview active but in fallback mode
-      setIsActive(true)
-      setStatus("active")
-      setIsConnecting(false)
-
-      // Add a system message about fallback mode
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            "The voice connection has been interrupted. We'll continue the interview in text mode. Please type your responses below.",
-          timestamp: Date.now(),
-        },
-      ])
-
-      // Start fallback interview flow
-      startFallbackInterview()
-    },
-    [addDebugMessage, startFallbackInterview, setIsActive, setStatus, setIsConnecting, setMessages],
-  )
-
-  // Function to set up WebSocket connection
-  const setupWebSocket = useCallback(
-    async (sessionId: string, token: string) => {
-      try {
-        addDebugMessage("Setting up WebSocket connection...")
-        updateConnectionStep("websocket", "in-progress")
-
-        // Create WebSocket connection
-        const wsUrl = `wss://api.openai.com/v1/realtime/ws?session_id=${sessionId}`
-        const ws = new WebSocket(wsUrl)
-        webSocketRef.current = ws
-
-        // Set up event handlers
-        ws.onopen = () => {
-          addDebugMessage("WebSocket connection established")
-
-          // Send authentication message
-          ws.send(
-            JSON.stringify({
-              type: "authentication",
-              token,
-            }),
-          )
-
-          // Set up audio processing
-          if (localStreamRef.current) {
-            setupAudioProcessing(localStreamRef.current, ws)
-          }
-
-          updateConnectionStep("websocket", "complete")
-          updateConnectionStep("audio", "complete") // Assume audio is working if WebSocket is connected
-
-          // Set status to active
-          setIsActive(true)
-          setStatus("active")
-          setIsConnecting(false)
-
-          // Clear connection timeout
-          if (connectTimeoutRef.current) {
-            clearTimeout(connectTimeoutRef.current)
-            connectTimeoutRef.current = null
-          }
-        }
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data)
-
-            if (data.type === "audio") {
-              // Handle audio data
-              setIsAudioPlaying(true)
-              const audioData = base64ToArrayBuffer(data.audio)
-              playAudio(audioData)
-            } else if (data.type === "message") {
-              // Handle text message
-              addDebugMessage(`Received message: ${data.content.substring(0, 50)}...`)
-              addMessage("assistant", data.content)
-            } else if (data.type === "transcript") {
-              // Handle transcript of user's speech
-              addDebugMessage(`Received transcript: ${data.text.substring(0, 50)}...`)
-              addMessage("user", data.text)
-            } else if (data.type === "error") {
-              addDebugMessage(`Error from server: ${JSON.stringify(data.error)}`)
-            } else {
-              addDebugMessage(`Received unknown message type: ${data.type}`)
-            }
-          } catch (err) {
-            addDebugMessage(`Error parsing WebSocket message: ${err instanceof Error ? err.message : String(err)}`)
-          }
-        }
-
-        ws.onerror = (event) => {
-          addDebugMessage(`WebSocket error: ${JSON.stringify(event)}`)
-          updateConnectionStep("websocket", "error", "Connection error")
-          handleConnectionFailure("WebSocket connection error")
-        }
-
-        ws.onclose = (event) => {
-          addDebugMessage(`WebSocket closed: ${event.code} - ${event.reason}`)
-          if (isActive) {
-            handleConnectionFailure(`WebSocket closed: ${event.code}`)
-          }
-        }
-
-        return true
-      } catch (error) {
-        addDebugMessage(`Error setting up WebSocket: ${error}`)
-        updateConnectionStep("websocket", "error", `Setup error: ${error}`)
-        throw error
-      }
-    },
-    [
-      addDebugMessage,
-      updateConnectionStep,
-      setupAudioProcessing,
-      handleConnectionFailure,
-      isActive,
-      addMessage,
-      playAudio,
-    ],
-  )
-
   // Function to handle user text input in fallback mode
   const handleUserTextInput = useCallback(
     (text: string) => {
@@ -532,166 +375,492 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     [addMessage, jobTitle],
   )
 
-  // Function to start the interview with WebRTC
-  const startRealtimeInterview = useCallback(async () => {
-    try {
-      setError(null)
-      setIsConnecting(true)
-      setStatus("connecting")
-      setIsFallbackMode(false)
-      setFallbackReason(null)
-      setShowFallbackMessage(false)
-      setConnectionProgress(0)
+  // Function to handle connection failure and switch to fallback mode
+  const handleConnectionFailure = useCallback(
+    (reason: string) => {
+      // CRITICAL CHANGE: Try to retry the connection first
+      if (retryCount < maxRetries) {
+        addDebugMessage(
+          `Connection failure: ${reason}. Will retry in 3 seconds... (Attempt ${retryCount + 1}/${maxRetries})`,
+        )
 
-      // Reset connection steps
-      setConnectionSteps([
-        { id: "microphone", name: "Microphone Access", status: "pending" },
-        { id: "api", name: "API Connection", status: "pending" },
-        { id: "session", name: "Session Creation", status: "pending" },
-        { id: "websocket", name: "WebSocket Setup", status: "pending" },
-        { id: "audio", name: "Audio Connection", status: "pending" },
-      ])
+        // Update UI to show retrying
+        setConnectionSteps((prev) =>
+          prev.map((step) =>
+            step.status === "error" ? { ...step, status: "retrying", message: "Will retry..." } : step,
+          ),
+        )
 
-      addDebugMessage(`Starting interview for job title: ${jobTitle}`)
+        // Schedule retry
+        retryTimeoutRef.current = setTimeout(() => {
+          // Increment retry count
+          setRetryCount((prev) => prev + 1)
 
-      // Request microphone access
-      try {
-        addDebugMessage("Requesting microphone access...")
-        updateConnectionStep("microphone", "in-progress")
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        localStreamRef.current = stream
-        addDebugMessage(`Microphone access granted. Audio tracks: ${stream.getAudioTracks().length}`)
-        updateConnectionStep("microphone", "complete")
+          // Reset connection steps for retry
+          setConnectionSteps([
+            { id: "microphone", name: "Microphone Access", status: "complete" }, // Assume mic is already granted
+            { id: "api", name: "API Connection", status: "pending" },
+            { id: "session", name: "Session Creation", status: "pending" },
+            { id: "webrtc", name: "WebRTC Setup", status: "pending" },
+            { id: "audio", name: "Audio Connection", status: "pending" },
+          ])
 
-        // Set up audio analysis for visualizing audio levels
-        setupAudioAnalysis(stream)
-      } catch (err) {
-        addDebugMessage(`Error getting microphone access: ${err instanceof Error ? err.message : String(err)}`)
-        updateConnectionStep("microphone", "error", "Access denied")
-        throw new Error("Could not access microphone. Please check your browser permissions.")
-      }
+          // Start the connection process again with retry flag
+          startInterviewWithRetry(true)
+        }, 3000)
 
-      // First, try to test the OpenAI API to see if we have a valid API key
-      try {
-        addDebugMessage("Testing OpenAI API connection...")
-        updateConnectionStep("api", "in-progress")
-        const testResponse = await fetch("/api/test-openai")
-        const testData = await testResponse.json()
-
-        if (testData.status !== "success") {
-          addDebugMessage("OpenAI API test failed.")
-          updateConnectionStep("api", "error", "API test failed")
-          throw new Error("OpenAI API test failed. The service is currently unavailable.")
-        }
-
-        addDebugMessage("OpenAI API test successful. Proceeding with real-time session.")
-        updateConnectionStep("api", "complete")
-      } catch (testError) {
-        addDebugMessage(`OpenAI API test error: ${testError}`)
-        updateConnectionStep("api", "error", "Connection error")
-        throw new Error("Failed to connect to OpenAI API. The service is currently unavailable.")
-      }
-
-      // Try to get a real-time session token
-      try {
-        addDebugMessage("Fetching OpenAI token...")
-        updateConnectionStep("session", "in-progress")
-
-        // Prepare resume text if available
-        let resumeText = ""
-        if (resumeData) {
-          if (resumeData.skills) resumeText += `Skills: ${resumeData.skills}\n`
-          if (resumeData.experience) resumeText += `Experience: ${resumeData.experience}\n`
-          if (resumeData.education) resumeText += `Education: ${resumeData.education}\n`
-          if (resumeData.achievements) resumeText += `Achievements: ${resumeData.achievements}\n`
-        }
-
-        const tokenResponse = await fetch("/api/realtime-session", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            jobTitle,
-            resumeText: resumeText?.trim() || "",
-          }),
-        })
-
-        if (!tokenResponse.ok) {
-          const errorText = await tokenResponse.text()
-          addDebugMessage(`Token API error: ${tokenResponse.status} - ${errorText.substring(0, 200)}`)
-          updateConnectionStep("session", "error", `API error: ${tokenResponse.status}`)
-          throw new Error(`Failed to initialize interview session. Status: ${tokenResponse.status}`)
-        }
-
-        const sessionData = await tokenResponse.json()
-        const { token, id: sessionId, usedFallbackModel } = sessionData
-
-        addDebugMessage(`Token received: ${sessionId}${usedFallbackModel ? " (using fallback model)" : ""}`)
-        updateConnectionStep("session", "complete")
-
-        // Store session info for later use
-        sessionInfoRef.current = { id: sessionId, token }
-
-        // Set a timeout for connection
-        connectTimeoutRef.current = setTimeout(() => {
-          // Use the ref to check the current status to avoid stale closures
-          if (statusRef.current === "connecting") {
-            addDebugMessage("Connection timed out.")
-            setError("Connection timed out. Switching to text-based interview.")
-            setStatus("active")
-            setIsConnecting(false)
-            handleConnectionFailure("Connection timeout")
-          }
-        }, 20000) // 20 second timeout
-
-        // Set up WebSocket connection
-        try {
-          await setupWebSocket(sessionId, token)
-        } catch (err) {
-          addDebugMessage(`WebSocket setup error: ${err}`)
-          handleConnectionFailure(`WebSocket setup failed: ${err}`)
-        }
-      } catch (err) {
-        console.error("Failed to start interview:", err)
-        addDebugMessage(`Session creation error: ${err}`)
-        setError(err instanceof Error ? err.message : "An unknown error occurred")
-        setStatus("error")
-        setIsConnecting(false)
-        cleanup()
-      }
-    } catch (err) {
-      console.error("Failed to start interview:", err)
-
-      // If this is a microphone permission error, show specific error
-      if (err instanceof Error && err.message.includes("microphone")) {
-        setError(err.message)
-        setStatus("error")
-        setIsConnecting(false)
-        cleanup()
         return
       }
 
-      // For other errors, try fallback mode
-      addDebugMessage(`Starting in fallback mode due to error: ${err}`)
-      handleConnectionFailure(`Initial setup error: ${err}`)
+      // If we've exhausted retries, then fall back to text mode
+      addDebugMessage(`Connection failure after ${retryCount} retries: ${reason}. Switching to fallback mode.`)
+      setFallbackReason(reason)
+      setIsFallbackMode(true)
+      setShowFallbackMessage(true)
+
+      // Clean up WebRTC resources
+      if (dataChannelRef.current) {
+        try {
+          dataChannelRef.current.close()
+        } catch (err) {
+          addDebugMessage(`Error closing data channel: ${err}`)
+        }
+        dataChannelRef.current = null
+      }
+
+      if (peerConnectionRef.current) {
+        try {
+          peerConnectionRef.current.close()
+        } catch (err) {
+          addDebugMessage(`Error closing peer connection: ${err}`)
+        }
+        peerConnectionRef.current = null
+      }
+
+      // Keep the interview active but in fallback mode
+      setIsActive(true)
+      setStatus("active")
+      setIsConnecting(false)
+
+      // Add a system message about fallback mode
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "The voice connection has been interrupted. We'll continue the interview in text mode. Please type your responses below.",
+          timestamp: Date.now(),
+        },
+      ])
+
+      // Start fallback interview flow
+      startFallbackInterview()
+    },
+    [
+      addDebugMessage,
+      startFallbackInterview,
+      setIsActive,
+      setStatus,
+      setIsConnecting,
+      setMessages,
+      retryCount,
+      maxRetries,
+    ],
+  )
+
+  // Function to set up WebRTC connection
+  const setupWebRTC = useCallback(
+    async (sessionId: string, token: string) => {
+      try {
+        addDebugMessage("Setting up WebRTC connection...")
+        updateConnectionStep("webrtc", "in-progress")
+
+        // Create RTCPeerConnection
+        const configuration = {
+          iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }],
+        }
+
+        // Try to get TURN servers
+        try {
+          const turnResponse = await fetch("/api/ice-servers")
+          if (turnResponse.ok) {
+            const turnData = await turnResponse.json()
+            if (turnData.iceServers && turnData.iceServers.length > 0) {
+              configuration.iceServers = turnData.iceServers
+            }
+          }
+        } catch (err) {
+          addDebugMessage(`Failed to get TURN servers: ${err}. Using default STUN servers.`)
+        }
+
+        const pc = new RTCPeerConnection(configuration)
+        peerConnectionRef.current = pc
+
+        // Add local audio track
+        if (localStreamRef.current) {
+          localStreamRef.current.getAudioTracks().forEach((track) => {
+            pc.addTrack(track, localStreamRef.current!)
+          })
+        }
+
+        // Create data channel
+        const dataChannel = pc.createDataChannel("oai-events", { ordered: true })
+        dataChannelRef.current = dataChannel
+
+        // Set up data channel handlers
+        dataChannel.onopen = () => {
+          addDebugMessage("Data channel opened")
+
+          // Send initial message
+          dataChannel.send(
+            JSON.stringify({
+              type: "response.create",
+            }),
+          )
+
+          updateConnectionStep("webrtc", "complete")
+          updateConnectionStep("audio", "complete")
+
+          // Set status to active
+          setIsActive(true)
+          setStatus("active")
+          setIsConnecting(false)
+
+          // Clear connection timeout
+          if (connectTimeoutRef.current) {
+            clearTimeout(connectTimeoutRef.current)
+            connectTimeoutRef.current = null
+          }
+        }
+
+        dataChannel.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data)
+
+            if (data.type === "response.audio.delta" && data.delta) {
+              // Handle audio data
+              setIsAudioPlaying(true)
+              const audioData = base64ToArrayBuffer(data.delta)
+              playAudio(audioData)
+            } else if (data.type === "response.text.delta") {
+              // Handle text message
+              addDebugMessage(`Received message: ${data.delta?.substring(0, 50)}...`)
+              addMessage("assistant", data.delta)
+            } else if (data.type === "conversation.item.input_audio_transcription.delta") {
+              // Handle transcript of user's speech
+              addDebugMessage(`Received transcript: ${data.delta?.substring(0, 50)}...`)
+              addMessage("user", data.delta)
+            } else if (data.type === "error") {
+              addDebugMessage(`Error from server: ${JSON.stringify(data.error)}`)
+            } else {
+              addDebugMessage(`Received unknown message type: ${data.type}`)
+            }
+          } catch (err) {
+            addDebugMessage(`Error parsing data channel message: ${err instanceof Error ? err.message : String(err)}`)
+          }
+        }
+
+        dataChannel.onerror = (event) => {
+          addDebugMessage(`Data channel error: ${JSON.stringify(event)}`)
+          updateConnectionStep("webrtc", "error", "Connection error")
+          handleConnectionFailure("Data channel connection error")
+        }
+
+        dataChannel.onclose = () => {
+          addDebugMessage("Data channel closed")
+          if (isActive) {
+            handleConnectionFailure("Data channel closed")
+          }
+        }
+
+        // Handle incoming audio
+        pc.ontrack = (event) => {
+          addDebugMessage("Received remote track")
+          if (event.streams && event.streams[0]) {
+            const audioElement = new Audio()
+            audioElement.srcObject = event.streams[0]
+            audioElement.play()
+          }
+        }
+
+        // Create offer
+        const offer = await pc.createOffer({
+          offerToReceiveAudio: true,
+        })
+
+        await pc.setLocalDescription(offer)
+
+        // Wait for ICE gathering to complete
+        const completeOffer = await new Promise<RTCSessionDescriptionInit>((resolve) => {
+          if (pc.iceGatheringState === "complete") {
+            resolve(pc.localDescription!)
+          } else {
+            const checkState = () => {
+              if (pc.iceGatheringState === "complete") {
+                resolve(pc.localDescription!)
+              } else {
+                setTimeout(checkState, 100)
+              }
+            }
+            setTimeout(checkState, 100)
+          }
+        })
+
+        // Send offer to OpenAI - CRITICAL CHANGE: Use model parameter instead of session_id
+        // This follows OpenAI's documentation example
+        const model = "gpt-4o-mini-realtime-preview" // Use the model from your session creation
+        const sdpUrl = `https://api.openai.com/v1/realtime?model=${model}`
+
+        addDebugMessage(`Sending SDP offer to: ${sdpUrl}`)
+
+        const response = await fetch(sdpUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/sdp",
+            Authorization: `Bearer ${token}`,
+          },
+          body: completeOffer.sdp,
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`SDP exchange failed: ${response.status} - ${errorText}`)
+        }
+
+        // Get answer SDP
+        const answerSdp = await response.text()
+
+        // Set remote description
+        await pc.setRemoteDescription({
+          type: "answer",
+          sdp: answerSdp,
+        })
+
+        addDebugMessage("WebRTC connection established")
+        return true
+      } catch (error) {
+        addDebugMessage(`Error setting up WebRTC: ${error}`)
+        updateConnectionStep("webrtc", "error", `Setup error: ${error}`)
+        throw error
+      }
+    },
+    [addDebugMessage, updateConnectionStep, handleConnectionFailure, isActive, addMessage, playAudio],
+  )
+
+  // Function to start the interview with WebRTC
+  const startInterviewWithRetry = useCallback(
+    async (isRetry = false) => {
+      try {
+        setError(null)
+        setIsConnecting(true)
+        setStatus("connecting")
+        setIsFallbackMode(false)
+        setFallbackReason(null)
+        setShowFallbackMessage(false)
+
+        if (!isRetry) {
+          setConnectionProgress(0)
+          setRetryCount(0)
+        }
+
+        addDebugMessage(`Starting interview for job title: ${jobTitle}${isRetry ? " (retry attempt)" : ""}`)
+
+        // Request microphone access (skip if retrying)
+        if (!isRetry || !localStreamRef.current) {
+          try {
+            addDebugMessage("Requesting microphone access...")
+            updateConnectionStep("microphone", "in-progress")
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            localStreamRef.current = stream
+            addDebugMessage(`Microphone access granted. Audio tracks: ${stream.getAudioTracks().length}`)
+            updateConnectionStep("microphone", "complete")
+
+            // Set up audio analysis for visualizing audio levels
+            setupAudioAnalysis(stream)
+          } catch (err) {
+            addDebugMessage(`Error getting microphone access: ${err instanceof Error ? err.message : String(err)}`)
+            updateConnectionStep("microphone", "error", "Access denied")
+            throw new Error("Could not access microphone. Please check your browser permissions.")
+          }
+        } else {
+          addDebugMessage("Microphone already granted, skipping request")
+          updateConnectionStep("microphone", "complete")
+        }
+
+        // First, try to test the OpenAI API to see if we have a valid API key
+        try {
+          addDebugMessage("Testing OpenAI API connection...")
+          updateConnectionStep("api", "in-progress")
+
+          // CRITICAL CHANGE: Add timeout to API test
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
+          const testResponse = await fetch("/api/test-openai", {
+            signal: controller.signal,
+          }).finally(() => clearTimeout(timeoutId))
+
+          const testData = await testResponse.json()
+
+          if (testData.status !== "success") {
+            addDebugMessage("OpenAI API test failed.")
+            updateConnectionStep("api", "error", "API test failed")
+            throw new Error("OpenAI API test failed. The service is currently unavailable.")
+          }
+
+          addDebugMessage("OpenAI API test successful. Proceeding with real-time session.")
+          updateConnectionStep("api", "complete")
+        } catch (testError) {
+          addDebugMessage(`OpenAI API test error: ${testError}`)
+          updateConnectionStep("api", "error", "Connection error")
+          throw new Error("Failed to connect to OpenAI API. The service is currently unavailable.")
+        }
+
+        // Try to get a real-time session token
+        try {
+          addDebugMessage("Fetching OpenAI token...")
+          updateConnectionStep("session", "in-progress")
+
+          // Prepare resume text if available
+          let resumeText = ""
+          if (resumeData) {
+            if (resumeData.skills) resumeText += `Skills: ${resumeData.skills}\n`
+            if (resumeData.experience) resumeText += `Experience: ${resumeData.experience}\n`
+            if (resumeData.education) resumeText += `Education: ${resumeData.education}\n`
+            if (resumeData.achievements) resumeText += `Achievements: ${resumeData.achievements}\n`
+          }
+
+          // CRITICAL CHANGE: Add timeout to token request
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+
+          const tokenResponse = await fetch("/api/realtime-session", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              jobTitle,
+              resumeText: resumeText?.trim() || "",
+            }),
+            signal: controller.signal,
+          }).finally(() => clearTimeout(timeoutId))
+
+          if (!tokenResponse.ok) {
+            const errorText = await tokenResponse.text()
+            addDebugMessage(`Token API error: ${tokenResponse.status} - ${errorText.substring(0, 200)}`)
+            updateConnectionStep("session", "error", `API error: ${tokenResponse.status}`)
+            throw new Error(`Failed to initialize interview session. Status: ${tokenResponse.status}`)
+          }
+
+          const sessionData = await tokenResponse.json()
+          const { token, id: sessionId, usedFallbackModel } = sessionData
+
+          addDebugMessage(`Token received: ${sessionId}${usedFallbackModel ? " (using fallback model)" : ""}`)
+          updateConnectionStep("session", "complete")
+
+          // Store session info for later use
+          sessionInfoRef.current = { id: sessionId, token }
+
+          // Set a timeout for connection
+          connectTimeoutRef.current = setTimeout(() => {
+            // Use the ref to check the current status to avoid stale closures
+            if (statusRef.current === "connecting") {
+              addDebugMessage("Connection timed out.")
+              setError("Connection timed out. Retrying...")
+              updateConnectionStep("webrtc", "error", "Connection timeout")
+
+              // CRITICAL CHANGE: Retry instead of falling back
+              handleConnectionFailure("Connection timeout")
+            }
+          }, 30000) // CRITICAL CHANGE: Increase timeout to 30 seconds
+
+          // Set up WebRTC connection
+          try {
+            await setupWebRTC(sessionId, token)
+          } catch (err) {
+            addDebugMessage(`WebRTC setup error: ${err}`)
+            updateConnectionStep("webrtc", "error", `Setup error: ${err}`)
+            handleConnectionFailure(`WebRTC setup failed: ${err}`)
+          }
+        } catch (err) {
+          console.error("Failed to start interview:", err)
+          addDebugMessage(`Session creation error: ${err}`)
+
+          // CRITICAL CHANGE: Check if this is an abort error (timeout)
+          if (err instanceof DOMException && err.name === "AbortError") {
+            updateConnectionStep("session", "error", "Request timeout")
+            handleConnectionFailure("Session creation timed out")
+          } else {
+            setError(err instanceof Error ? err.message : "An unknown error occurred")
+            updateConnectionStep("session", "error", err instanceof Error ? err.message : "Unknown error")
+            handleConnectionFailure(`Session creation failed: ${err}`)
+          }
+        }
+      } catch (err) {
+        console.error("Failed to start interview:", err)
+
+        // If this is a microphone permission error, show specific error
+        if (err instanceof Error && err.message.includes("microphone")) {
+          setError(err.message)
+          setStatus("error")
+          setIsConnecting(false)
+          cleanup()
+          return
+        }
+
+        // For other errors, try to retry
+        addDebugMessage(`Error during setup: ${err}`)
+        handleConnectionFailure(`Initial setup error: ${err}`)
+      }
+    },
+    [
+      jobTitle,
+      resumeData,
+      updateConnectionStep,
+      setupAudioAnalysis,
+      handleConnectionFailure,
+      addDebugMessage,
+      setupWebRTC,
+      cleanup,
+    ],
+  )
+
+  // Function to manually retry the connection
+  const retryConnection = useCallback(() => {
+    if (retryCount >= maxRetries) {
+      addDebugMessage(`Maximum retry attempts (${maxRetries}) reached. Giving up.`)
+      handleConnectionFailure("Maximum retry attempts reached")
+      return
     }
-  }, [
-    jobTitle,
-    resumeData,
-    updateConnectionStep,
-    setupAudioAnalysis,
-    handleConnectionFailure,
-    addDebugMessage,
-    setupWebSocket,
-    cleanup,
-  ])
+
+    addDebugMessage(`Manually retrying connection (attempt ${retryCount + 1}/${maxRetries})...`)
+    setRetryCount((prev) => prev + 1)
+
+    // Clear any existing timeouts
+    if (connectTimeoutRef.current) {
+      clearTimeout(connectTimeoutRef.current)
+      connectTimeoutRef.current = null
+    }
+
+    // Reset connection steps
+    setConnectionSteps([
+      { id: "microphone", name: "Microphone Access", status: "complete" }, // Assume mic is already granted
+      { id: "api", name: "API Connection", status: "pending" },
+      { id: "session", name: "Session Creation", status: "pending" },
+      { id: "webrtc", name: "WebRTC Setup", status: "pending" },
+      { id: "audio", name: "Audio Connection", status: "pending" },
+    ])
+
+    // Start the connection process again
+    startInterviewWithRetry(true)
+  }, [retryCount, maxRetries, addDebugMessage, startInterviewWithRetry, handleConnectionFailure])
 
   // Function to start the interview
   const handleStartInterview = useCallback(() => {
     // Start the real-time interview with WebRTC
-    startRealtimeInterview()
-  }, [startRealtimeInterview])
+    startInterviewWithRetry()
+  }, [startInterviewWithRetry])
 
   // Function to handle interview completion
   const handleInterviewComplete = useCallback(() => {
@@ -807,17 +976,6 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     return window.btoa(binary)
   }
 
-  function convertFloat32ToInt16(buffer: Float32Array): Int16Array {
-    const l = buffer.length
-    const buf = new Int16Array(l)
-
-    for (let i = 0; i < l; i++) {
-      buf[i] = Math.min(1, buffer[i]) * 0x7fff
-    }
-
-    return buf
-  }
-
   const handleSubmitText = (e: React.FormEvent) => {
     e.preventDefault()
     if (!userInput.trim()) return
@@ -838,7 +996,7 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
           <p className="mb-2">
             {fallbackReason === "user_choice"
               ? "You've chosen to continue with a text-based interview."
-              : "We've switched to text-based interview mode due to connection issues."}
+              : `We've switched to text-based interview mode after ${maxRetries} connection attempts.`}
           </p>
           <p className="text-sm text-muted-foreground">
             You can type your responses in the text box below. The AI interviewer will respond with follow-up questions.
@@ -885,10 +1043,18 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
             <div className="flex items-start gap-2">
               <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="font-medium">Service Unavailable</p>
+                <p className="font-medium">Connection Issue</p>
                 <p>{error}</p>
-                <div className="mt-3">
-                  <Button variant="outline" onClick={() => handleConnectionFailure("Service unavailable")}>
+                <div className="mt-3 flex gap-2">
+                  {/* CRITICAL CHANGE: Add retry button */}
+                  <Button variant="default" onClick={retryConnection} disabled={retryCount >= maxRetries}>
+                    Retry Connection
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleConnectionFailure("User chose text mode")}
+                    disabled={isFallbackMode}
+                  >
                     Continue with Text-Based Interview
                   </Button>
                 </div>
@@ -931,6 +1097,7 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
                   <h3 className="text-lg font-medium mb-2">Connecting to OpenAI...</h3>
                   <p className="text-muted-foreground text-center max-w-md mb-6">
                     Establishing secure connection. This may take a few moments.
+                    {retryCount > 0 && ` (Attempt ${retryCount}/${maxRetries})`}
                   </p>
 
                   {/* Connection steps */}
@@ -951,12 +1118,26 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
                             {step.status === "in-progress" && (
                               <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
                             )}
+                            {step.status === "retrying" && <Loader2 className="h-4 w-4 text-amber-500 animate-spin" />}
                             {step.status === "complete" && <div className="h-4 w-4 text-green-500">✓</div>}
                             {step.status === "error" && <div className="h-4 w-4 text-red-500">✗</div>}
-                            <span className={step.status === "error" ? "text-red-500" : ""}>{step.name}</span>
+                            <span
+                              className={
+                                step.status === "error"
+                                  ? "text-red-500"
+                                  : step.status === "retrying"
+                                    ? "text-amber-500"
+                                    : ""
+                              }
+                            >
+                              {step.name}
+                            </span>
                           </div>
                           {step.status === "error" && step.message && (
                             <span className="text-xs text-red-500">{step.message}</span>
+                          )}
+                          {step.status === "retrying" && step.message && (
+                            <span className="text-xs text-amber-500">{step.message}</span>
                           )}
                         </div>
                       ))}
