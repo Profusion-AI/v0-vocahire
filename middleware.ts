@@ -1,36 +1,36 @@
-import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
-  const supabase = createMiddlewareClient({ req, res })
+export function middleware(request: NextRequest) {
+  // Get the pathname
+  const path = request.nextUrl.pathname
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  // Check if this is a diagnostic route
+  if (
+    path.startsWith("/diagnostics") ||
+    (path.startsWith("/api/") && (path.includes("test") || path.includes("debug") || path.includes("diagnostic")))
+  ) {
+    // In production, restrict access to diagnostic routes
+    if (process.env.NODE_ENV === "production") {
+      // Allow access if a special query parameter is present
+      // This is a simple mechanism - in a real app you might want to use a more secure approach
+      const allowDebug = request.nextUrl.searchParams.get("debug") === process.env.DEBUG_SECRET
 
-  // Check if the user is authenticated
-  const isAuthenticated = !!session
-  const isAuthPage = req.nextUrl.pathname === "/login"
-  const isPublicPage = ["/", "/privacy", "/terms", "/auth/callback"].includes(req.nextUrl.pathname)
-
-  // Redirect unauthenticated users to login page
-  if (!isAuthenticated && !isAuthPage && !isPublicPage) {
-    const redirectUrl = new URL("/login", req.url)
-    redirectUrl.searchParams.set("redirectedFrom", req.nextUrl.pathname)
-    return NextResponse.redirect(redirectUrl)
+      if (!allowDebug) {
+        // Block access in production unless explicitly allowed
+        return new NextResponse("Access Denied", {
+          status: 403,
+          headers: {
+            "Content-Type": "text/plain",
+          },
+        })
+      }
+    }
   }
 
-  // Redirect authenticated users away from login page
-  if (isAuthenticated && isAuthPage) {
-    return NextResponse.redirect(new URL("/prepare", req.url))
-  }
-
-  return res
+  return NextResponse.next()
 }
 
-// Specify which routes this middleware should run on
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.svg).*)"],
+  matcher: ["/diagnostics/:path*", "/api/:path*"],
 }

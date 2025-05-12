@@ -1,28 +1,43 @@
 import Link from "next/link"
-import { UserProfile } from "@/components/auth/user-profile"
+import { Button } from "@/components/ui/button"
 
 export function Navbar() {
+  // Check if we're in development mode
+  const isDev = process.env.NODE_ENV === "development"
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Link href="/" className="flex items-center space-x-2">
-            <span className="font-bold text-xl">VocaHire</span>
+    <header className="border-b">
+      <div className="container flex h-16 items-center justify-between">
+        <div className="flex items-center gap-6">
+          <Link href="/" className="font-bold text-xl">
+            VocaHire Coach
           </Link>
-          <nav className="hidden md:flex items-center space-x-4 lg:space-x-6 mx-6">
-            <Link href="/prepare" className="text-sm font-medium transition-colors hover:text-primary">
+          <nav className="hidden md:flex gap-6">
+            <Link href="/prepare" className="text-sm font-medium hover:underline">
               Prepare
             </Link>
-            <Link href="/interview" className="text-sm font-medium transition-colors hover:text-primary">
+            <Link href="/interview" className="text-sm font-medium hover:underline">
               Interview
             </Link>
-            <Link href="/feedback" className="text-sm font-medium transition-colors hover:text-primary">
+            <Link href="/feedback" className="text-sm font-medium hover:underline">
               Feedback
             </Link>
+
+            {/* Only show diagnostics link in development */}
+            {isDev && (
+              <Link href="/diagnostics" className="text-sm font-medium text-amber-600 hover:underline">
+                Diagnostics
+              </Link>
+            )}
           </nav>
         </div>
-        <div className="flex items-center gap-2">
-          <UserProfile />
+        <div className="flex items-center gap-4">
+          <Button variant="outline" asChild>
+            <Link href="/mock-auth">Sign In</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/interview">Start Interview</Link>
+          </Button>
         </div>
       </div>
     </header>

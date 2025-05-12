@@ -7,88 +7,63 @@ export function getOpenAIApiKey(): string | undefined {
   return process.env.OPENAI_API_KEY || process.env.OPEN_AI_API_KEY || process.env.OPENAI_KEY
 }
 
-// Validate the OpenAI API key format
-export function validateApiKey(apiKey?: string): {
-  isValid: boolean
-  error?: string
-} {
-  const key = apiKey || getOpenAIApiKey()
-
-  if (!key) {
-    return {
-      isValid: false,
-      error: "OpenAI API key is missing",
-    }
+/**
+ * Validates an OpenAI API key format
+ */
+export function validateApiKey(apiKey?: string): { isValid: boolean; error?: string } {
+  if (!apiKey) {
+    return { isValid: false, error: "API key is missing" }
   }
 
-  // Basic format validation
-  if (!key.startsWith("sk-") || key.length < 20) {
-    return {
-      isValid: false,
-      error: "OpenAI API key appears to be invalid (wrong format)",
-    }
+  // Basic format check (OpenAI keys start with "sk-")
+  if (!apiKey.startsWith("sk-")) {
+    return { isValid: false, error: "API key has invalid format (should start with 'sk-')" }
+  }
+
+  // Length check (OpenAI keys are typically long)
+  if (apiKey.length < 20) {
+    return { isValid: false, error: "API key is too short" }
   }
 
   return { isValid: true }
 }
 
-// Format API error responses consistently
-export function formatApiError(error: unknown): {
-  error: string
-  message: string
-  details?: any
-  stack?: string
-} {
+/**
+ * Formats API errors for consistent response
+ */
+export function formatApiError(error: any): { error: string; details?: any } {
+  console.error("API Error:", error)
+
   if (error instanceof Error) {
     return {
-      error: error.name,
-      message: error.message,
-      details: {
-        name: error.name,
-      },
-      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
-    }
-  }
-
-  if (typeof error === "string") {
-    return {
-      error: "Error",
-      message: error,
+      error: error.message,
+      details: error.stack,
     }
   }
 
   return {
-    error: "UnknownError",
-    message: "An unknown error occurred",
-    details: error,
+    error: String(error),
   }
 }
 
-// Parse OpenAI API responses that might be HTML or JSON
-export async function parseOpenAIResponse(response: Response): Promise<{
-  isJson: boolean
-  data: any
-  status: number
-  headers: Record<string, string>
-}> {
-  const text = await response.text()
-  const headers = Object.fromEntries([...response.headers.entries()])
-
+/**
+ * Safely parses an OpenAI API response
+ */
+export async function parseOpenAIResponse(response: Response): Promise<{ isJson: boolean; data: any }> {
   try {
-    const json = JSON.parse(text)
-    return {
-      isJson: true,
-      data: json,
-      status: response.status,
-      headers,
+    // First get the response as text
+    const text = await response.text()
+
+    // Try to parse as JSON
+    try {
+      const json = JSON.parse(text)
+      return { isJson: true, data: json }
+    } catch (e) {
+      // Not JSON, return as text
+      return { isJson: false, data: text }
     }
-  } catch (e) {
-    // Not JSON, likely HTML error page
-    return {
-      isJson: false,
-      data: text.substring(0, 1000), // Truncate long HTML
-      status: response.status,
-      headers,
-    }
+  } catch (error) {
+    console.error("Error parsing OpenAI response:", error)
+    return { isJson: false, data: `Error parsing response: ${error}` }
   }
 }

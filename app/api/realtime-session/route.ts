@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createApiClient } from "@/lib/supabase/server"
-import { getOpenAIApiKey, validateApiKey, parseOpenAIResponse } from "@/lib/api-utils"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { getOpenAIApiKey, validateApiKey, formatApiError, parseOpenAIResponse } from "@/lib/api-utils"
 import { getRedisClient } from "@/lib/redis"
 import { checkRateLimit, incrementRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit"
 import { trackUsage, checkUsageLimit, UsageType } from "@/lib/usage-tracking"
@@ -12,12 +13,8 @@ export async function POST(request: NextRequest) {
     const apiKey = getOpenAIApiKey()
     console.log("🔑 API key available:", !!apiKey, apiKey ? `(starts with ${apiKey.slice(0, 6)}...)` : "(not found)")
 
-    // Get the session using Supabase
-    const supabase = createApiClient()
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-
+    // Get the session
+    const session = await getServerSession(authOptions)
     if (!session || !session.user?.id) {
       console.log("Unauthorized: No session found")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -178,6 +175,17 @@ export async function POST(request: NextRequest) {
         const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
 
         try {
+          // Log the exact request we're making
+          console.log(`Making request to OpenAI Realtime API:
+            URL: https://api.openai.com/v1/realtime/sessions
+            Method: POST
+            Headers: 
+              - Authorization: Bearer ${apiKey ? apiKey.substring(0, 3) + "..." : "missing"}
+              - Content-Type: application/json
+              - OpenAI-Beta: realtime
+            Body: ${JSON.stringify(sessionPayload)}
+          `)
+
           const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
             method: "POST",
             headers: {
@@ -298,12 +306,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error("Error creating realtime session:", error)
-    return NextResponse.json(
-      {
-        error: "Failed to create realtime session",
-        details: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 },
-    )
+    return NextResponse.json(formatApiError(error), { status: 500 })
   }
 }

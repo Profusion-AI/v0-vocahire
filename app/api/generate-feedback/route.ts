@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server"
-import { createApiClient } from "@/lib/supabase/server"
-import { generateInterviewFeedback, parseFeedback } from "@/lib/openai"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
+import { getOpenAIApiKey, validateApiKey, formatApiError } from "@/lib/api-utils"
 import { checkRateLimit, incrementRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit"
 import { trackUsage, checkUsageLimit, UsageType } from "@/lib/usage-tracking"
+import { generateInterviewFeedback, parseFeedback } from "@/lib/openai"
 
 export async function POST(request: Request) {
   try {
-    // Authenticate the user using Supabase
-    const supabase = createApiClient()
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-
+    // Authenticate the user
+    const session = await getServerSession(authOptions)
     if (!session || !session.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -54,12 +52,12 @@ export async function POST(request: Request) {
     }
 
     // Get the OpenAI API key
-    // const apiKey = getOpenAIApiKey()
-    // const keyValidation = validateApiKey(apiKey)
-    // if (!keyValidation.isValid) {
-    //   console.error(keyValidation.error)
-    //   return NextResponse.json({ error: keyValidation.error }, { status: 500 })
-    // }
+    const apiKey = getOpenAIApiKey()
+    const keyValidation = validateApiKey(apiKey)
+    if (!keyValidation.isValid) {
+      console.error(keyValidation.error)
+      return NextResponse.json({ error: keyValidation.error }, { status: 500 })
+    }
 
     // Parse request body
     const body = await request.json()
@@ -137,12 +135,6 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     console.error("Error generating feedback:", error)
-    return NextResponse.json(
-      {
-        error: "Failed to generate feedback",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    )
+    return NextResponse.json(formatApiError(error), { status: 500 })
   }
 }

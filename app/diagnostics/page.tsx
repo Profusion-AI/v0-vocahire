@@ -140,6 +140,19 @@ export default function DiagnosticsPage() {
           </CardFooter>
         </Card>
       </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Realtime API Test</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">Test direct access to the OpenAI Realtime API</p>
+            <Button asChild size="sm">
+              <Link href="/api/diagnostic/realtime">Run Test</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
