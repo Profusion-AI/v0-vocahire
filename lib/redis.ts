@@ -40,7 +40,7 @@ function createFallbackRedisClient(): Redis {
     }
   }, 60000) // Run every minute
 
-  return {\
+  return {
     get: async <T>(key: string): Promise<T | null> => {
       const data = store.get(key)
       if (!data) return null
