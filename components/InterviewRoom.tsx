@@ -14,6 +14,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import Link from "next/link"
 import { countFillerWords, getTotalFillerWordCount } from "@/lib/filler-words"
 import type { ResumeData } from "@/components/resume-input"
+import { useInterviewSession } from "@/hooks/useRealtimeInterviewSession"
+// Import the TranscriptDownload component at the top of the file
+import { TranscriptDownload } from "@/components/transcript-download"
 
 // For debugging render cycles
 let renderCount = 0
@@ -1009,6 +1012,9 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     )
   }
 
+  // Use the hook to manage the real-time interview session
+  const { liveTranscript, aiCaptions } = useInterviewSession()
+
   return (
     <Card className="w-full max-w-3xl mx-auto">
       <CardHeader>
@@ -1252,7 +1258,7 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
                   </div>
 
                   <div className="mt-4 space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                    {messages.length === 0 && (
+                    {messages.length === 0 && !liveTranscript && (
                       <div className="text-center text-muted-foreground italic">
                         <p>
                           {isFallbackMode
@@ -1261,6 +1267,8 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
                         </p>
                       </div>
                     )}
+
+                    {/* Display finalized messages */}
                     {messages.map((msg, index) => (
                       <div
                         key={index}
@@ -1269,10 +1277,41 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
                         }`}
                       >
                         <p className="text-sm font-medium mb-1">{msg.role === "assistant" ? "Interviewer" : "You"}</p>
-                        <p>{msg.content}</p>
+                        <p>
+                          {msg.content}
+                          {/* If confidence score is low, add a subtle indicator */}
+                          {msg.role === "user" && msg.confidence !== undefined && msg.confidence < 0.7 && (
+                            <span className="ml-2 text-xs text-amber-500">(Some words may have been misheard)</span>
+                          )}
+                        </p>
                       </div>
                     ))}
+
+                    {/* Display live transcript (streaming updates) */}
+                    {liveTranscript && (
+                      <div
+                        className={`p-3 rounded-lg ${
+                          liveTranscript.role === "assistant" ? "bg-primary/10 ml-4" : "bg-secondary/10 mr-4"
+                        } border-l-2 ${liveTranscript.role === "assistant" ? "border-primary" : "border-secondary"} animate-pulse`}
+                      >
+                        <p className="text-sm font-medium mb-1">
+                          {liveTranscript.role === "assistant" ? "Interviewer" : "You"}
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {liveTranscript.role === "assistant" ? "typing..." : "speaking..."}
+                          </span>
+                        </p>
+                        <p>{liveTranscript.content}</p>
+                      </div>
+                    )}
                   </div>
+
+                  {/* AI Captions - display when AI is speaking */}
+                  {isAudioPlaying && aiCaptions && (
+                    <div className="mt-2 p-2 bg-primary/5 rounded text-sm text-center">
+                      <p className="font-medium text-xs mb-1">AI Speech Captions:</p>
+                      <p>{aiCaptions}</p>
+                    </div>
+                  )}
 
                   {/* Text input for fallback mode */}
                   {status === "active" && isFallbackMode && (
@@ -1328,6 +1367,9 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
           <Button variant="outline" onClick={() => window.location.reload()}>
             Start New Interview
           </Button>
+        )}
+        {(status === "active" || status === "ended") && messages.length > 0 && (
+          <TranscriptDownload messages={messages} jobTitle={jobTitle} />
         )}
         {status === "ended" && (
           <Button asChild>

@@ -38,6 +38,7 @@
     "@radix-ui/react-toggle": "1.1.1",
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "latest",
+    "@upstash/redis": "latest",
     "@vercel/blob": "latest",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",

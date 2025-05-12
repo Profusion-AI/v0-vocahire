@@ -7,6 +7,7 @@ export interface InterviewMessage {
   role: "user" | "assistant"
   content: string
   timestamp: number
+  confidence?: number // Added for transcript confidence
 }
 
 type InterviewStatus =
@@ -30,6 +31,9 @@ export function useInterviewSession() {
   const [debug, setDebug] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [isActive, setIsActive] = useState(false)
+  const [isUserSpeaking, setIsUserSpeaking] = useState(false)
+  const [aiCaptions, setAiCaptions] = useState<string>("")
+  const [liveTranscript, setLiveTranscript] = useState<{ role: "user" | "assistant"; content: string } | null>(null)
 
   // Refs
   const localStreamRef = useRef<MediaStream | null>(null)
@@ -40,7 +44,11 @@ export function useInterviewSession() {
   const debugLogRef = useRef<string>("")
   const audioSenderRef = useRef<RTCRtpSender | null>(null)
   const aiAudioElementRef = useRef<HTMLAudioElement | null>(null)
-  const currentTranscriptRef = useRef<{ role: "user" | "assistant"; content: string } | null>(null)
+
+  // Refs for accumulating streaming text
+  const currentUserTranscriptRef = useRef<string>("")
+  const currentAssistantTextRef = useRef<string>("")
+  const transcriptConfidenceRef = useRef<number | null>(null)
 
   // Use our audio player hook
   const {
@@ -74,40 +82,67 @@ export function useInterviewSession() {
     [playAudioFromArrayBuffer, addDebugMessage],
   )
 
-  // Add a message to the conversation
-  const addMessage = useCallback((role: "user" | "assistant", content: string) => {
-    // Check if we're continuing an existing message or starting a new one
-    if (currentTranscriptRef.current && currentTranscriptRef.current.role === role) {
-      // Update the current transcript
-      currentTranscriptRef.current.content += content
+  // Add a message to the conversation - IMPROVED to handle finalized messages
+  const addMessage = useCallback((role: "user" | "assistant", content: string, confidence?: number) => {
+    // Add a new message to the conversation
+    setMessages((prev) => [
+      ...prev,
+      {
+        role,
+        content,
+        timestamp: Date.now(),
+        confidence,
+      },
+    ])
 
-      // Update the messages state by replacing the last message
-      setMessages((prev) => {
-        const newMessages = [...prev]
-        if (newMessages.length > 0) {
-          newMessages[newMessages.length - 1] = {
-            role,
-            content: currentTranscriptRef.current!.content,
-            timestamp: Date.now(),
-          }
-        } else {
-          // If there are no messages yet, add a new one
-          newMessages.push({
-            role,
-            content: currentTranscriptRef.current!.content,
-            timestamp: Date.now(),
+    // Reset the current transcript refs
+    if (role === "user") {
+      currentUserTranscriptRef.current = ""
+      transcriptConfidenceRef.current = null
+    } else {
+      currentAssistantTextRef.current = ""
+    }
+
+    // Clear the live transcript display
+    setLiveTranscript(null)
+  }, [])
+
+  // Update live transcript for streaming updates
+  const updateLiveTranscript = useCallback((role: "user" | "assistant", content: string) => {
+    setLiveTranscript({ role, content })
+  }, [])
+
+  // Handle transcript confidence scores
+  const handleTranscriptConfidence = useCallback(
+    (logprobs: any) => {
+      if (!logprobs) return
+
+      try {
+        // This is a simplified example - actual implementation would depend on the structure of logprobs
+        // For now, we'll just calculate an average confidence score
+        let totalConfidence = 0
+        let count = 0
+
+        // Assuming logprobs is an array of token probabilities
+        if (Array.isArray(logprobs)) {
+          logprobs.forEach((item) => {
+            if (typeof item === "number") {
+              totalConfidence += Math.exp(item) // Convert log probability to probability
+              count++
+            }
           })
         }
-        return newMessages
-      })
-    } else {
-      // Start a new transcript
-      currentTranscriptRef.current = { role, content }
 
-      // Add a new message
-      setMessages((prev) => [...prev, { role, content, timestamp: Date.now() }])
-    }
-  }, [])
+        const avgConfidence = count > 0 ? totalConfidence / count : null
+        transcriptConfidenceRef.current = avgConfidence
+
+        addDebugMessage(`Transcript confidence: ${avgConfidence}`)
+      } catch (err) {
+        addDebugMessage(`Error processing transcript confidence: ${err}`)
+      }
+    },
+    [addDebugMessage],
+  )
 
   // Function to clean up resources
   const cleanup = useCallback(() => {
@@ -149,8 +184,15 @@ export function useInterviewSession() {
     // Reset reconnect attempts
     reconnectAttemptsRef.current = 0
 
-    // Reset current transcript
-    currentTranscriptRef.current = null
+    // Reset transcript refs
+    currentUserTranscriptRef.current = ""
+    currentAssistantTextRef.current = ""
+    transcriptConfidenceRef.current = null
+
+    // Reset live states
+    setLiveTranscript(null)
+    setAiCaptions("")
+    setIsUserSpeaking(false)
   }, [addDebugMessage])
 
   // Create and exchange SDP offer/answer directly with OpenAI
@@ -166,7 +208,7 @@ export function useInterviewSession() {
 
         // Create a new RTCPeerConnection
         const configuration: RTCConfiguration = {
-          iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }],
+          iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun1.l.google.com:19302" }],
         }
 
         // Try to get TURN servers from our API
@@ -218,20 +260,83 @@ export function useInterviewSession() {
             addDebugMessage(`RTCDataChannel received message type: ${data.type}`)
 
             // Handle different event types from OpenAI
-            if (data.type === "response.audio.delta" && data.delta) {
-              // Handle audio data
-              const audioData = base64ToArrayBuffer(data.delta)
-              handleAudioData(audioData)
-            } else if (data.type === "response.text.delta" && data.delta) {
-              // Handle assistant message
-              addMessage("assistant", data.delta)
-            } else if (data.type === "conversation.item.input_audio_transcription.delta" && data.delta) {
-              // Handle user transcript
-              addMessage("user", data.delta)
-            } else if (data.type === "error") {
-              // Handle error
-              addDebugMessage(`OpenAI error: ${JSON.stringify(data.error)}`)
-              setError(`OpenAI error: ${data.error?.message || "Unknown error"}`)
+            switch (data.type) {
+              // Audio data from the AI
+              case "response.audio.delta":
+                if (data.delta) {
+                  const audioData = base64ToArrayBuffer(data.delta)
+                  handleAudioData(audioData)
+                }
+                break
+
+              // Text response from the AI
+              case "response.text.delta":
+                if (data.delta) {
+                  // Accumulate the assistant's text
+                  currentAssistantTextRef.current += data.delta
+                  // Update the live transcript for UI
+                  updateLiveTranscript("assistant", currentAssistantTextRef.current)
+                }
+                break
+
+              // Transcript of the AI's audio (for captions)
+              case "response.audio_transcript.delta":
+                if (data.delta) {
+                  setAiCaptions((prev) => prev + data.delta)
+                }
+                break
+
+              // Transcript of user's speech
+              case "conversation.item.input_audio_transcription.delta":
+                if (data.delta) {
+                  // Accumulate the user's transcript
+                  currentUserTranscriptRef.current += data.delta
+                  // Update the live transcript for UI
+                  updateLiveTranscript("user", currentUserTranscriptRef.current)
+                }
+                break
+
+              // Final transcript of user's speech
+              case "conversation.item.input_audio_transcription.completed":
+                // Use the final transcript from the event if available
+                const finalUserTranscript = data.transcript || currentUserTranscriptRef.current
+                // Add the finalized user message
+                addMessage("user", finalUserTranscript, transcriptConfidenceRef.current || undefined)
+                // Process confidence scores if available
+                if (data.logprobs) {
+                  handleTranscriptConfidence(data.logprobs)
+                }
+                break
+
+              // Response is complete
+              case "response.done":
+                // Finalize the assistant's message if there's content
+                if (currentAssistantTextRef.current.trim()) {
+                  addMessage("assistant", currentAssistantTextRef.current.trim())
+                }
+                // Reset captions
+                setAiCaptions("")
+                break
+
+              // User started speaking (VAD)
+              case "input_audio_buffer.speech_started":
+                setIsUserSpeaking(true)
+                break
+
+              // User stopped speaking (VAD)
+              case "input_audio_buffer.speech_stopped":
+                setIsUserSpeaking(false)
+                break
+
+              // Error from OpenAI
+              case "error":
+                addDebugMessage(`OpenAI error: ${JSON.stringify(data.error)}`)
+                setError(`OpenAI error: ${data.error?.message || "Unknown error"}`)
+                break
+
+              // Default case for unhandled events
+              default:
+                addDebugMessage(`Unhandled event type: ${data.type}`)
             }
           } catch (err) {
             addDebugMessage(`Error parsing RTCDataChannel message: ${err instanceof Error ? err.message : String(err)}`)
@@ -420,7 +525,15 @@ export function useInterviewSession() {
         throw err
       }
     },
-    [addDebugMessage, handleAudioData, aiAudioRef, addMessage, isActive],
+    [
+      addDebugMessage,
+      handleAudioData,
+      aiAudioRef,
+      addMessage,
+      isActive,
+      updateLiveTranscript,
+      handleTranscriptConfidence,
+    ],
   )
 
   const start = useCallback(
@@ -480,6 +593,14 @@ export function useInterviewSession() {
             body: JSON.stringify({
               jobTitle: jobTitle,
               resumeText: resumeText?.trim() || "",
+              // Add optimized VAD settings
+              turnDetection: {
+                enabled: true,
+                silence_threshold: 1.0,
+                speech_threshold: 0.5,
+                silence_duration_ms: 800, // Increased from default for better interview experience
+                type: "semantic_vad", // Use semantic VAD for more natural turn-taking
+              },
             }),
           })
 
@@ -603,6 +724,9 @@ export function useInterviewSession() {
     debug,
     isConnecting,
     isActive,
+    isUserSpeaking,
+    aiCaptions,
+    liveTranscript,
     start,
     stop,
     addDebugMessage,

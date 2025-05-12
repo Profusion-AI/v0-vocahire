@@ -1,9 +1,12 @@
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { getOpenAIApiKey, validateApiKey } from "@/lib/api-utils"
+import { getRedisClient } from "@/lib/redis"
+import { checkRateLimit, incrementRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit"
+import { trackUsage, checkUsageLimit, UsageType } from "@/lib/usage-tracking"
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     // Log start of request with timestamp
     console.log(`=== REALTIME SESSION REQUEST (${new Date().toISOString()}) ===`)
@@ -12,9 +15,71 @@ export async function POST(request: Request) {
 
     // Get the session
     const session = await getServerSession(authOptions)
-    if (!session) {
+    if (!session || !session.user?.id) {
       console.log("Unauthorized: No session found")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const userId = session.user.id
+
+    // Check rate limit
+    const rateLimitResult = await checkRateLimit(userId, RATE_LIMIT_CONFIGS.REALTIME_SESSION)
+    if (rateLimitResult.isLimited) {
+      console.log(`Rate limit exceeded for user ${userId}`)
+      const resetDate = new Date(rateLimitResult.reset).toISOString()
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded",
+          message: `Too many requests. Please try again later.`,
+          reset: resetDate,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": Math.ceil((rateLimitResult.reset - Date.now()) / 1000).toString(),
+          },
+        },
+      )
+    }
+
+    // Check usage limit
+    const usageLimitResult = await checkUsageLimit(userId, UsageType.INTERVIEW_SESSION)
+    if (!usageLimitResult.allowed) {
+      console.log(`Usage limit exceeded for user ${userId}`)
+      return NextResponse.json(
+        {
+          error: "Usage limit exceeded",
+          message: `You have reached your daily limit of ${usageLimitResult.limit} interviews. Please upgrade your plan for more.`,
+          current: usageLimitResult.current,
+          limit: usageLimitResult.limit,
+        },
+        { status: 403 },
+      )
+    }
+
+    // Check for cached session
+    const redis = getRedisClient()
+    const cachedSessionKey = `openai_ephemeral_session:${userId}`
+    const cachedData = await redis.get<{ id: string; token: string; model: string; expires_at: number }>(
+      cachedSessionKey,
+    )
+
+    if (cachedData && cachedData.expires_at > Date.now() / 1000 + 5) {
+      console.log(`Returning cached ephemeral session for user ${userId}`)
+
+      // Track usage even when using cached session
+      await trackUsage(userId, UsageType.INTERVIEW_SESSION)
+
+      // Increment rate limit
+      await incrementRateLimit(userId, RATE_LIMIT_CONFIGS.REALTIME_SESSION)
+
+      return NextResponse.json({
+        id: cachedData.id,
+        token: cachedData.token,
+        model: cachedData.model,
+        usedCachedSession: true,
+        expires_at: cachedData.expires_at,
+      })
     }
 
     // Validate API key
@@ -88,10 +153,12 @@ export async function POST(request: Request) {
           voice: "alloy",
           modalities: ["audio", "text"],
           instructions: systemPrompt,
-          turn_detection: {
+          turn_detection: body.turnDetection || {
             enabled: true,
             silence_threshold: 1.0,
             speech_threshold: 0.5,
+            silence_duration_ms: 800, // Increased from default for better interview experience
+            type: "semantic_vad", // Use semantic VAD for more natural turn-taking
           },
           input_audio_transcription: {
             enabled: true,
@@ -167,6 +234,7 @@ export async function POST(request: Request) {
 
     // Extract the client_secret (ephemeral token) from the response
     const token = sessionData.client_secret?.value
+    const expiresAt = sessionData.client_secret?.expires_at
 
     if (!token) {
       console.error("No client_secret.value found in session response")
@@ -179,13 +247,33 @@ export async function POST(request: Request) {
       )
     }
 
+    // Cache the session data
+    const ttlSeconds = 55 // Cache for 55 seconds (just under the 60s expiry)
+    await redis.set(
+      cachedSessionKey,
+      {
+        id: sessionData.id,
+        token,
+        model: usedModel,
+        expires_at: expiresAt,
+      },
+      { ex: ttlSeconds },
+    )
+    console.log(`Cached new ephemeral session for user ${userId} for ${ttlSeconds}s`)
+
+    // Track usage
+    await trackUsage(userId, UsageType.INTERVIEW_SESSION)
+
+    // Increment rate limit
+    await incrementRateLimit(userId, RATE_LIMIT_CONFIGS.REALTIME_SESSION)
+
     // Return the session data with the model used and token
     return NextResponse.json({
       id: sessionData.id,
       token: token,
       model: usedModel,
       usedFallbackModel: usedModel !== modelsToTry[0],
-      expires_at: sessionData.client_secret?.expires_at,
+      expires_at: expiresAt,
     })
   } catch (error) {
     console.error("Error creating realtime session:", error)
