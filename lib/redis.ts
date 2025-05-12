@@ -24,7 +24,7 @@ function createMockRedisClient() {
     }
   }, 60000) // Run every minute
 
-  const mock = {\
+  const mock = {
     get: async <T>(key: string): Promise<T | null> => {
       const item = storage.get(key)
       if (!item) return null
