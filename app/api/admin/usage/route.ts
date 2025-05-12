@@ -1,81 +1,70 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
-import { getGlobalUsage } from "@/lib/usage-tracking"
+import { getUserUsageStats, UsageType } from "@/lib/usage-tracking"
 
-export async function GET(request: Request) {
+// Mock user data for development - in production, this would come from your database
+const MOCK_USERS = [
+  { id: "user_1", email: "user1@example.com", name: "User One" },
+  { id: "user_2", email: "user2@example.com", name: "User Two" },
+  { id: "user_3", email: "user3@example.com", name: "User Three" },
+]
+
+export async function GET() {
   try {
-    // Check authentication
+    // Authenticate the admin user
     const session = await getServerSession(authOptions)
-    if (!session || !session.user?.id) {
+    if (!session || !session.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Check if user is an admin
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { email: true },
-    })
-
-    // This is a simple check - in production, you'd want a proper role system
-    const adminEmails = ["admin@example.com"] // Replace with actual admin emails
-    const isAdmin = user && adminEmails.includes(user.email || "")
-
+    // Check if the user is an admin (in production, check against a database)
+    const isAdmin = session.user.email.endsWith("@vocahire.com") || process.env.NODE_ENV === "development"
     if (!isAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
     }
 
-    // Get global usage statistics
-    const globalUsage = await getGlobalUsage()
+    // In production, fetch real users from your database
+    // For now, use mock data
+    const users = MOCK_USERS
 
-    // Get user statistics
-    const userStats = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
-        _count: {
-          select: {
-            interviews: true,
-          },
-        },
-      },
-      orderBy: {
-        interviews: {
-          _count: "desc",
-        },
-      },
-      take: 100,
+    // Get usage stats for each user
+    const usagePromises = users.map(async (user) => {
+      const usage = await getUserUsageStats(user.id)
+      return {
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        usage,
+      }
     })
 
-    // Get recent interviews
-    const recentInterviews = await prisma.interview.findMany({
-      select: {
-        id: true,
-        createdAt: true,
-        duration: true,
-        user: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
+    const usageData = await Promise.all(usagePromises)
+
+    // Calculate totals
+    const totals = {
+      [UsageType.INTERVIEW_SESSION]: {
+        daily: usageData.reduce((sum, user) => sum + (user.usage[UsageType.INTERVIEW_SESSION]?.daily || 0), 0),
+        monthly: usageData.reduce((sum, user) => sum + (user.usage[UsageType.INTERVIEW_SESSION]?.monthly || 0), 0),
       },
-      orderBy: {
-        createdAt: "desc",
+      [UsageType.FEEDBACK_GENERATION]: {
+        daily: usageData.reduce((sum, user) => sum + (user.usage[UsageType.FEEDBACK_GENERATION]?.daily || 0), 0),
+        monthly: usageData.reduce((sum, user) => sum + (user.usage[UsageType.FEEDBACK_GENERATION]?.monthly || 0), 0),
       },
-      take: 20,
-    })
+    }
 
     return NextResponse.json({
-      globalUsage,
-      userStats,
-      recentInterviews,
+      users: usageData,
+      totals,
     })
   } catch (error) {
-    console.error("Error in admin usage route:", error)
-    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 })
+    console.error("Error fetching usage data:", error)
+    return NextResponse.json(
+      {
+        error: "Failed to fetch usage data",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
   }
 }

@@ -1,49 +1,75 @@
 import { getRedisClient } from "./redis"
 
-export interface RateLimitConfig {
-  interval: number // Time window in milliseconds
-  limit: number // Maximum number of requests allowed in the time window
-  uniqueTokenPerInterval?: number // Maximum number of unique tokens per interval
+export const RATE_LIMIT_CONFIGS = {
+  REALTIME_SESSION: {
+    limit: 10, // 10 sessions per hour
+    window: 60 * 60, // 1 hour in seconds
+    prefix: "rate_limit:realtime_session:",
+  },
+  GENERATE_FEEDBACK: {
+    limit: 20, // 20 feedback generations per hour
+    window: 60 * 60, // 1 hour in seconds
+    prefix: "rate_limit:generate_feedback:",
+  },
+  UPLOAD: {
+    limit: 50, // 50 uploads per hour
+    window: 60 * 60, // 1 hour in seconds
+    prefix: "rate_limit:upload:",
+  },
 }
 
-export interface RateLimiter {
-  check: (token: string) => Promise<void>
+export async function checkRateLimit(
+  userId: string,
+  config: { limit: number; window: number; prefix: string },
+): Promise<{ isLimited: boolean; current: number; limit: number; reset: number }> {
+  try {
+    const redis = getRedisClient()
+    const key = `${config.prefix}${userId}`
+
+    // Get the current count
+    const count = (await redis.get<number>(key)) || 0
+
+    // Get the TTL of the key
+    const ttl = await redis.ttl(key)
+
+    // Calculate reset time
+    const reset = Date.now() + (ttl > 0 ? ttl * 1000 : config.window * 1000)
+
+    return {
+      isLimited: count >= config.limit,
+      current: count,
+      limit: config.limit,
+      reset,
+    }
+  } catch (error) {
+    console.error("Rate limit check error:", error)
+    // Fail open - allow the request if Redis is down
+    return {
+      isLimited: false,
+      current: 0,
+      limit: config.limit,
+      reset: Date.now() + config.window * 1000,
+    }
+  }
 }
 
-export function rateLimit(config: RateLimitConfig): RateLimiter {
-  const { interval, limit, uniqueTokenPerInterval = 500 } = config
-  const redis = getRedisClient()
+export async function incrementRateLimit(
+  userId: string,
+  config: { limit: number; window: number; prefix: string },
+): Promise<void> {
+  try {
+    const redis = getRedisClient()
+    const key = `${config.prefix}${userId}`
 
-  return {
-    check: async (token: string): Promise<void> => {
-      const tokenKey = `rate-limit:${token}`
-      const uniqueTokensKey = `rate-limit:unique-tokens:${Math.floor(Date.now() / interval)}`
+    // Increment the counter
+    const count = await redis.incr(key)
 
-      let requests: number
-
-      try {
-        // Increment the token count
-        requests = await redis.incr(tokenKey)
-
-        // Set expiration for the token key if it's new
-        if (requests === 1) {
-          await redis.expire(tokenKey, Math.floor(interval / 1000))
-        }
-
-        // Add the token to the set of unique tokens for this interval
-        await redis.set(uniqueTokensKey, token, { ex: Math.floor(interval / 1000) })
-
-        // Check if the token has exceeded the limit
-        if (requests > limit) {
-          throw new Error(`Rate limit exceeded for ${token}`)
-        }
-      } catch (error) {
-        if (error instanceof Error && error.message.includes("Rate limit exceeded")) {
-          throw error
-        }
-        // If there's an error with Redis, we'll log it but allow the request
-        console.error("Error in rate limiting:", error)
-      }
-    },
+    // Set expiration if this is the first increment
+    if (count === 1) {
+      await redis.expire(key, config.window)
+    }
+  } catch (error) {
+    console.error("Rate limit increment error:", error)
+    // Continue even if Redis is down
   }
 }

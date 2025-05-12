@@ -1,108 +1,142 @@
 import { getRedisClient } from "./redis"
 
-// Track usage for a specific action
-export async function trackUsage(userId: string, action: string): Promise<void> {
-  const redis = getRedisClient()
-  const now = new Date()
-  const day = now.toISOString().split("T")[0] // YYYY-MM-DD
-  const month = day.substring(0, 7) // YYYY-MM
+export enum UsageType {
+  INTERVIEW_SESSION = "interview_session",
+  FEEDBACK_GENERATION = "feedback_generation",
+  UPLOAD = "upload",
+}
 
+interface UsageLimits {
+  [UsageType.INTERVIEW_SESSION]: number
+  [UsageType.FEEDBACK_GENERATION]: number
+  [UsageType.UPLOAD]: number
+}
+
+// Default limits for free tier
+const FREE_TIER_LIMITS: UsageLimits = {
+  [UsageType.INTERVIEW_SESSION]: 3, // 3 interviews per day
+  [UsageType.FEEDBACK_GENERATION]: 5, // 5 feedback generations per day
+  [UsageType.UPLOAD]: 10, // 10 uploads per day
+}
+
+// Get the usage limit for a user based on their tier
+async function getUserLimit(userId: string, usageType: UsageType): Promise<number> {
+  // TODO: In the future, fetch the user's tier from the database
+  // For now, return the free tier limit
+  return FREE_TIER_LIMITS[usageType]
+}
+
+// Track usage for a specific user and usage type
+export async function trackUsage(userId: string, usageType: UsageType): Promise<void> {
   try {
-    // Increment daily counter
-    await redis.incr(`usage:${action}:day:${day}:${userId}`)
-    await redis.expire(`usage:${action}:day:${day}:${userId}`, 60 * 60 * 24 * 7) // 7 days
+    const redis = getRedisClient()
 
-    // Increment monthly counter
-    await redis.incr(`usage:${action}:month:${month}:${userId}`)
-    await redis.expire(`usage:${action}:month:${month}:${userId}`, 60 * 60 * 24 * 32) // 32 days
+    // Get the current date in YYYY-MM-DD format
+    const today = new Date().toISOString().split("T")[0]
 
-    // Increment total counter
-    await redis.incr(`usage:${action}:total:${userId}`)
+    // Create a key for this user, usage type, and day
+    const key = `usage:${usageType}:${userId}:${today}`
 
-    // Increment global counters
-    await redis.incr(`usage:${action}:day:${day}:global`)
-    await redis.incr(`usage:${action}:month:${month}:global`)
-    await redis.incr(`usage:${action}:total:global`)
+    // Increment the usage counter
+    await redis.incr(key)
+
+    // Set expiration to 48 hours (to ensure it covers the full day plus some buffer)
+    await redis.expire(key, 48 * 60 * 60)
+
+    // Also track monthly usage
+    const month = today.substring(0, 7) // YYYY-MM
+    const monthlyKey = `usage:${usageType}:${userId}:${month}`
+
+    await redis.incr(monthlyKey)
+    // Set expiration to 35 days
+    await redis.expire(monthlyKey, 35 * 24 * 60 * 60)
   } catch (error) {
-    // If Redis fails, log the error but don't block the operation
-    console.error("Error tracking usage:", error)
+    console.error(`Error tracking usage for ${userId} (${usageType}):`, error)
+    // Continue even if Redis is down
+  }
+}
+
+// Check if a user has exceeded their usage limit
+export async function checkUsageLimit(
+  userId: string,
+  usageType: UsageType,
+): Promise<{ allowed: boolean; current: number; limit: number }> {
+  try {
+    const redis = getRedisClient()
+
+    // Get the current date in YYYY-MM-DD format
+    const today = new Date().toISOString().split("T")[0]
+
+    // Create a key for this user, usage type, and day
+    const key = `usage:${usageType}:${userId}:${today}`
+
+    // Get the current usage count
+    const count = (await redis.get<number>(key)) || 0
+
+    // Get the user's limit for this usage type
+    const limit = await getUserLimit(userId, usageType)
+
+    return {
+      allowed: count < limit,
+      current: count,
+      limit,
+    }
+  } catch (error) {
+    console.error(`Error checking usage limit for ${userId} (${usageType}):`, error)
+    // Fail open - allow the request if Redis is down
+    return {
+      allowed: true,
+      current: 0,
+      limit: FREE_TIER_LIMITS[usageType],
+    }
   }
 }
 
 // Get usage statistics for a user
-export async function getUserUsage(userId: string): Promise<any> {
-  const redis = getRedisClient()
-  const now = new Date()
-  const day = now.toISOString().split("T")[0]
-  const month = day.substring(0, 7)
-
+export async function getUserUsageStats(
+  userId: string,
+): Promise<{ [key in UsageType]: { daily: number; monthly: number; limit: number } }> {
   try {
-    const [dailyInterviews, monthlyInterviews, totalInterviews, dailyFeedback, monthlyFeedback, totalFeedback] =
-      await Promise.all([
-        redis.get(`usage:realtime_session:day:${day}:${userId}`),
-        redis.get(`usage:realtime_session:month:${month}:${userId}`),
-        redis.get(`usage:realtime_session:total:${userId}`),
-        redis.get(`usage:generate_feedback:day:${day}:${userId}`),
-        redis.get(`usage:generate_feedback:month:${month}:${userId}`),
-        redis.get(`usage:generate_feedback:total:${userId}`),
+    const redis = getRedisClient()
+    const today = new Date().toISOString().split("T")[0]
+    const month = today.substring(0, 7) // YYYY-MM
+
+    const result: any = {}
+
+    // Get usage for each type
+    for (const type of Object.values(UsageType)) {
+      const dailyKey = `usage:${type}:${userId}:${today}`
+      const monthlyKey = `usage:${type}:${userId}:${month}`
+
+      const [dailyCount, monthlyCount] = await Promise.all([
+        redis.get<number>(dailyKey) || 0,
+        redis.get<number>(monthlyKey) || 0,
       ])
 
-    return {
-      interviews: {
-        daily: Number.parseInt(dailyInterviews || "0"),
-        monthly: Number.parseInt(monthlyInterviews || "0"),
-        total: Number.parseInt(totalInterviews || "0"),
-      },
-      feedback: {
-        daily: Number.parseInt(dailyFeedback || "0"),
-        monthly: Number.parseInt(monthlyFeedback || "0"),
-        total: Number.parseInt(totalFeedback || "0"),
-      },
+      const limit = await getUserLimit(userId, type as UsageType)
+
+      result[type] = {
+        daily: dailyCount,
+        monthly: monthlyCount,
+        limit,
+      }
     }
+
+    return result
   } catch (error) {
-    console.error("Error getting user usage:", error)
-    return {
-      interviews: { daily: 0, monthly: 0, total: 0 },
-      feedback: { daily: 0, monthly: 0, total: 0 },
-    }
-  }
-}
+    console.error(`Error getting usage stats for ${userId}:`, error)
 
-// Get global usage statistics
-export async function getGlobalUsage(): Promise<any> {
-  const redis = getRedisClient()
-  const now = new Date()
-  const day = now.toISOString().split("T")[0]
-  const month = day.substring(0, 7)
+    // Return default values if Redis is down
+    const result: any = {}
 
-  try {
-    const [dailyInterviews, monthlyInterviews, totalInterviews, dailyFeedback, monthlyFeedback, totalFeedback] =
-      await Promise.all([
-        redis.get(`usage:realtime_session:day:${day}:global`),
-        redis.get(`usage:realtime_session:month:${month}:global`),
-        redis.get(`usage:realtime_session:total:global`),
-        redis.get(`usage:generate_feedback:day:${day}:global`),
-        redis.get(`usage:generate_feedback:month:${month}:global`),
-        redis.get(`usage:generate_feedback:total:global`),
-      ])
+    for (const type of Object.values(UsageType)) {
+      result[type] = {
+        daily: 0,
+        monthly: 0,
+        limit: FREE_TIER_LIMITS[type as UsageType],
+      }
+    }
 
-    return {
-      interviews: {
-        daily: Number.parseInt(dailyInterviews || "0"),
-        monthly: Number.parseInt(monthlyInterviews || "0"),
-        total: Number.parseInt(totalInterviews || "0"),
-      },
-      feedback: {
-        daily: Number.parseInt(dailyFeedback || "0"),
-        monthly: Number.parseInt(monthlyFeedback || "0"),
-        total: Number.parseInt(totalFeedback || "0"),
-      },
-    }
-  } catch (error) {
-    console.error("Error getting global usage:", error)
-    return {
-      interviews: { daily: 0, monthly: 0, total: 0 },
-      feedback: { daily: 0, monthly: 0, total: 0 },
-    }
+    return result
   }
 }
