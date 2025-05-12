@@ -1,16 +1,29 @@
 // Utility functions for OpenAI Realtime API
 
+export function getOpenAIApiKey(): string | undefined {
+  // Try multiple environment variable names
+  return process.env.OPENAI_API_KEY || process.env.OPEN_AI_API_KEY || process.env.OPENAI_KEY
+}
+
 /**
  * Fetches available Realtime models from OpenAI
  */
-export async function fetchRealtimeModels(apiKey: string): Promise<string[]> {
+export async function fetchRealtimeModels(apiKey?: string): Promise<string[]> {
   try {
     console.log("Fetching available models from OpenAI...")
+
+    // Use the provided API key or fall back to environment variables
+    const key = apiKey || getOpenAIApiKey()
+
+    if (!key) {
+      console.error("No OpenAI API key available")
+      return []
+    }
 
     const response = await fetch("https://api.openai.com/v1/models", {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
       },
     })
@@ -36,13 +49,24 @@ export async function fetchRealtimeModels(apiKey: string): Promise<string[]> {
 /**
  * Tests if the API key has access to the Realtime API
  */
-export async function testRealtimeAccess(apiKey: string): Promise<{
+export async function testRealtimeAccess(apiKey?: string): Promise<{
   hasAccess: boolean
   error?: string
   response?: any
 }> {
   try {
     console.log("Testing Realtime API access...")
+
+    // Use the provided API key or fall back to environment variables
+    const key = apiKey || getOpenAIApiKey()
+
+    if (!key) {
+      console.error("No OpenAI API key available")
+      return {
+        hasAccess: false,
+        error: "No OpenAI API key available",
+      }
+    }
 
     // Use a minimal payload for testing
     const payload = {
@@ -54,7 +78,7 @@ export async function testRealtimeAccess(apiKey: string): Promise<{
     console.log("👉 POST to OpenAI:", "https://api.openai.com/v1/realtime/sessions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey.substring(0, 5)}...`,
+        Authorization: `Bearer ${key.substring(0, 5)}...`,
         "OpenAI-Beta": "realtime",
         "Content-Type": "application/json",
       },
@@ -64,7 +88,7 @@ export async function testRealtimeAccess(apiKey: string): Promise<{
     const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${key}`,
         "OpenAI-Beta": "realtime",
         "Content-Type": "application/json",
       },

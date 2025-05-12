@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, RefreshCw } from "lucide-react"
+import { AlertCircle, Download, RefreshCw } from "lucide-react"
 
 export default function FeedbackPage() {
   const [isLoading, setIsLoading] = useState(true)
@@ -22,12 +22,18 @@ export default function FeedbackPage() {
     total: number
     mostCommon: Array<{ word: string; count: number }>
   } | null>(null)
+  const [recordingUrl, setRecordingUrl] = useState<string | null>(null)
 
   useEffect(() => {
     // Check if we have interview data in localStorage
     const messagesJson = localStorage.getItem("vocahire_interview_messages")
     const fillerWordsJson = localStorage.getItem("vocahire_filler_words")
     const resumeDataJson = localStorage.getItem("vocahire_resume_data")
+    const recordingUrlJson = localStorage.getItem("vocahire_recording_url")
+
+    if (recordingUrlJson) {
+      setRecordingUrl(recordingUrlJson)
+    }
 
     if (!messagesJson) {
       setIsLoading(false)
@@ -214,6 +220,28 @@ export default function FeedbackPage() {
                   </ul>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {recordingUrl && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Interview Recording</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p>
+                Your interview was recorded and is available for review. Listening to your responses can help you
+                identify areas for improvement.
+              </p>
+              <div className="flex justify-center">
+                <Button variant="outline" asChild>
+                  <a href={recordingUrl} target="_blank" rel="noopener noreferrer" download="interview-recording.webm">
+                    <Download className="mr-2 h-4 w-4" />
+                    Download Recording
+                  </a>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

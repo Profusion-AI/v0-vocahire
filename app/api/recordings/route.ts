@@ -1,0 +1,109 @@
+import { NextResponse } from "next/server"
+import { saveInterviewRecording, listUserRecordings, deleteBlob } from "@/lib/blob-storage"
+import { getAuthSession } from "@/lib/auth-utils"
+
+export async function POST(request: Request) {
+  try {
+    // Check authentication
+    const session = await getAuthSession()
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Get the request body
+    const formData = await request.formData()
+    const audioBlob = formData.get("audio") as Blob
+    const sessionId = formData.get("sessionId") as string
+
+    if (!audioBlob || !sessionId) {
+      return NextResponse.json(
+        {
+          error: "Missing required fields",
+          details: "Both audio and sessionId are required",
+        },
+        { status: 400 },
+      )
+    }
+
+    // Save the recording
+    const url = await saveInterviewRecording(audioBlob, sessionId)
+
+    return NextResponse.json({
+      success: true,
+      url,
+      sessionId,
+      savedAt: new Date().toISOString(),
+    })
+  } catch (error) {
+    console.error("Error saving recording:", error)
+    return NextResponse.json(
+      {
+        error: "Failed to save recording",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
+  }
+}
+
+export async function GET() {
+  try {
+    // Check authentication
+    const session = await getAuthSession()
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // List user recordings
+    const recordings = await listUserRecordings()
+
+    return NextResponse.json({
+      success: true,
+      recordings,
+    })
+  } catch (error) {
+    console.error("Error listing recordings:", error)
+    return NextResponse.json(
+      {
+        error: "Failed to list recordings",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    // Check authentication
+    const session = await getAuthSession()
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Get the URL from the request
+    const { url } = await request.json()
+
+    if (!url) {
+      return NextResponse.json({ error: "No URL provided" }, { status: 400 })
+    }
+
+    // Delete the blob
+    await deleteBlob(url)
+
+    return NextResponse.json({
+      success: true,
+      deletedUrl: url,
+      deletedAt: new Date().toISOString(),
+    })
+  } catch (error) {
+    console.error("Error deleting recording:", error)
+    return NextResponse.json(
+      {
+        error: "Failed to delete recording",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
+  }
+}
