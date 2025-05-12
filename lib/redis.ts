@@ -1,94 +1,90 @@
 import { Redis } from "@upstash/redis"
 
-// Use singleton pattern to avoid multiple connections
-let redis: Redis | null = null
+// Create a Redis client
+let redisClient: Redis | null = null
 
-export function getRedisClient(): Redis {
-  if (redis) {
-    return redis
+// Function to get or create a Redis client
+export function getRedisClient() {
+  if (!redisClient) {
+    try {
+      // Check if we have the required environment variables
+      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+        console.warn("Redis environment variables not found. Using fallback implementation.")
+        return createFallbackRedisClient()
+      }
+
+      redisClient = new Redis({
+        url: process.env.KV_REST_API_URL,
+        token: process.env.KV_REST_API_TOKEN,
+      })
+    } catch (error) {
+      console.error("Failed to initialize Redis client:", error)
+      return createFallbackRedisClient()
+    }
   }
-
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-    console.warn(
-      "Upstash Redis not configured. Rate limiting and other Redis-dependent features will not work correctly.",
-    )
-
-    // For development/testing, create a mock Redis client that won't block functionality
-    // This allows the app to work even if Redis isn't configured
-    return createMockRedisClient()
-  }
-
-  redis = new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
-  })
-
-  return redis
+  return redisClient
 }
 
-// Mock Redis client for development/testing when Redis isn't available
-function createMockRedisClient(): Redis {
-  const mockStorage = new Map<string, any>()
-  const mockExpirations = new Map<string, number>()
+// Create a fallback implementation for when Redis is not available
+function createFallbackRedisClient() {
+  // In-memory storage for fallback
+  const storage = new Map<string, { value: any; expiry: number | null }>()
 
-  return {
-    get: async (key: string) => mockStorage.get(key) || null,
-    set: async (key: string, value: any, options?: any) => {
-      mockStorage.set(key, value)
-      if (options?.ex) {
-        mockExpirations.set(key, Date.now() + options.ex * 1000)
-        setTimeout(() => {
-          if (mockExpirations.get(key) <= Date.now()) {
-            mockStorage.delete(key)
-            mockExpirations.delete(key)
-          }
-        }, options.ex * 1000)
+  // Clean up expired keys periodically
+  setInterval(() => {
+    const now = Date.now()
+    for (const [key, { expiry }] of storage.entries()) {
+      if (expiry && now > expiry) {
+        storage.delete(key)
       }
-      return "OK"
-    },
-    incr: async (key: string) => {
-      const current = mockStorage.get(key) || 0
-      const newValue = current + 1
-      mockStorage.set(key, newValue)
-      return newValue
-    },
-    expire: async (key: string, seconds: number) => {
-      if (mockStorage.has(key)) {
-        mockExpirations.set(key, Date.now() + seconds * 1000)
-        setTimeout(() => {
-          if (mockExpirations.get(key) <= Date.now()) {
-            mockStorage.delete(key)
-            mockExpirations.delete(key)
-          }
-        }, seconds * 1000)
-        return 1
+    }
+  }, 60000) // Run every minute
+
+  return {\
+    get: async <T>(key: string): Promise<T | null> => {
+      const item = storage.get(key)
+      if (!item) return null
+      if (item.expiry && Date.now() > item.expiry) {
+        storage.delete(key)
+        return null
       }
-      return 0
-    },
-    pipeline: () => {
-      const commands: Array<{ command: string; args: any[] }> = []
-      return {
-        incr: (key: string) => {
-          commands.push({ command: "incr", args: [key] })
-          return commands
-        },
-        expire: (key: string, seconds: number) => {
-          commands.push({ command: "expire", args: [key, seconds] })
-          return commands
-        },
-        exec: async () => {
-          return Promise.all(
-            commands.map(async (cmd) => {
-              if (cmd.command === "incr") {
-                return await (mockStorage as any).incr(cmd.args[0])
-              } else if (cmd.command === "expire") {
-                return await (mockStorage as any).expire(cmd.args[0], cmd.args[1])
-              }
-              return null
-            }),
-          )
-        },
-      } as any
-    },
+  return item.value as T
+}
+,
+    set: async <T>(key: string, value: T, options?:
+{
+  ex?: number
+}
+): Promise<string> =>
+{
+  const expiry = options?.ex ? Date.now() + options.ex * 1000 : null
+  storage.set(key, { value, expiry })
+  return 'OK'
+}
+,
+    incr: async (key: string): Promise<number> =>
+{
+  const item = storage.get(key)
+  const currentValue = item ? (typeof item.value === "number" ? item.value : 0) : 0
+  const newValue = currentValue + 1
+  storage.set(key, { value: newValue, expiry: item?.expiry || null })
+  return newValue
+}
+,
+    expire: async (key: string, seconds: number): Promise<number> =>
+{
+  const item = storage.get(key)
+  if (!item) return 0
+  item.expiry = Date.now() + seconds * 1000
+  storage.set(key, item)
+  return 1
+}
+,
+    del: async (key: string): Promise<number> =>
+{
+  return storage.delete(key) ? 1 : 0
+}
+,
+    // Add more methods as needed
   } as unknown as Redis
 }

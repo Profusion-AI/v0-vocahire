@@ -1,140 +1,141 @@
-import { getServerSession } from "next-auth"
+import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
+import { prisma } from "@/lib/prisma"
+import { getGlobalUsage } from "@/lib/usage-tracking"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { getUserUsageStats, UsageType } from "@/lib/usage-tracking"
-
-// Mock function to get all users - replace with your actual implementation
-async function getAllUsers() {
-  // In a real app, you would fetch this from your database
-  return [
-    { id: "user1", email: "user1@example.com" },
-    { id: "user2", email: "user2@example.com" },
-    { id: "user3", email: "user3@example.com" },
-  ]
-}
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 export default async function AdminUsagePage() {
   const session = await getServerSession(authOptions)
 
-  // Check if user is authenticated and has admin role
-  if (!session || !session.user?.email) {
-    redirect("/")
+  if (!session) {
+    redirect("/login")
   }
 
-  // This is a simplified check - in a real app, you'd check for admin role in your database
-  const isAdmin = session.user.email === "admin@example.com"
+  // Check if user is an admin (you would need to add an isAdmin field to your User model)
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { email: true },
+  })
+
+  // This is a simple check - in production, you'd want a proper role system
+  const adminEmails = ["admin@example.com"] // Replace with actual admin emails
+  const isAdmin = user && adminEmails.includes(user.email || "")
+
   if (!isAdmin) {
     redirect("/")
   }
 
-  const users = await getAllUsers()
+  // Get global usage statistics
+  const globalUsage = await getGlobalUsage()
 
-  // Get usage stats for all users
-  const usageStats = await Promise.all(
-    users.map(async (user) => {
-      const stats = await getUserUsageStats(user.id)
-      return {
-        ...user,
-        stats,
-      }
-    }),
-  )
-
-  // Calculate totals
-  const totalDailyInterviews = usageStats.reduce(
-    (sum, user) => sum + (user.stats.daily[UsageType.INTERVIEW_SESSION] || 0),
-    0,
-  )
-  const totalMonthlyInterviews = usageStats.reduce(
-    (sum, user) => sum + (user.stats.monthly[UsageType.INTERVIEW_SESSION] || 0),
-    0,
-  )
-  const totalDailyFeedback = usageStats.reduce(
-    (sum, user) => sum + (user.stats.daily[UsageType.FEEDBACK_GENERATION] || 0),
-    0,
-  )
-  const totalMonthlyFeedback = usageStats.reduce(
-    (sum, user) => sum + (user.stats.monthly[UsageType.FEEDBACK_GENERATION] || 0),
-    0,
-  )
-  const totalDailyTokens = usageStats.reduce((sum, user) => sum + (user.stats.daily[UsageType.TOKEN_USAGE] || 0), 0)
-  const totalMonthlyTokens = usageStats.reduce((sum, user) => sum + (user.stats.monthly[UsageType.TOKEN_USAGE] || 0), 0)
-
-  // Estimate costs (these are rough estimates)
-  const estimatedDailyCost = totalDailyTokens * 0.00001 + totalDailyInterviews * 0.05
-  const estimatedMonthlyCost = totalMonthlyTokens * 0.00001 + totalMonthlyInterviews * 0.05
+  // Get top users by interview count
+  const topUsersByInterviews = await prisma.user.findMany({
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      _count: {
+        select: {
+          interviews: true,
+        },
+      },
+    },
+    orderBy: {
+      interviews: {
+        _count: "desc",
+      },
+    },
+    take: 10,
+  })
 
   return (
-    <div className="container mx-auto py-10">
-      <h1 className="text-3xl font-bold mb-8">Usage Dashboard</h1>
+    <div className="container py-10">
+      <h1 className="text-3xl font-bold mb-8">Admin Dashboard - Usage Statistics</h1>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 mb-8">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Daily Interviews</CardTitle>
+          <CardHeader>
+            <CardTitle>Daily Interviews</CardTitle>
+            <CardDescription>Interviews conducted today</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalDailyInterviews}</div>
+            <p className="text-4xl font-bold">{globalUsage.interviews.daily}</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Interviews</CardTitle>
+          <CardHeader>
+            <CardTitle>Monthly Interviews</CardTitle>
+            <CardDescription>Interviews conducted this month</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalMonthlyInterviews}</div>
+            <p className="text-4xl font-bold">{globalUsage.interviews.monthly}</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Est. Daily Cost</CardTitle>
+          <CardHeader>
+            <CardTitle>Total Interviews</CardTitle>
+            <CardDescription>All-time interviews</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${estimatedDailyCost.toFixed(2)}</div>
+            <p className="text-4xl font-bold">{globalUsage.interviews.total}</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Est. Monthly Cost</CardTitle>
+          <CardHeader>
+            <CardTitle>Daily Feedback</CardTitle>
+            <CardDescription>Feedback generated today</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${estimatedMonthlyCost.toFixed(2)}</div>
+            <p className="text-4xl font-bold">{globalUsage.feedback.daily}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Monthly Feedback</CardTitle>
+            <CardDescription>Feedback generated this month</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold">{globalUsage.feedback.monthly}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Total Feedback</CardTitle>
+            <CardDescription>All-time feedback</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold">{globalUsage.feedback.total}</p>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>User Usage</CardTitle>
-          <CardDescription>Detailed usage statistics by user</CardDescription>
+          <CardTitle>Top Users by Interview Count</CardTitle>
+          <CardDescription>Users who have conducted the most interviews</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
-            <TableCaption>Usage statistics for all users</TableCaption>
             <TableHeader>
               <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Tier</TableHead>
-                <TableHead>Daily Interviews</TableHead>
-                <TableHead>Monthly Interviews</TableHead>
-                <TableHead>Daily Feedback</TableHead>
-                <TableHead>Monthly Feedback</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead className="text-right">Interviews</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {usageStats.map((user) => (
+              {topUsersByInterviews.map((user) => (
                 <TableRow key={user.id}>
+                  <TableCell>{user.name || "N/A"}</TableCell>
                   <TableCell>{user.email}</TableCell>
-                  <TableCell className="capitalize">{user.stats.tier}</TableCell>
-                  <TableCell>{user.stats.daily[UsageType.INTERVIEW_SESSION] || 0}</TableCell>
-                  <TableCell>{user.stats.monthly[UsageType.INTERVIEW_SESSION] || 0}</TableCell>
-                  <TableCell>{user.stats.daily[UsageType.FEEDBACK_GENERATION] || 0}</TableCell>
-                  <TableCell>{user.stats.monthly[UsageType.FEEDBACK_GENERATION] || 0}</TableCell>
+                  <TableCell className="text-right">{user._count.interviews}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
