@@ -1,100 +1,145 @@
-"use client"
-
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { AlertCircle, ArrowRight, Cpu, Terminal, Wifi } from "lucide-react"
 
 export default function DiagnosticsPage() {
-  const [activeTab, setActiveTab] = useState("overview")
-
   return (
-    <div className="container py-10">
-      <h1 className="text-2xl font-bold mb-6">API Diagnostics Dashboard</h1>
+    <div className="container py-8">
+      <h1 className="text-3xl font-bold mb-6">VocaHire Diagnostics Dashboard</h1>
 
-      <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="openai">OpenAI</TabsTrigger>
-          <TabsTrigger value="realtime">Realtime API</TabsTrigger>
-          <TabsTrigger value="routes">API Routes</TabsTrigger>
-        </TabsList>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Terminal className="mr-2 h-5 w-5" /> OpenAI API Test
+            </CardTitle>
+            <CardDescription>Test basic OpenAI API connectivity and permissions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">
+              Checks if your OpenAI API key is valid and can access the models endpoint. Helps identify basic API
+              connectivity issues.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild>
+              <Link href="/api/test-openai">
+                Run Test <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
 
-        <TabsContent value="overview">
-          <Card>
-            <CardHeader>
-              <CardTitle>API Diagnostics Overview</CardTitle>
-              <CardDescription>Use these tools to diagnose API connectivity and configuration issues</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p>Select a tab above to run specific diagnostics:</p>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Cpu className="mr-2 h-5 w-5" /> OpenAI Realtime Diagnostics
+            </CardTitle>
+            <CardDescription>Comprehensive realtime API diagnostics</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">
+              Runs a complete diagnostic on OpenAI Realtime API access. Tests API keys, permissions, models, and session
+              creation.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild>
+              <Link href="/diagnostics/openai">
+                Run Diagnostics <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card className="p-4">
-                  <h3 className="font-medium mb-2">OpenAI API</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Test basic OpenAI API connectivity and permissions
-                  </p>
-                  <Button variant="outline" size="sm" onClick={() => setActiveTab("openai")}>
-                    Run OpenAI Tests
-                  </Button>
-                </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Wifi className="mr-2 h-5 w-5" /> Basic Realtime Test
+            </CardTitle>
+            <CardDescription>Test realtime session creation with minimal payload</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">
+              Creates a minimal realtime session request to test API access. Try different models and voices to identify
+              which ones work.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild>
+              <Link href="/diagnostics/realtime-basic">
+                Run Basic Test <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
 
-                <Card className="p-4">
-                  <h3 className="font-medium mb-2">Realtime API</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Test OpenAI Realtime API access and available models
-                  </p>
-                  <Button variant="outline" size="sm" onClick={() => setActiveTab("realtime")}>
-                    Run Realtime Tests
-                  </Button>
-                </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <AlertCircle className="mr-2 h-5 w-5" /> Debug Realtime API
+            </CardTitle>
+            <CardDescription>Advanced debugging for the Realtime API</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">
+              Makes a direct call to the debug-realtime endpoint. Shows detailed information about realtime access.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild>
+              <Link href="/api/debug-realtime">
+                Debug Realtime <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
 
-                <Card className="p-4">
-                  <h3 className="font-medium mb-2">API Routes</h3>
-                  <p className="text-sm text-muted-foreground mb-4">List all available API routes in the application</p>
-                  <Button variant="outline" size="sm" onClick={() => setActiveTab("routes")}>
-                    View API Routes
-                  </Button>
-                </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Terminal className="mr-2 h-5 w-5" /> API Routes List
+            </CardTitle>
+            <CardDescription>View all available API routes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">
+              Lists all API routes registered in the application. Useful for debugging and discovering available
+              endpoints.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild>
+              <Link href="/api/debug/routes">
+                View Routes <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
 
-                <Card className="p-4">
-                  <h3 className="font-medium mb-2">Session Test</h3>
-                  <p className="text-sm text-muted-foreground mb-4">Test session creation and WebRTC exchange</p>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href="/diagnostics/session-test">Go to Session Test</Link>
-                  </Button>
-                </Card>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="openai">
-          <Card>
-            <CardHeader>
-              <CardTitle>OpenAI API Test</CardTitle>
-              <CardDescription>Test basic connectivity to the OpenAI API</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <iframe src="/api/test-openai" className="w-full h-[500px] border rounded-md" title="OpenAI API Test" />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="realtime">
-          <iframe
-            src="/diagnostics/realtime-test"
-            className="w-full h-[600px] border rounded-md"
-            title="Realtime API Test"
-          />
-        </TabsContent>
-
-        <TabsContent value="routes">
-          <iframe src="/diagnostics/routes" className="w-full h-[600px] border rounded-md" title="API Routes" />
-        </TabsContent>
-      </Tabs>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Wifi className="mr-2 h-5 w-5" /> Full Realtime Test UI
+            </CardTitle>
+            <CardDescription>Test complete realtime session with UI</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">
+              More comprehensive UI for testing realtime sessions. Tests session creation, updates, and WebSocket
+              connections.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild>
+              <Link href="/diagnostics/realtime-test">
+                Full Test UI <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
   )
 }

@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   try {
     // Parse the request body
     const body = await request.json()
-    const { sessionId, token, sdp } = body
+    const { sessionId, token, sdp, model } = body
 
     if (!sessionId || !token || !sdp) {
       return new NextResponse(
@@ -23,38 +23,54 @@ export async function POST(request: Request) {
 
     console.log(`Exchanging SDP for session: ${sessionId}`)
     console.log(`SDP offer length: ${sdp.length} chars`)
+    console.log(`Using model: ${model || "default"}`)
 
-    // Create a WebSocket connection to the OpenAI Realtime API
-    const wsUrl = `wss://api.openai.com/v1/realtime/ws?session_id=${sessionId}`
+    // Create the URL for the OpenAI Realtime API
+    // The correct URL format is just /v1/realtime with the token as the Bearer token
+    const url = "https://api.openai.com/v1/realtime"
 
-    // We'll simulate the WebSocket connection for now
-    // In a real implementation, you would use the WebSocket API
-    // to establish a connection and exchange messages
+    console.log(`DEBUG: Using SDP exchange URL: ${url}`)
+    console.log(`DEBUG: Using ephemeral token (client_secret) for Authorization: Bearer ${token.substring(0, 10)}...`)
 
-    // For now, we'll just return a mock SDP answer
-    const mockSdpAnswer = `v=0
-o=- 1234567890 1 IN IP4 0.0.0.0
-s=-
-t=0 0
-a=group:BUNDLE 0
-a=msid-semantic: WMS
-m=audio 9 UDP/TLS/RTP/SAVPF 111
-c=IN IP4 0.0.0.0
-a=rtcp:9 IN IP4 0.0.0.0
-a=ice-ufrag:mock
-a=ice-pwd:mockpassword
-a=fingerprint:sha-256 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00
-a=setup:active
-a=mid:0
-a=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level
-a=recvonly
-a=rtcp-mux
-a=rtpmap:111 opus/48000/2
-a=fmtp:111 minptime=10;useinbandfec=1
-`
+    // Send the SDP offer to OpenAI using the ephemeral token as the Bearer token
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/sdp",
+        Authorization: `Bearer ${token}`, // Using the ephemeral token instead of the API key
+        "OpenAI-Beta": "realtime", // Include this header for beta features
+      },
+      body: sdp, // Send the raw SDP offer
+    })
 
+    console.log(`OpenAI SDP POST response status: ${response.status}`)
+
+    // Get the response body as text for logging
+    const responseBodyText = await response.text()
+    console.log(`OpenAI SDP POST response body (first 500 chars): ${responseBodyText.substring(0, 500)}`)
+
+    // Check if the response is successful
+    if (!response.ok) {
+      console.error(`OpenAI SDP exchange failed with status: ${response.status}`)
+      console.error(`Full error response: ${responseBodyText}`)
+
+      // Return detailed error
+      return new NextResponse(
+        JSON.stringify({
+          error: "SDP exchange failed",
+          message: responseBodyText.substring(0, 500),
+          status: response.status,
+        }),
+        {
+          status: response.status,
+          headers: { "Content-Type": "application/json" },
+        },
+      )
+    }
+
+    // Return the SDP answer to the client
     return NextResponse.json({
-      sdp: mockSdpAnswer,
+      sdp: responseBodyText,
     })
   } catch (error) {
     console.error("Error in WebRTC exchange:", error)
@@ -62,6 +78,7 @@ a=fmtp:111 minptime=10;useinbandfec=1
       JSON.stringify({
         error: "Failed to exchange WebRTC SDP",
         message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       }),
       {
         status: 500,

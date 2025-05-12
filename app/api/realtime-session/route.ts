@@ -1,50 +1,14 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { FALLBACK_MODELS } from "@/lib/openai-realtime"
 import { getOpenAIApiKey, validateApiKey } from "@/lib/api-utils"
-
-// Add this function at the top of the file, after the imports
-async function createRealtimeSession(apiKey: string, modelName: string, voice: string) {
-  console.log(`Attempting to create session with model: ${modelName}`)
-
-  const url = "https://api.openai.com/v1/realtime/sessions"
-  const opts = {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "OpenAI-Beta": "realtime",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: modelName,
-      voice: voice,
-    }),
-  }
-
-  console.log("👉 OPENAI SESSION CREATE CALL:", url, {
-    ...opts,
-    headers: {
-      ...opts.headers,
-      Authorization: `Bearer ${apiKey.slice(0, 6)}...`,
-    },
-  })
-
-  const response = await fetch(url, opts)
-  console.log("👈 OPENAI RESPONSE status:", response.status)
-  console.log("👈 OPENAI RESPONSE headers:", Object.fromEntries([...response.headers.entries()]))
-
-  const raw = await response.text()
-  console.log("👈 OPENAI RESPONSE body:", raw.substring(0, 500))
-
-  return { response, raw }
-}
 
 export async function POST(request: Request) {
   try {
-    // 1. Verify environment variable
-    console.log("🔑 OPENAI_API_KEY (first 6 chars):", process.env.OPENAI_API_KEY?.slice(0, 6))
-    console.log("=== REALTIME SESSION REQUEST RECEIVED ===")
+    // Log start of request with timestamp
+    console.log(`=== REALTIME SESSION REQUEST (${new Date().toISOString()}) ===`)
+    const apiKey = getOpenAIApiKey()
+    console.log("🔑 API key available:", !!apiKey, apiKey ? `(starts with ${apiKey.slice(0, 6)}...)` : "(not found)")
 
     // Get the session
     const session = await getServerSession(authOptions)
@@ -53,10 +17,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Get the OpenAI API key
-    const apiKey = getOpenAIApiKey()
+    // Validate API key
     const keyValidation = validateApiKey(apiKey)
-
     if (!keyValidation.isValid) {
       console.error(keyValidation.error)
       return NextResponse.json({ error: keyValidation.error }, { status: 500 })
@@ -96,119 +58,134 @@ export async function POST(request: Request) {
     
     Begin the interview with a brief introduction and your first question.`
 
-    // In the POST function, replace the session creation code:
-    // Find this section:
-    // Replace with this fallback approach:
-    // Try the primary model first, then fallbacks if needed
-    let response, raw
-    const modelAttempts = ["gpt-4o-mini-realtime-preview", ...FALLBACK_MODELS]
-    let sessionCreated = false
+    // Use our enhanced session creation function with complete configuration
+    const modelsToTry = [
+      "gpt-4o-mini-realtime-preview",
+      "gpt-4o-mini-realtime",
+      "gpt-4o-realtime-preview",
+      "gpt-4o-realtime",
+      "gpt-4o-mini-realtime-preview-2024-12-17",
+      "gpt-4o-realtime-preview-2024-12-17",
+      "gpt-4o-realtime-preview-2024-10-01",
+    ]
 
-    for (const model of modelAttempts) {
+    console.log("Attempting to create realtime session with fallback models:", modelsToTry.join(", "))
+
+    // Create session with complete configuration upfront
+    let lastError = ""
+    let lastStatus = 0
+    let lastRaw = ""
+    let sessionData = null
+    let usedModel = null
+
+    for (const model of modelsToTry) {
       try {
-        const result = await createRealtimeSession(apiKey, model, "alloy")
-        response = result.response
-        raw = result.raw
+        console.log(`Attempting to create session with model: ${model}`)
 
-        if (response.ok) {
-          console.log(`Successfully created session with model: ${model}`)
-          sessionCreated = true
-          break
-        } else {
-          console.log(`Failed to create session with model: ${model}, status: ${response.status}`)
+        const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "OpenAI-Beta": "realtime",
+          },
+          body: JSON.stringify({
+            model: model,
+            voice: "alloy",
+            modalities: ["audio", "text"],
+            instructions: systemPrompt,
+            turn_detection: {
+              enabled: true,
+              silence_threshold: 1.0,
+              speech_threshold: 0.5,
+            },
+            input_audio_transcription: {
+              enabled: true,
+            },
+          }),
+        })
+
+        const raw = await response.text()
+
+        // Log full response for debugging
+        console.log(`Model ${model} response status: ${response.status}`)
+        console.log(`Model ${model} response (first 200 chars): ${raw.substring(0, 200)}`)
+
+        // Try to parse as JSON
+        try {
+          const data = JSON.parse(raw)
+
+          if (response.ok) {
+            console.log(`Successfully created session with model: ${model}`)
+            sessionData = data
+            usedModel = model
+            break
+          } else {
+            lastError = data.error?.message || JSON.stringify(data.error) || `Status ${response.status}`
+            lastStatus = response.status
+            lastRaw = raw
+          }
+        } catch (e) {
+          // Not JSON - likely HTML error
+          lastError = `Non-JSON response (HTML): Status ${response.status}`
+          lastStatus = response.status
+          lastRaw = raw
         }
       } catch (error) {
-        console.error(`Error trying model ${model}:`, error)
+        lastError = error instanceof Error ? error.message : String(error)
       }
     }
 
-    if (!sessionCreated) {
-      console.error("All model attempts failed")
+    // Check if we successfully created a session
+    if (!sessionData) {
+      console.error("All model attempts failed:", lastError)
+
+      // Return a more detailed error
       return NextResponse.json(
         {
           error: "Failed to create realtime session with any available model",
-          triedModels: modelAttempts,
-          lastStatus: response?.status,
-          lastResponse: raw?.substring(0, 1000),
+          details: {
+            message: lastError,
+            status: lastStatus,
+          },
+          rawResponse: lastRaw?.substring(0, 1000),
         },
-        { status: 500 },
+        { status: lastStatus || 500 },
       )
     }
 
-    // Parse the response as JSON
-    let sessionData
-    try {
-      sessionData = JSON.parse(raw)
-      console.log("Session created successfully with ID:", sessionData.id)
-    } catch (e) {
-      console.error("Error parsing response JSON:", e)
+    console.log(`Session created successfully with model ${usedModel} and ID: ${sessionData.id}`)
+
+    // Extract the client_secret (ephemeral token) from the response
+    const token = sessionData.client_secret?.value
+
+    if (!token) {
+      console.error("No client_secret.value found in session response")
       return NextResponse.json(
         {
-          error: "Invalid JSON response from OpenAI",
-          body: raw.substring(0, 1000),
+          error: "Missing client_secret.value in OpenAI response",
+          rawResponse: JSON.stringify(sessionData).substring(0, 1000),
         },
         { status: 500 },
       )
     }
 
-    // Now that we have a session, update it with the instructions
-    console.log("Updating session with instructions...")
-
-    try {
-      const updateUrl = `https://api.openai.com/v1/realtime/sessions/${sessionData.id}`
-      const updateOpts = {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "OpenAI-Beta": "realtime",
-        },
-        body: JSON.stringify({
-          instructions: systemPrompt,
-          modalities: ["audio", "text"],
-          turn_detection: {
-            enabled: true,
-            silence_threshold: 1.0,
-            speech_threshold: 0.5,
-          },
-          input_audio_transcription: {
-            enabled: true,
-          },
-        }),
-      }
-
-      console.log("👉 OPENAI SESSION UPDATE CALL:", updateUrl, {
-        ...updateOpts,
-        headers: {
-          ...updateOpts.headers,
-          Authorization: `Bearer ${apiKey.slice(0, 6)}...`,
-        },
-        body: "{ instructions: [truncated], modalities: [...] }",
-      })
-
-      const updateResponse = await fetch(updateUrl, updateOpts)
-      console.log("👈 OPENAI UPDATE RESPONSE status:", updateResponse.status)
-
-      const updateRaw = await updateResponse.text()
-      console.log("👈 OPENAI UPDATE RESPONSE body:", updateRaw.substring(0, 500))
-
-      if (!updateResponse.ok) {
-        console.error(`Session update failed with status ${updateResponse.status}`)
-        // Continue anyway, as we at least have a valid session
-      } else {
-        console.log("Session updated successfully with instructions")
-      }
-    } catch (e) {
-      console.error("Error updating session with instructions:", e)
-      // Continue anyway, as we at least have a valid session
-    }
-
-    // Return the session data
-    return NextResponse.json(sessionData)
+    // Return the session data with the model used and token
+    return NextResponse.json({
+      id: sessionData.id,
+      token: token,
+      model: usedModel,
+      usedFallbackModel: usedModel !== modelsToTry[0],
+      expires_at: sessionData.client_secret?.expires_at,
+    })
   } catch (error) {
     console.error("Error creating realtime session:", error)
     return NextResponse.json(
-      { error: "Failed to create realtime session", details: error instanceof Error ? error.message : String(error) },
+      {
+        error: "Failed to create realtime session",
+        details: error instanceof Error ? error.message : String(error),
+        stack: process.env.NODE_ENV === "development" ? (error instanceof Error ? error.stack : undefined) : undefined,
+      },
       { status: 500 },
     )
   }
