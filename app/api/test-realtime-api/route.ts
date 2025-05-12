@@ -71,109 +71,27 @@ export async function GET() {
       )
     }
 
-    // Extract realtime models if any
+    // Extract realtime models if any - specifically looking for realtime-preview models
     const realtimeModels =
-      modelsData.data?.filter((model: any) => model.id.includes("realtime")).map((model: any) => model.id) || []
+      modelsData.data?.filter((model: any) => model.id.includes("realtime-preview")).map((model: any) => model.id) || []
 
     // Test 2: Check if the realtime API is accessible
     console.log("Test 2: Checking realtime API accessibility...")
 
-    // Try different model names
-    const modelOptions = [
-      "gpt-4o-mini-realtime",
-      "gpt-4o-realtime",
-      "gpt-4-turbo-realtime",
-      "gpt-4-realtime",
-      "gpt-3.5-turbo-realtime",
-    ]
+    // Use only the specified models
+    const modelOptions = ["gpt-4o-mini-realtime-preview", "gpt-4o-mini-realtime-preview-2024-12-17"]
     const voiceOptions = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
 
     const realtimeResults = []
 
-    // Test each model with the default voice
+    // Test each model with each voice
     for (const model of modelOptions) {
-      console.log(`Testing realtime API with model: ${model}`)
-
-      try {
-        const realtimeResponse = await fetch("https://api.openai.com/v1/audio/realtime/sessions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "OpenAI-Beta": "realtime",
-          },
-          body: JSON.stringify({
-            model: model,
-            voice: "alloy",
-          }),
-        })
-
-        const realtimeText = await realtimeResponse.text()
-        const contentType = realtimeResponse.headers.get("content-type") || ""
-        const isJsonResponse = contentType.includes("application/json")
-        const isHtmlResponse = contentType.includes("text/html") || realtimeText.trim().startsWith("<")
-
-        console.log(`Realtime API response for ${model} - status:`, realtimeResponse.status)
-        console.log(`Realtime API response for ${model} - content type:`, contentType)
-        console.log(`Realtime API response for ${model} - is JSON:`, isJsonResponse)
-        console.log(`Realtime API response for ${model} - is HTML:`, isHtmlResponse)
-
-        let parsedResponse = null
-        if (isJsonResponse && !isHtmlResponse) {
-          try {
-            parsedResponse = JSON.parse(realtimeText)
-          } catch (e) {
-            console.error(`Failed to parse JSON response for ${model}:`, e)
-          }
-        }
-
-        realtimeResults.push({
-          model,
-          voice: "alloy",
-          status: realtimeResponse.status,
-          ok: realtimeResponse.ok,
-          contentType,
-          isJsonResponse,
-          isHtmlResponse,
-          response: isHtmlResponse
-            ? "HTML response (truncated)"
-            : parsedResponse
-              ? {
-                  id: parsedResponse.id,
-                  hasClientSecret: !!parsedResponse.client_secret,
-                  hasClientSecretValue: !!parsedResponse.client_secret?.value,
-                  // Don't include the actual token value
-                }
-              : realtimeText.substring(0, 500),
-        })
-
-        // If we got a successful response, we can stop testing
-        if (realtimeResponse.ok && isJsonResponse && !isHtmlResponse) {
-          console.log(`Successfully accessed realtime API with model: ${model}`)
-          break
-        }
-      } catch (error) {
-        console.error(`Error testing realtime API with model ${model}:`, error)
-        realtimeResults.push({
-          model,
-          voice: "alloy",
-          status: "error",
-          error: String(error),
-        })
-      }
-    }
-
-    // If no model worked with the default voice, try the first model with different voices
-    if (!realtimeResults.some((r) => r.ok) && modelOptions.length > 0) {
-      const firstModel = modelOptions[0]
-
       for (const voice of voiceOptions) {
-        if (voice === "alloy") continue // Skip the default voice we already tried
-
-        console.log(`Testing realtime API with model: ${firstModel} and voice: ${voice}`)
+        console.log(`Testing realtime API with model: ${model} and voice: ${voice}`)
 
         try {
-          const realtimeResponse = await fetch("https://api.openai.com/v1/audio/realtime/sessions", {
+          // UPDATED ENDPOINT: Using /v1/realtime/sessions instead of /v1/audio/realtime/sessions
+          const realtimeResponse = await fetch("https://api.openai.com/v1/realtime/sessions", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${apiKey}`,
@@ -181,7 +99,7 @@ export async function GET() {
               "OpenAI-Beta": "realtime",
             },
             body: JSON.stringify({
-              model: firstModel,
+              model: model,
               voice: voice,
             }),
           })
@@ -191,23 +109,34 @@ export async function GET() {
           const isJsonResponse = contentType.includes("application/json")
           const isHtmlResponse = contentType.includes("text/html") || realtimeText.trim().startsWith("<")
 
+          console.log(`Realtime API response for ${model} with voice ${voice} - status:`, realtimeResponse.status)
+          console.log(`Realtime API response for ${model} with voice ${voice} - content type:`, contentType)
+
           let parsedResponse = null
+          let errorMessage = ""
+
           if (isJsonResponse && !isHtmlResponse) {
             try {
               parsedResponse = JSON.parse(realtimeText)
             } catch (e) {
-              console.error(`Failed to parse JSON response for ${firstModel} with voice ${voice}:`, e)
+              console.error(`Failed to parse JSON response for ${model} with voice ${voice}:`, e)
+              errorMessage = `Parse error: ${String(e).substring(0, 100)}`
             }
+          } else if (isHtmlResponse) {
+            errorMessage = "HTML response (endpoint not found)"
+          } else {
+            errorMessage = realtimeText.substring(0, 100)
           }
 
           realtimeResults.push({
-            model: firstModel,
+            model,
             voice,
             status: realtimeResponse.status,
             ok: realtimeResponse.ok,
             contentType,
             isJsonResponse,
             isHtmlResponse,
+            errorMessage,
             response: isHtmlResponse
               ? "HTML response (truncated)"
               : parsedResponse
@@ -215,21 +144,24 @@ export async function GET() {
                     id: parsedResponse.id,
                     hasClientSecret: !!parsedResponse.client_secret,
                     hasClientSecretValue: !!parsedResponse.client_secret?.value,
+                    // Don't include the actual token value
                   }
-                : realtimeText.substring(0, 500),
+                : realtimeText.substring(0, 100),
           })
 
-          // If we got a successful response, we can stop testing
+          // If we got a successful response, we can stop testing this model with other voices
           if (realtimeResponse.ok && isJsonResponse && !isHtmlResponse) {
-            console.log(`Successfully accessed realtime API with model: ${firstModel} and voice: ${voice}`)
+            console.log(`Successfully accessed realtime API with model: ${model} and voice: ${voice}`)
             break
           }
         } catch (error) {
-          console.error(`Error testing realtime API with model ${firstModel} and voice ${voice}:`, error)
+          console.error(`Error testing realtime API with model ${model} and voice ${voice}:`, error)
           realtimeResults.push({
-            model: firstModel,
+            model,
             voice,
             status: "error",
+            ok: false,
+            errorMessage: String(error).substring(0, 100),
             error: String(error),
           })
         }
