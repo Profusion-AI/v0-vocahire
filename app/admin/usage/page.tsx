@@ -77,7 +77,7 @@ async function getInitialUsageStatsServerSide(): Promise<UsageData[]> {
           lt: tomorrowStart,
         },
         feedback: { // This is the crucial part - checking if feedback exists
-          not: Prisma.JsonNull, // Use Prisma.JsonNull for JSON fields
+          not: Prisma.AnyNull, // Try Prisma.AnyNull to cover both DB null and JSON null
         },
         // If you have a dedicated 'feedbackGeneratedAt' timestamp:
         // feedbackGeneratedAt: {
