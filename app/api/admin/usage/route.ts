@@ -8,23 +8,23 @@ export async function GET(request: Request) {
   try {
     // Check authentication
     const session = await getServerSession(authOptions)
-    if (!session || !session.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+  if (!session || !session.user?.email) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
-    // Check if user is an admin
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { email: true },
-    })
+  // Check if user is an admin
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { email: true },
+  })
 
-    // This is a simple check - in production, you'd want a proper role system
-    const adminEmails = ["admin@example.com"] // Replace with actual admin emails
-    const isAdmin = user && adminEmails.includes(user.email || "")
+  // This is a simple check - in production, you'd want a proper role system
+  const adminEmails = ["admin@example.com"] // Replace with actual admin emails
+  const isAdmin = user && adminEmails.includes(user.email || "")
 
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
+  if (!isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
 
     // Get global usage statistics
     const globalUsage = await getGlobalUsage()

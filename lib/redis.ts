@@ -24,7 +24,7 @@ function createMockRedisClient() {
     }
   }, 60000) // Run every minute
 
-  return {\
+  const clientImplementation = {
     get: async <T>(key: string): Promise<T | null> => {
       const item = storage.get(key)
       if (!item) return null
@@ -32,93 +32,80 @@ function createMockRedisClient() {
         storage.delete(key)
         return null
       }
-  return item.value as T
-}
-,
+      return item.value as T
+    },
     
     set: async (
       key: string,
       value: any,
-      options?:
-{
-  ex?: number;
-  px?: number
-}
-): Promise<string | null> =>
-{
-  let expiry: number | undefined
-  if (options?.ex) {
-    expiry = Date.now() + options.ex * 1000
-  } else if (options?.px) {
-    expiry = Date.now() + options.px
-  }
-  storage.set(key, { value, expiry })
-  return "OK"
-}
-,
-    
-    incr: async (key: string): Promise<number> =>
-{
-  const item = storage.get(key)
-  let currentValue = 0
-  if (item && typeof item.value === "number") {
-    if (!item.expiry || item.expiry > Date.now()) {
-      currentValue = item.value
-    }
-  }
-  const newValue = currentValue + 1
-  storage.set(key, { value: newValue, expiry: item?.expiry })
-  return newValue
-}
-,
-    
-    expire: async (key: string, seconds: number): Promise<number> =>
-{
-  const item = storage.get(key)
-  if (item) {
-    item.expiry = Date.now() + seconds * 1000
-    return 1
-  }
-  return 0
-}
-,
-    
-    pipeline: () =>
-{
-  const commands: Array<{ command: string; args: any[] }> = []
-  const pipeline = {
-    incr: (key: string) => {
-      commands.push({ command: "incr", args: [key] })
-      return pipeline
+      options?: {
+        ex?: number
+        px?: number
+      }
+    ): Promise<string | null> => {
+      let expiry: number | undefined
+      if (options?.ex) {
+        expiry = Date.now() + options.ex * 1000
+      } else if (options?.px) {
+        expiry = Date.now() + options.px
+      }
+      storage.set(key, { value, expiry })
+      return "OK"
     },
-    expire: (key: string, seconds: number) => {
-      commands.push({ command: "expire", args: [key, seconds] })
-      return pipeline
-    },
-    exec: async () => {
-      const results: any[] = []
-      for (const cmd of commands) {
-        if (cmd.command === "incr") {
-          results.push(await mock.incr(cmd.args[0]))
-        } else if (cmd.command === "expire") {
-          results.push(await mock.expire(cmd.args[0], cmd.args[1]))
+    
+    incr: async (key: string): Promise<number> => {
+      const item = storage.get(key)
+      let currentValue = 0
+      if (item && typeof item.value === "number") {
+        if (!item.expiry || item.expiry > Date.now()) {
+          currentValue = item.value
         }
       }
-      return results
+      const newValue = currentValue + 1
+      storage.set(key, { value: newValue, expiry: item?.expiry })
+      return newValue
+    },
+    
+    expire: async (key: string, seconds: number): Promise<number> => {
+      const item = storage.get(key)
+      if (item) {
+        item.expiry = Date.now() + seconds * 1000
+        return 1
+      }
+      return 0
+    },
+    
+    pipeline: () => {
+      const commands: Array<{ command: string; args: any[] }> = []
+      const pipelineInstance = {
+        incr: (key: string) => {
+          commands.push({ command: "incr", args: [key] })
+          return pipelineInstance
+        },
+        expire: (key: string, seconds: number) => {
+          commands.push({ command: "expire", args: [key, seconds] })
+          return pipelineInstance
+        },
+        exec: async () => {
+          const results: any[] = []
+          for (const cmd of commands) {
+            if (cmd.command === "incr") {
+              results.push(await clientImplementation.incr(cmd.args[0]))
+            } else if (cmd.command === "expire") {
+              results.push(await clientImplementation.expire(cmd.args[0], cmd.args[1]))
+            }
+          }
+          return results
+        },
+      }
+      return pipelineInstance
+    },
+    
+    del: async (key: string): Promise<number> => {
+      return storage.delete(key) ? 1 : 0
     },
   }
-  return pipeline
-}
-,
-    
-    del: async (key: string): Promise<number> =>
-{
-  return storage.delete(key) ? 1 : 0
-}
-}
-  
-  mockRedisClient = mock
-return mock
+  return clientImplementation
 }
 
 /**

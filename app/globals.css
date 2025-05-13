@@ -2,9 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
+/* body font-family is now handled by next/font in app/layout.tsx */
 
 @layer utilities {
   .text-balance {
@@ -15,29 +13,25 @@ body {
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    --foreground: 217 19% 35%; /* #1F2937 */
     --card: 0 0% 100%;
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --primary: 249 79% 57%; /* #4F46E5 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 98%; /* #F9FAFB */
+    --secondary-foreground: 217 19% 35%;
+    --muted: 0 0% 96.1%; /* Light neutral */
+    --muted-foreground: 217 19% 35%;
+    --accent: 174 75% 45%; /* #14B8A6 */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 4 83% 59%; /* #EF4444 */
+    --destructive-foreground: 0 0% 100%;
+    --success: 145 75% 45%; /* #10B981 */
+    --success-foreground: 0 0% 100%;
+    --warning: 42 100% 53%; /* #F59E0B */
+    --info: 217 89% 66%; /* #3B82F6 */
     --radius: 0.5rem;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -90,5 +84,34 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    /* Poppins font is applied via className in app/layout.tsx */
   }
+}
+
+/* Custom global styles from splashpage.html */
+html {
+  scroll-behavior: smooth;
+}
+
+.section {
+  min-height: 100vh;
+  padding: 2rem 0;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.lock-icon {
+  position: absolute;
+  top: 10px; /* Consider Tailwind: top-2.5 */
+  right: 10px; /* Consider Tailwind: right-2.5 */
+  color: #6B7280; /* Consider Tailwind: text-gray-500 */
+  background: #F3F4F6; /* Consider Tailwind: bg-gray-100 */
+  border-radius: 50%; /* Consider Tailwind: rounded-full */
+  padding: 5px; /* Consider Tailwind: p-1 or p-1.5 */
 }

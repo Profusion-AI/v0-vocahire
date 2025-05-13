@@ -1,0 +1,35 @@
+.waveform {
+  display: flex;
+  align-items: center;
+  height: 50px;
+}
+
+.waveform span {
+  width: 3px;
+  margin: 0 1px;
+  background: #4F46E5; /* Corresponds to Tailwind's indigo-600 */
+  height: 100%;
+  animation: wave 1s infinite;
+  animation-play-state: paused;
+}
+
+.waveformActive span { /* Changed from .waveform.active for CSS Modules */
+  animation-play-state: running;
+}
+
+@keyframes wave {
+  0% { height: 10%; }
+  50% { height: 100%; }
+  100% { height: 10%; }
+}
+
+/* Individual animation delays for the bars */
+.waveform span:nth-child(1) { animation-delay: 0.1s; }
+.waveform span:nth-child(2) { animation-delay: 0.2s; }
+.waveform span:nth-child(3) { animation-delay: 0.3s; }
+.waveform span:nth-child(4) { animation-delay: 0.4s; }
+.waveform span:nth-child(5) { animation-delay: 0.5s; }
+.waveform span:nth-child(6) { animation-delay: 0.4s; } /* Symmetrical pattern */
+.waveform span:nth-child(7) { animation-delay: 0.3s; }
+.waveform span:nth-child(8) { animation-delay: 0.2s; }
+.waveform span:nth-child(9) { animation-delay: 0.1s; }

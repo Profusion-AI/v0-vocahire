@@ -6,6 +6,15 @@ import { getGlobalUsage } from "@/lib/usage-tracking"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
+type UserWithCount = {
+  id: string
+  name: string | null
+  email: string | null
+  _count: {
+    interviews: number
+  }
+}
+
 export default async function AdminUsagePage() {
   const session = await getServerSession(authOptions)
 
@@ -14,10 +23,13 @@ export default async function AdminUsagePage() {
   }
 
   // Check if user is an admin (you would need to add an isAdmin field to your User model)
+  if (!session?.user?.email) {
+    throw new Error('User session or user email is missing')
+  }
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { email: session.user.email },
     select: { email: true },
-  })
+  }) as { email: string | null } | null
 
   // This is a simple check - in production, you'd want a proper role system
   const adminEmails = ["admin@example.com"] // Replace with actual admin emails
@@ -48,7 +60,14 @@ export default async function AdminUsagePage() {
       },
     },
     take: 10,
-  })
+  }) as unknown as Array<{
+    id: string
+    name: string | null
+    email: string | null
+    _count: {
+      interviews: number
+    }
+  }>
 
   return (
     <div className="container py-10">
@@ -131,8 +150,8 @@ export default async function AdminUsagePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {topUsersByInterviews.map((user) => (
-                <TableRow key={user.id}>
+              {topUsersByInterviews.map((user: UserWithCount) => (
+                <TableRow key={user.id ?? user.email ?? user.name}>
                   <TableCell>{user.name || "N/A"}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell className="text-right">{user._count.interviews}</TableCell>

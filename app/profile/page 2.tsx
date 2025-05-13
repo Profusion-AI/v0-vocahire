@@ -13,8 +13,11 @@ export default async function ProfilePage() {
     redirect("/login")
   }
 
+  if (!session?.user?.email) {
+    throw new Error('User session or user email is missing')
+  }
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { email: session.user.email },
     include: {
       interviews: {
         orderBy: { createdAt: "desc" },
@@ -66,19 +69,24 @@ export default async function ProfilePage() {
           <CardContent>
             {user.interviews.length > 0 ? (
               <ul className="space-y-4">
-                {user.interviews.map((interview) => (
-                  <li key={interview.id} className="border-b pb-2">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="font-medium">Interview on {new Date(interview.createdAt).toLocaleDateString()}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Duration: {interview.duration ? `${Math.round(interview.duration / 60)} minutes` : "N/A"}
-                        </p>
-                      </div>
-                      <Badge>{interview.feedback ? "Completed" : "Pending"}</Badge>
-                    </div>
-                  </li>
-                ))}
+            {(user.interviews as Array<{
+              id: string
+              createdAt: Date
+              duration: number | null
+              feedback: any
+            }>).map((interview) => (
+              <li key={interview.id} className="border-b pb-2">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-medium">Interview on {new Date(interview.createdAt).toLocaleDateString()}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Duration: {interview.duration ? `${Math.round(interview.duration / 60)} minutes` : "N/A"}
+                    </p>
+                  </div>
+                  <Badge>{interview.feedback ? "Completed" : "Pending"}</Badge>
+                </div>
+              </li>
+            ))}
               </ul>
             ) : (
               <p className="text-center text-muted-foreground">You haven't completed any interviews yet.</p>
