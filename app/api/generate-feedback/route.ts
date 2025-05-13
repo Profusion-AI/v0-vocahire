@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     }
 
     // Check if the interview belongs to the user
-    const interview = await prisma.interview.findUnique({
+    const interview = await prisma.interviewSession.findUnique({
       where: {
         id: interviewId,
         userId,
@@ -66,12 +66,12 @@ export async function POST(request: Request) {
     await trackUsage(userId, UsageType.FEEDBACK_GENERATION)
 
     // Save feedback to the database
-    await prisma.interview.update({
-      where: { id: interviewId },
-      data: {
-        feedback: {}, // Replace with actual feedback
-      },
-    })
+await prisma.interviewSession.update({
+  where: { id: interviewId },
+  data: {
+    feedback: {}, // Replace with actual feedback
+  },
+})
 
     // Return the response
     return NextResponse.json({ success: true })
