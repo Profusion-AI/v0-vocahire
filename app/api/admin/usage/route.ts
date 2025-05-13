@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     });
 
     const usageDataPromises = users.map(async (user) => {
-      const dailyInterviews = await prisma.interview.count({
+      const dailyInterviews = await prisma.interviewSession.count({
         where: {
           userId: user.id,
           createdAt: {
@@ -53,15 +53,12 @@ export async function GET(request: Request) {
         },
       });
 
-      const dailyFeedbackGenerations = await prisma.interview.count({
+      const dailyFeedbackGenerations = await prisma.feedback.count({
         where: {
           userId: user.id,
-          createdAt: { // Assuming feedback is for interviews created today
+          createdAt: {
             gte: todayStart,
             lt: tomorrowStart,
-          },
-          feedback: {
-            not: Prisma.JsonNull, // Feedback exists
           },
         },
       });
