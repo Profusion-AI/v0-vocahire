@@ -1,4 +1,4 @@
-import { Redis, type RedisPipeline } from "@upstash/redis";
+import { Redis } from "@upstash/redis";
 
 // Configuration for Redis connection
 // Prioritize Vercel KV environment variables, then generic Redis, then Upstash direct
