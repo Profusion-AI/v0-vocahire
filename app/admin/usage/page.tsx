@@ -28,7 +28,7 @@ async function getTopUsersByInterviewsServerSide() {
   const topSessions = await prisma.interviewSession.groupBy({
     by: ['userId'],
     _count: { _all: true },
-    orderBy: { _count: { _all: 'desc' } },
+    orderBy: { _count: { userId: 'desc' } },
     take: 10,
   });
 
