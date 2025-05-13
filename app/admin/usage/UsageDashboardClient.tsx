@@ -192,7 +192,7 @@ export function UsageDashboardClient({
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
 <TableCell className="text-right">
-  {user._count.interviewSessions}
+  {user.interviewSessionCount}
 </TableCell>
                   </TableRow>
                 ))}

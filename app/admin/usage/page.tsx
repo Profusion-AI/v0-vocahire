@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth"; // Assuming path, adjust if necessary
 import { prisma } from "@/lib/prisma"; // Assuming path, adjust if necessary
 import { redirect } from "next/navigation";
-import { Prisma } from "@prisma/client";
 
 // Component imports
 import { UsageDashboardClient, UsageData, UsageType } from "./UsageDashboardClient"; // New client component, added UsageType
@@ -23,25 +22,30 @@ async function getAdminUserServerSide(userId: string) {
   return { user, isAdmin: isAdminByEmail }; // Return only isAdminByEmail
 }
 
-// Helper function to fetch top users by interview count
+// Helper function to fetch top users by interview session count using groupBy
 async function getTopUsersByInterviewsServerSide() {
-  return prisma.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      _count: {
-        select: {
-          interviewSessions: true,
-        },
-      },
-    },
-    orderBy: {
-      interviewSessions: {
-        _count: "desc",
-      },
-    },
+  // Get top user IDs by interview session count
+  const topSessions = await prisma.interviewSession.groupBy({
+    by: ['userId'],
+    _count: { _all: true },
+    orderBy: { _count: { _all: 'desc' } },
     take: 10,
+  });
+
+  // Fetch user info for those IDs
+  const userIds = topSessions.map((s: { userId: string }) => s.userId);
+  const users = await prisma.user.findMany({
+    where: { id: { in: userIds } },
+    select: { id: true, name: true, email: true },
+  });
+
+  // Merge counts into user objects
+  return users.map((user) => {
+    const session = topSessions.find((s: { userId: string }) => s.userId === user.id);
+    return {
+      ...user,
+      interviewSessionCount: session?._count._all ?? 0,
+    };
   });
 }
 
@@ -58,7 +62,7 @@ async function getInitialUsageStatsServerSide(): Promise<UsageData[]> {
   tomorrowStart.setDate(todayStart.getDate() + 1);
 
   try {
-    const dailyInterviewsCount = await prisma.interview.count({
+    const dailyInterviewsCount = await prisma.interviewSession.count({
       where: {
         createdAt: {
           gte: todayStart,
@@ -67,23 +71,13 @@ async function getInitialUsageStatsServerSide(): Promise<UsageData[]> {
       },
     });
 
-    // Count interviews created today that have a non-null 'feedback' field.
-    // Adjust 'feedback: { not: null }' if your schema uses a different indicator
-    // for generated feedback (e.g., a specific text field, or a boolean flag).
-    const dailyFeedbackGenerationsCount = await prisma.interview.count({
+    // Count feedbacks created today (each feedback is linked to an interview session)
+    const dailyFeedbackGenerationsCount = await prisma.feedback.count({
       where: {
-        createdAt: { // Assuming feedback is generated for interviews created today
+        createdAt: {
           gte: todayStart,
           lt: tomorrowStart,
         },
-        feedback: { // This is the crucial part - checking if feedback exists
-          not: { equals: null }, // Works for both SQL NULL and JSON null in Prisma 6.x
-        },
-        // If you have a dedicated 'feedbackGeneratedAt' timestamp:
-        // feedbackGeneratedAt: {
-        //   gte: todayStart,
-        //   lt: tomorrowStart,
-        // },
       },
     });
 
