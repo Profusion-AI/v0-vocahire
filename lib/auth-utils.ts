@@ -6,9 +6,9 @@ export async function getAuthSession() {
   try {
     // In a real implementation, we would use getServerSession from next-auth/next
     // But for preview, we'll use a simplified approach
-
+    const cookieStore = await cookies()
     // Check for a mock auth cookie or session
-    const mockAuthCookie = cookies().get("mock_auth_session")
+    const mockAuthCookie = cookieStore.get("mock_auth_session")
 
     // For preview purposes, we'll consider the user authenticated if:
     // 1. We're in development/preview mode

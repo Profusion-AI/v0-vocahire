@@ -25,7 +25,6 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       url: blob.url,
-      size: blob.size,
       uploadedAt: new Date().toISOString(),
     })
   } catch (error) {

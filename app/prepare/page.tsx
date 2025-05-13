@@ -8,14 +8,17 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ResumeUpload } from "@/components/resume-upload"
-import { ResumeInput } from "@/components/resume-input"
+import { ResumeInput, type ResumeData } from "@/components/resume-input" // Imported ResumeData type
 
 export default function PreparePage() {
   const router = useRouter()
   const [jobTitle, setJobTitle] = useState("Software Engineer")
-  const [resumeData, setResumeData] = useState({
+  const [resumeData, setResumeData] = useState<ResumeData>({
+    jobTitle: "Software Engineer",
     skills: "",
     experience: "",
+    education: "", // Initialize education
+    achievements: "", // Initialize achievements
     resumeUrl: "",
   })
   const [isLoading, setIsLoading] = useState(false)
@@ -25,20 +28,14 @@ export default function PreparePage() {
 
     // Save job title and resume data to localStorage
     localStorage.setItem("vocahire_job_title", jobTitle)
-    localStorage.setItem(
-      "vocahire_resume_data",
-      JSON.stringify({
-        jobTitle,
-        ...resumeData,
-      }),
-    )
+    localStorage.setItem("vocahire_resume_data", JSON.stringify(resumeData))
 
     // Navigate to interview page
     router.push("/interview")
   }
 
   const handleResumeUpload = (url: string, filename: string) => {
-    setResumeData((prev) => ({
+    setResumeData((prev: ResumeData) => ({ // Added type for prev
       ...prev,
       resumeUrl: url,
     }))

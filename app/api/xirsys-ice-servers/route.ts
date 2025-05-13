@@ -82,9 +82,10 @@ export async function GET(request: Request) {
         // A more robust way if Xirsys returns mixed STUN/TURN in one server object:
         if (newServerConfigs.length > 0) return newServerConfigs;
         return [server]; // Fallback to original if no processing happened
-      }).filter((server, index, self) => // Deduplicate based on the stringified urls
-        index === self.findIndex((s) => JSON.stringify(s.urls) === JSON.stringify(server.urls))
-      );
+      }).filter(
+        (server: RTCIceServer, index: number, self: RTCIceServer[]) =>
+          index === self.findIndex((s) => JSON.stringify(s.urls) === JSON.stringify(server.urls)),
+      )
 
 
       console.log(`Processed ${processedServers.length} ICE server configurations (with UDP/TCP variants).`);

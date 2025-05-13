@@ -55,7 +55,7 @@ export async function saveInterviewRecording(audioData: Blob | ArrayBuffer, sess
     const filename = `interviews/${userId}/${sessionId}-${timestamp}.webm`
 
     const blob = await put(filename, audioData, {
-      access: "private",
+      access: "public", // Changed from "private" as only "public" is supported
     })
 
     return blob.url

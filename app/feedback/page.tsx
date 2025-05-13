@@ -47,8 +47,8 @@ export default function FeedbackPage() {
 
     // Calculate filler word stats
     if (fillerWordsJson) {
-      const counts = JSON.parse(fillerWordsJson)
-      const total = Object.values(counts).reduce((sum: number, count: number) => sum + count, 0)
+      const counts: Record<string, number> = JSON.parse(fillerWordsJson)
+      const total = Object.values(counts).reduce((sum, count) => sum + count, 0)
       const mostCommon = Object.entries(counts)
         .map(([word, count]) => ({ word, count: count as number }))
         .sort((a, b) => b.count - a.count)

@@ -10,7 +10,7 @@ export async function GET() {
     console.log("TURN credentials available:", !!turnUsername && !!turnCredential)
 
     // Use a variety of reliable public STUN servers for redundancy
-    const iceServers = [
+    const iceServers: RTCIceServer[] = [
       // Google's STUN servers are very reliable and support IPv4
       { urls: "stun:stun.l.google.com:19302" },
       { urls: "stun:stun1.l.google.com:19302" },
@@ -27,15 +27,23 @@ export async function GET() {
     // Add TURN servers if credentials are available
     if (turnUsername && turnCredential) {
       // Add both UDP and TCP TURN servers for better connectivity
-      iceServers.push({
-        urls: [
-          "turn:global.turn.twilio.com:3478?transport=udp",
-          "turn:global.turn.twilio.com:3478?transport=tcp",
-          "turn:global.turn.twilio.com:443?transport=tcp",
-        ],
-        username: turnUsername,
-        credential: turnCredential,
-      })
+      iceServers.push(
+        {
+          urls: "turn:global.turn.twilio.com:3478?transport=udp",
+          username: turnUsername,
+          credential: turnCredential,
+        },
+        {
+          urls: "turn:global.turn.twilio.com:3478?transport=tcp",
+          username: turnUsername,
+          credential: turnCredential,
+        },
+        {
+          urls: "turn:global.turn.twilio.com:443?transport=tcp",
+          username: turnUsername,
+          credential: turnCredential,
+        }
+      )
 
       console.log("Added TURN servers with credentials")
     } else {

@@ -273,9 +273,9 @@ export async function runOpenAIRealtimeDiagnostic(): Promise<DiagnosticResult[]>
         details: {
           status: modelResponse.status,
           isJson,
-          error: isJson && !modelResponse.ok ? modelData?.error : isJson ? null : "Non-JSON response",
+          error: isJson && !modelResponse.ok ? modelData?.error : isJson ? undefined : "Non-JSON response",
         },
-        raw: isJson ? null : modelRaw.substring(0, 500),
+        raw: isJson ? undefined : modelRaw.substring(0, 500),
       })
     } catch (error) {
       modelResults.push({

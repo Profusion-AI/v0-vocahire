@@ -37,9 +37,9 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
   // State for session status - use refs for values that shouldn't trigger re-renders
   const [status, setStatus] = useState<"idle" | "connecting" | "active" | "ended" | "error">("idle")
   const statusRef = useRef<string>(status)
-  const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: string; timestamp: number }>>(
-    [],
-  )
+  const [messages, setMessages] = useState<
+    Array<{ role: "user" | "assistant"; content: string; timestamp: number; confidence?: number }>
+  >([])
   const [error, setError] = useState<string | null>(null)
   const debugLogRef = useRef<string>("")
   const [debug, setDebug] = useState<string | null>(null)
@@ -59,7 +59,9 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
 
   // State for connection status
   const [connectionProgress, setConnectionProgress] = useState(0)
-  const [connectionSteps, setConnectionSteps] = useState([
+  const [connectionSteps, setConnectionSteps] = useState<
+    Array<{ id: string; name: string; status: string; message?: string }>
+  >([
     { id: "microphone", name: "Microphone Access", status: "pending" },
     { id: "api", name: "API Connection", status: "pending" },
     { id: "session", name: "Session Creation", status: "pending" },
