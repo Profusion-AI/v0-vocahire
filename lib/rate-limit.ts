@@ -29,8 +29,14 @@ export async function checkRateLimit(
     // Get the current count
     const count = (await redis.get<number>(key)) || 0
 
-    // Get the TTL of the key
-    const ttl = await redis.ttl(key)
+    // Get the TTL of the key (handle mock redis without ttl)
+    let ttl: number
+    if (typeof (redis as any).ttl === "function") {
+      ttl = await (redis as any).ttl(key)
+    } else {
+      // Fallback for MockRedisClient: assume full window
+      ttl = config.window
+    }
 
     // Calculate reset time
     const reset = Date.now() + (ttl > 0 ? ttl * 1000 : config.window * 1000)
