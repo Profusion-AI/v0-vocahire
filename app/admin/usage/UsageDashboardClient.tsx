@@ -191,9 +191,9 @@ export function UsageDashboardClient({
                       {user.name || "N/A"}
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
-                    <TableCell className="text-right">
-                      {user._count.interviews}
-                    </TableCell>
+<TableCell className="text-right">
+  {user._count.interviewSessions}
+</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

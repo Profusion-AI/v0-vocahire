@@ -32,12 +32,12 @@ async function getTopUsersByInterviewsServerSide() {
       email: true,
       _count: {
         select: {
-          interviews: true,
+          interviewSessions: true,
         },
       },
     },
     orderBy: {
-      interviews: {
+      interviewSessions: {
         _count: "desc",
       },
     },
