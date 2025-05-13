@@ -14,14 +14,22 @@ export async function GET() {
   try {
     // Authenticate the admin user
     const session = await getServerSession(authOptions)
-    if (!session || !session.user?.email) {
+    if (!session || !session.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Check if the user is an admin (in production, check against a database)
-    const isAdmin = session.user.email.endsWith("@vocahire.com") || process.env.NODE_ENV === "development"
+    // Check if user is an admin
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { email: true },
+    })
+
+    // This is a simple check - in production, you'd want a proper role system
+    const adminEmails = ["admin@example.com"] // Replace with actual admin emails
+    const isAdmin = user && adminEmails.includes(user.email || "")
+
     if (!isAdmin) {
-      return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     // In production, fetch real users from your database

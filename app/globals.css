@@ -2,15 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+<<<<<<< HEAD
 @layer base {
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
+=======
+/* body font-family is now handled by next/font in app/layout.tsx */
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 217 19% 35%; /* #1F2937 */
+>>>>>>> 8657c6e23f5cc4d78ef2879255a634639330bafe
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
 
     --popover: 0 0% 100%;
+<<<<<<< HEAD
     --popover-foreground: 222.2 84% 4.9%;
 
     --primary: 222.2 47.4% 11.2%;
@@ -32,6 +48,23 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
 
+=======
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 249 79% 57%; /* #4F46E5 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 98%; /* #F9FAFB */
+    --secondary-foreground: 217 19% 35%;
+    --muted: 0 0% 96.1%; /* Light neutral */
+    --muted-foreground: 217 19% 35%;
+    --accent: 174 75% 45%; /* #14B8A6 */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 4 83% 59%; /* #EF4444 */
+    --destructive-foreground: 0 0% 100%;
+    --success: 145 75% 45%; /* #10B981 */
+    --success-foreground: 0 0% 100%;
+    --warning: 42 100% 53%; /* #F59E0B */
+    --info: 217 89% 66%; /* #3B82F6 */
+>>>>>>> 8657c6e23f5cc4d78ef2879255a634639330bafe
     --radius: 0.5rem;
   }
 
@@ -72,9 +105,11 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Poppins font is applied via className in app/layout.tsx */
   }
 }
 
+<<<<<<< HEAD
 /* Ensure scrollbars are visible */
 ::-webkit-scrollbar {
   width: 10px;
@@ -124,4 +159,32 @@
 
 .dark * {
   scrollbar-color: #666 #333;
+=======
+/* Custom global styles from splashpage.html */
+html {
+  scroll-behavior: smooth;
+}
+
+.section {
+  min-height: 100vh;
+  padding: 2rem 0;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.lock-icon {
+  position: absolute;
+  top: 10px; /* Consider Tailwind: top-2.5 */
+  right: 10px; /* Consider Tailwind: right-2.5 */
+  color: #6B7280; /* Consider Tailwind: text-gray-500 */
+  background: #F3F4F6; /* Consider Tailwind: bg-gray-100 */
+  border-radius: 50%; /* Consider Tailwind: rounded-full */
+  padding: 5px; /* Consider Tailwind: p-1 or p-1.5 */
+>>>>>>> 8657c6e23f5cc4d78ef2879255a634639330bafe
 }

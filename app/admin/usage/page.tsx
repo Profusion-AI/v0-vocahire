@@ -3,52 +3,50 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, RefreshCw } from "lucide-react"
-import { UsageType } from "@/lib/usage-tracking"
 
-interface UserUsage {
-  userId: string
-  email?: string
-  name?: string
-  usage: {
-    [key in UsageType]: {
-      daily: number
-      monthly: number
-      limit: number
-    }
-  }
-}
+export default async function AdminUsagePage() {
+  const session = await getServerSession(authOptions)
 
-export default function AdminUsagePage() {
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [usageData, setUsageData] = useState<UserUsage[]>([])
-
-  const fetchUsageData = async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      const response = await fetch("/api/admin/usage")
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch usage data: ${response.status}`)
-      }
-
-      const data = await response.json()
-      setUsageData(data.users)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error occurred")
-    } finally {
-      setLoading(false)
-    }
+  if (!session) {
+    redirect("/login")
   }
 
-  useEffect(() => {
-    fetchUsageData()
-  }, [])
+  // Check if user is an admin (you would need to add an isAdmin field to your User model)
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { email: true },
+  })
+
+  // This is a simple check - in production, you'd want a proper role system
+  const adminEmails = ["admin@example.com"] // Replace with actual admin emails
+  const isAdmin = user && adminEmails.includes(user.email || "")
+
+  if (!isAdmin) {
+    redirect("/")
+  }
+
+  // Get global usage statistics
+  const globalUsage = await getGlobalUsage()
+
+  // Get top users by interview count
+  const topUsersByInterviews = await prisma.user.findMany({
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      _count: {
+        select: {
+          interviews: true,
+        },
+      },
+    },
+    orderBy: {
+      interviews: {
+        _count: "desc",
+      },
+    },
+    take: 10,
+  })
 
   return (
     <div className="container py-8">
@@ -122,54 +120,24 @@ export default function AdminUsagePage() {
           <CardDescription>Detailed usage statistics by user</CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-10 bg-gray-200 animate-pulse rounded"></div>
-              ))}
-            </div>
-          ) : usageData.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">No usage data available</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Interviews (Today/Month)</TableHead>
-                  <TableHead>Feedback (Today/Month)</TableHead>
-                  <TableHead>Limit Status</TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead className="text-right">Interviews</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {topUsersByInterviews.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>{user.name || "N/A"}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell className="text-right">{user._count.interviews}</TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {usageData.map((user) => (
-                  <TableRow key={user.userId}>
-                    <TableCell className="font-medium">
-                      {user.name || user.email || user.userId.substring(0, 8)}
-                    </TableCell>
-                    <TableCell>
-                      {user.usage[UsageType.INTERVIEW_SESSION]?.daily || 0} /{" "}
-                      {user.usage[UsageType.INTERVIEW_SESSION]?.monthly || 0}
-                    </TableCell>
-                    <TableCell>
-                      {user.usage[UsageType.FEEDBACK_GENERATION]?.daily || 0} /{" "}
-                      {user.usage[UsageType.FEEDBACK_GENERATION]?.monthly || 0}
-                    </TableCell>
-                    <TableCell>
-                      {(user.usage[UsageType.INTERVIEW_SESSION]?.daily || 0) >=
-                      (user.usage[UsageType.INTERVIEW_SESSION]?.limit || 0) ? (
-                        <span className="text-red-500 font-medium">Limit Reached</span>
-                      ) : (
-                        <span className="text-green-500">
-                          {user.usage[UsageType.INTERVIEW_SESSION]?.daily || 0}/
-                          {user.usage[UsageType.INTERVIEW_SESSION]?.limit || 0}
-                        </span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>
