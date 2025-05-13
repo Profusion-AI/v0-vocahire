@@ -2,13 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-<<<<<<< HEAD
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
-=======
 /* body font-family is now handled by next/font in app/layout.tsx */
 
 @layer utilities {
@@ -21,34 +14,10 @@
   :root {
     --background: 0 0% 100%;
     --foreground: 217 19% 35%; /* #1F2937 */
->>>>>>> 8657c6e23f5cc4d78ef2879255a634639330bafe
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
 
     --popover: 0 0% 100%;
-<<<<<<< HEAD
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-=======
     --popover-foreground: 0 0% 3.9%;
     --primary: 249 79% 57%; /* #4F46E5 */
     --primary-foreground: 0 0% 100%;
@@ -64,7 +33,6 @@
     --success-foreground: 0 0% 100%;
     --warning: 42 100% 53%; /* #F59E0B */
     --info: 217 89% 66%; /* #3B82F6 */
->>>>>>> 8657c6e23f5cc4d78ef2879255a634639330bafe
     --radius: 0.5rem;
   }
 
@@ -109,82 +77,23 @@
   }
 }
 
-<<<<<<< HEAD
-/* Ensure scrollbars are visible */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 5px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 5px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-/* For Firefox */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #888 #f1f1f1;
-}
-
-/* Ensure scrollable areas have visible indicators */
-.overflow-y-auto,
-.overflow-x-auto,
-.overflow-auto {
-  scrollbar-width: thin;
-  scrollbar-color: #888 #f1f1f1;
-}
-
-/* Dark mode scrollbar */
-.dark ::-webkit-scrollbar-track {
-  background: #333;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: #666;
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #888;
-}
-
-.dark * {
-  scrollbar-color: #666 #333;
-=======
 /* Custom global styles from splashpage.html */
 html {
   scroll-behavior: smooth;
 }
 
 .section {
-  min-height: 100vh;
-  padding: 2rem 0;
+  @apply min-h-screen py-8;
 }
 
 .tab-content {
-  display: none;
+  @apply hidden;
 }
 
 .tab-content.active {
-  display: block;
+  @apply block;
 }
 
 .lock-icon {
-  position: absolute;
-  top: 10px; /* Consider Tailwind: top-2.5 */
-  right: 10px; /* Consider Tailwind: right-2.5 */
-  color: #6B7280; /* Consider Tailwind: text-gray-500 */
-  background: #F3F4F6; /* Consider Tailwind: bg-gray-100 */
-  border-radius: 50%; /* Consider Tailwind: rounded-full */
-  padding: 5px; /* Consider Tailwind: p-1 or p-1.5 */
->>>>>>> 8657c6e23f5cc4d78ef2879255a634639330bafe
+  @apply absolute top-2.5 right-2.5 text-gray-500 bg-gray-100 rounded-full p-1.5;
 }

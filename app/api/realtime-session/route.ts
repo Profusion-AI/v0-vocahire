@@ -1,16 +1,11 @@
-import { NextResponse } from "next/server"
+import { NextResponse, NextRequest } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { rateLimit } from "@/lib/rate-limit"
-import { trackUsage } from "@/lib/usage-tracking"
+import { checkRateLimit, incrementRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit"
+import { trackUsage, UsageType } from "@/lib/usage-tracking" // Assuming UsageType is here
 import { prisma } from "@/lib/prisma"
+import { getOpenAIApiKey } from "@/lib/api-utils"
 
-// Rate limit configuration: 10 requests per minute
-const limiter = rateLimit({
-  interval: 60 * 1000, // 1 minute
-  uniqueTokenPerInterval: 500, // Max 500 users per minute
-  limit: 10, // 10 requests per minute
-})
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,10 +23,14 @@ export async function POST(request: NextRequest) {
     const userId = session.user.id
 
     // Apply rate limiting
-    try {
-      await limiter.check(userId)
-    } catch (error) {
-      return NextResponse.json({ error: "Rate limit exceeded. Please try again later." }, { status: 429 })
+    const rateLimitResult = await checkRateLimit(userId, RATE_LIMIT_CONFIGS.REALTIME_SESSION)
+    if (rateLimitResult.isLimited) {
+      return NextResponse.json(
+        {
+          error: `Rate limit exceeded. Please try again later. Limit: ${rateLimitResult.limit}, Current: ${rateLimitResult.current}, Reset in: ${Math.ceil((rateLimitResult.reset - Date.now()) / 1000)}s`,
+        },
+        { status: 429 },
+      )
     }
 
     // Check if user has enough credits
