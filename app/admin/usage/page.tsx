@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 
 // Component imports
-import { UsageDashboardClient, UsageData } from "./UsageDashboardClient"; // New client component
+import { UsageDashboardClient, UsageData, UsageType } from "./UsageDashboardClient"; // New client component, added UsageType
 
 // Helper function to get admin user details and check authorization
 async function getAdminUserServerSide(userId: string) {
@@ -51,25 +51,75 @@ export type TopUser = Prisma.PromiseReturnType<typeof getTopUsersByInterviewsSer
 // Helper function to fetch initial usage statistics for the cards
 // NOTE: You'll need to implement the actual data fetching logic here based on your database schema.
 async function getInitialUsageStatsServerSide(): Promise<UsageData[]> {
-  // Placeholder: Implement actual logic to fetch and format usage stats.
-  // This function should query your database for daily interview sessions,
-  // feedback generations, active users, etc., and format it into UsageData[].
-  // Example:
-  // const dailyInterviews = await prisma.interview.count({ where: { createdAt: { gte: new Date(new Date().setHours(0,0,0,0)) } } });
-  // const dailyFeedback = await prisma.feedback.count({ where: { createdAt: { gte: new Date(new Date().setHours(0,0,0,0)) } } });
-  // ... and so on for other stats, then structure it.
-  // For demonstration, returning an empty array.
-  // Replace this with your actual data aggregation.
-  return [
-    // {
-    //   userId: "summary", // Special ID for aggregated data or map from actual user data
-    //   email: "summary@example.com",
-    //   usage: {
-    //     [UsageType.INTERVIEW_SESSION]: { daily: dailyInterviews || 0, monthly: 0 },
-    //     [UsageType.FEEDBACK_GENERATION]: { daily: dailyFeedback || 0, monthly: 0 },
-    //   },
-    // },
-  ];
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(todayStart.getDate() + 1);
+
+  try {
+    const dailyInterviewsCount = await prisma.interview.count({
+      where: {
+        createdAt: {
+          gte: todayStart,
+          lt: tomorrowStart,
+        },
+      },
+    });
+
+    // Count interviews created today that have a non-null 'feedback' field.
+    // Adjust 'feedback: { not: null }' if your schema uses a different indicator
+    // for generated feedback (e.g., a specific text field, or a boolean flag).
+    const dailyFeedbackGenerationsCount = await prisma.interview.count({
+      where: {
+        createdAt: { // Assuming feedback is generated for interviews created today
+          gte: todayStart,
+          lt: tomorrowStart,
+        },
+        feedback: { // This is the crucial part - checking if feedback exists
+          not: Prisma.JsonNull, // Use Prisma.JsonNull for JSON fields
+        },
+        // If you have a dedicated 'feedbackGeneratedAt' timestamp:
+        // feedbackGeneratedAt: {
+        //   gte: todayStart,
+        //   lt: tomorrowStart,
+        // },
+      },
+    });
+
+    // This structure provides the raw daily counts.
+    // The UsageDashboardClient will sum these up for the cards.
+    // It will also calculate active users based on this data.
+    return [
+      {
+        userId: "global_summary_stats", // A unique ID for these global stats
+        email: null,
+        usage: {
+          [UsageType.INTERVIEW_SESSION]: {
+            daily: dailyInterviewsCount,
+            monthly: 0, // Monthly stats can be implemented later if needed
+          },
+          [UsageType.FEEDBACK_GENERATION]: {
+            daily: dailyFeedbackGenerationsCount,
+            monthly: 0, // Monthly stats can be implemented later if needed
+          },
+        },
+      },
+    ];
+  } catch (error) {
+    console.error("Error fetching initial usage stats:", error);
+    // Return empty or default stats in case of an error to prevent page crash
+    return [
+      {
+        userId: "global_summary_stats_error",
+        email: null,
+        usage: {
+          [UsageType.INTERVIEW_SESSION]: { daily: 0, monthly: 0 },
+          [UsageType.FEEDBACK_GENERATION]: { daily: 0, monthly: 0 },
+        },
+      },
+    ];
+  }
 }
 
 export default async function AdminUsagePage() {

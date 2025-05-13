@@ -2,16 +2,16 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { z } from "zod"
 import { authOptions } from "@/lib/auth"
-import { rateLimit } from "@/lib/rate-limit"
-import { trackUsage } from "@/lib/usage-tracking"
+import { checkRateLimit, incrementRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit"
+import { trackUsage, UsageType } from "@/lib/usage-tracking" // Added UsageType import
 import { prisma } from "@/lib/prisma"
 
-// Rate limit configuration: 5 requests per minute
-const limiter = rateLimit({
-  interval: 60 * 1000, // 1 minute
-  uniqueTokenPerInterval: 500, // Max 500 users per minute
-  limit: 5, // 5 requests per minute
-})
+// Rate limit configuration is now imported and used directly
+// const limiter = rateLimit({
+//   interval: 60 * 1000, // 1 minute
+//   uniqueTokenPerInterval: 500, // Max 500 users per minute
+//   limit: 5, // 5 requests per minute
+// })
 
 export async function POST(request: Request) {
   try {
@@ -30,10 +30,13 @@ export async function POST(request: Request) {
     const userId = session.user.email
 
     // Apply rate limiting
-    try {
-      await limiter.check(userId)
-    } catch (error) {
-      return NextResponse.json({ error: "Rate limit exceeded. Please try again later." }, { status: 429 })
+    const { isLimited, reset } = await checkRateLimit(userId, RATE_LIMIT_CONFIGS.GENERATE_FEEDBACK)
+    if (isLimited) {
+      const retryAfter = Math.ceil((reset - Date.now()) / 1000)
+      return NextResponse.json(
+        { error: `Rate limit exceeded. Please try again in ${retryAfter} seconds.` },
+        { status: 429, headers: { "Retry-After": retryAfter.toString() } }
+      )
     }
 
     // Process the request
@@ -43,8 +46,6 @@ export async function POST(request: Request) {
     if (!interviewId || !transcript) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
-
-    const { interviewId, transcript } = parsedBody
 
     // Check if the interview belongs to the user
     const interview = await prisma.interview.findUnique({

@@ -1,78 +1,89 @@
-import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
-import { getUserUsageStats, UsageType } from "@/lib/usage-tracking"
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { UsageData, UsageType } from "@/app/admin/usage/UsageDashboardClient"; // Import from client component path
+import { Prisma } from "@prisma/client";
 
-// Mock user data for development - in production, this would come from your database
-const MOCK_USERS = [
-  { id: "user_1", email: "user1@example.com", name: "User One" },
-  { id: "user_2", email: "user2@example.com", name: "User Two" },
-  { id: "user_3", email: "user3@example.com", name: "User Three" },
-]
+async function getAdminUser(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
 
-export async function GET() {
+  const adminEmailsEnv = process.env.ADMIN_EMAILS?.split(",") || ["help@vocahire.com"]; // Default to provided admin email
+  const isAdmin = user?.email ? adminEmailsEnv.includes(user.email) : false;
+  return isAdmin;
+}
+
+export async function GET(request: Request) {
   try {
-    // Authenticate the admin user
-    const session = await getServerSession(authOptions)
-    if (!session || !session.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user is an admin
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { email: true },
-    })
-
-    // This is a simple check - in production, you'd want a proper role system
-    const adminEmails = ["admin@example.com"] // Replace with actual admin emails
-    const isAdmin = user && adminEmails.includes(user.email || "")
-
+    const isAdmin = await getAdminUser(session.user.id);
     if (!isAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // In production, fetch real users from your database
-    // For now, use mock data
-    const users = MOCK_USERS
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
 
-    // Get usage stats for each user
-    const usagePromises = users.map(async (user) => {
-      const usage = await getUserUsageStats(user.id)
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(todayStart.getDate() + 1);
+
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        // Optionally include name if you want to display it, though UsageData only has email
+      },
+    });
+
+    const usageDataPromises = users.map(async (user) => {
+      const dailyInterviews = await prisma.interview.count({
+        where: {
+          userId: user.id,
+          createdAt: {
+            gte: todayStart,
+            lt: tomorrowStart,
+          },
+        },
+      });
+
+      const dailyFeedbackGenerations = await prisma.interview.count({
+        where: {
+          userId: user.id,
+          createdAt: { // Assuming feedback is for interviews created today
+            gte: todayStart,
+            lt: tomorrowStart,
+          },
+          feedback: {
+            not: Prisma.JsonNull, // Feedback exists
+          },
+        },
+      });
+
       return {
         userId: user.id,
         email: user.email,
-        name: user.name,
-        usage,
-      }
-    })
+        usage: {
+          [UsageType.INTERVIEW_SESSION]: { daily: dailyInterviews, monthly: 0 }, // Monthly can be added later
+          [UsageType.FEEDBACK_GENERATION]: { daily: dailyFeedbackGenerations, monthly: 0 },
+        },
+      };
+    });
 
-    const usageData = await Promise.all(usagePromises)
+    const allUsageData: UsageData[] = await Promise.all(usageDataPromises);
 
-    // Calculate totals
-    const totals = {
-      [UsageType.INTERVIEW_SESSION]: {
-        daily: usageData.reduce((sum, user) => sum + (user.usage[UsageType.INTERVIEW_SESSION]?.daily || 0), 0),
-        monthly: usageData.reduce((sum, user) => sum + (user.usage[UsageType.INTERVIEW_SESSION]?.monthly || 0), 0),
-      },
-      [UsageType.FEEDBACK_GENERATION]: {
-        daily: usageData.reduce((sum, user) => sum + (user.usage[UsageType.FEEDBACK_GENERATION]?.daily || 0), 0),
-        monthly: usageData.reduce((sum, user) => sum + (user.usage[UsageType.FEEDBACK_GENERATION]?.monthly || 0), 0),
-      },
-    }
-
-    return NextResponse.json({
-      users: usageData,
-      totals,
-    })
+    return NextResponse.json(allUsageData);
   } catch (error) {
-    console.error("Error fetching usage data:", error)
+    console.error("Error in /api/admin/usage:", error);
     return NextResponse.json(
-      {
-        error: "Failed to fetch usage data",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: "Internal Server Error" },
       { status: 500 },
-    )
+    );
   }
 }
