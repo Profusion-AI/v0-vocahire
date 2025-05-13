@@ -20,8 +20,6 @@ interface FallbackStoreValue {
 
 /**
  * Creates a simplified in-memory fallback client that mimics a subset of the Redis API.
- * This is used when a connection to the actual Redis server cannot be established.
- * @returns A fallback Redis client instance.
  */
 function createFallbackRedisClient(): Redis {
   const store = new Map<string, FallbackStoreValue>();
@@ -229,7 +227,6 @@ export function getRedisClient(): Redis {
 
 /**
  * Checks if the currently active Redis client is the in-memory fallback.
- * This can be useful for diagnostics or conditional logic in the application.
  * @returns {boolean} True if the fallback client is active, false otherwise.
  */
 export function isRedisFallbackActive(): boolean {
