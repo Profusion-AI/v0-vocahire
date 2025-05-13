@@ -31,7 +31,7 @@ export default async function ProfilePage() {
     image: string | null
     credits: number
     createdAt: Date
-    interviews: Array<{
+    interviewSessions: Array<{
       id: string
       createdAt: Date
       duration: number | null
@@ -80,9 +80,9 @@ export default async function ProfilePage() {
             <CardDescription>Your most recent interview sessions</CardDescription>
           </CardHeader>
           <CardContent>
-            {user.interviews.length > 0 ? (
+            {user.interviewSessions.length > 0 ? (
               <ul className="space-y-4">
-            {(user.interviews as Array<{
+            {(user.interviewSessions as Array<{
               id: string
               createdAt: Date
               duration: number | null
