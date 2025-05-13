@@ -1,35 +1,31 @@
-"use client"
+// Server-side imports
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth"; // Assuming path, adjust if necessary
+import { prisma } from "@/lib/prisma"; // Assuming path, adjust if necessary
+import { redirect } from "next/navigation";
+import { Prisma } from "@prisma/client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+// Component imports
+import { UsageDashboardClient, UsageData } from "./UsageDashboardClient"; // New client component
 
-export default async function AdminUsagePage() {
-  const session = await getServerSession(authOptions)
-
-  if (!session) {
-    redirect("/login")
-  }
-
-  // Check if user is an admin (you would need to add an isAdmin field to your User model)
+// Helper function to get admin user details and check authorization
+async function getAdminUserServerSide(userId: string) {
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { email: true },
-  })
+    where: { id: userId },
+    select: { email: true }, // Removed 'role' from select
+  });
 
-  // This is a simple check - in production, you'd want a proper role system
-  const adminEmails = ["admin@example.com"] // Replace with actual admin emails
-  const isAdmin = user && adminEmails.includes(user.email || "")
+  // Prefer environment variables for admin emails or a proper role system
+  const adminEmailsEnv = process.env.ADMIN_EMAILS?.split(",") || [];
+  const isAdminByEmail = user?.email ? adminEmailsEnv.includes(user.email) : false;
+  // Removed isAdminByRole check
 
-  if (!isAdmin) {
-    redirect("/")
-  }
+  return { user, isAdmin: isAdminByEmail }; // Return only isAdminByEmail
+}
 
-  // Get global usage statistics
-  const globalUsage = await getGlobalUsage()
-
-  // Get top users by interview count
-  const topUsersByInterviews = await prisma.user.findMany({
+// Helper function to fetch top users by interview count
+async function getTopUsersByInterviewsServerSide() {
+  return prisma.user.findMany({
     select: {
       id: true,
       name: true,
@@ -46,100 +42,56 @@ export default async function AdminUsagePage() {
       },
     },
     take: 10,
-  })
+  });
+}
+
+// Exportable type for TopUser, derived from the prisma query result
+export type TopUser = Prisma.PromiseReturnType<typeof getTopUsersByInterviewsServerSide>[0];
+
+// Helper function to fetch initial usage statistics for the cards
+// NOTE: You'll need to implement the actual data fetching logic here based on your database schema.
+async function getInitialUsageStatsServerSide(): Promise<UsageData[]> {
+  // Placeholder: Implement actual logic to fetch and format usage stats.
+  // This function should query your database for daily interview sessions,
+  // feedback generations, active users, etc., and format it into UsageData[].
+  // Example:
+  // const dailyInterviews = await prisma.interview.count({ where: { createdAt: { gte: new Date(new Date().setHours(0,0,0,0)) } } });
+  // const dailyFeedback = await prisma.feedback.count({ where: { createdAt: { gte: new Date(new Date().setHours(0,0,0,0)) } } });
+  // ... and so on for other stats, then structure it.
+  // For demonstration, returning an empty array.
+  // Replace this with your actual data aggregation.
+  return [
+    // {
+    //   userId: "summary", // Special ID for aggregated data or map from actual user data
+    //   email: "summary@example.com",
+    //   usage: {
+    //     [UsageType.INTERVIEW_SESSION]: { daily: dailyInterviews || 0, monthly: 0 },
+    //     [UsageType.FEEDBACK_GENERATION]: { daily: dailyFeedback || 0, monthly: 0 },
+    //   },
+    // },
+  ];
+}
+
+export default async function AdminUsagePage() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const { isAdmin } = await getAdminUserServerSide(session.user.id);
+
+  if (!isAdmin) {
+    redirect("/"); // Redirect non-admins to the homepage or an unauthorized page
+  }
+
+  const topUsers = await getTopUsersByInterviewsServerSide();
+  const initialStats = await getInitialUsageStatsServerSide();
 
   return (
-    <div className="container py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Usage Dashboard</h1>
-        <Button onClick={fetchUsageData} disabled={loading} size="sm" variant="outline">
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
-      </div>
-
-      {error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Interview Sessions</CardTitle>
-            <CardDescription>Total sessions today</CardDescription>
-          </CardHeader>
-          <CardContent className="text-3xl font-bold">
-            {loading ? (
-              <div className="h-8 w-16 bg-gray-200 animate-pulse rounded"></div>
-            ) : (
-              usageData.reduce((sum, user) => sum + (user.usage[UsageType.INTERVIEW_SESSION]?.daily || 0), 0)
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Feedback Generations</CardTitle>
-            <CardDescription>Total feedback generations today</CardDescription>
-          </CardHeader>
-          <CardContent className="text-3xl font-bold">
-            {loading ? (
-              <div className="h-8 w-16 bg-gray-200 animate-pulse rounded"></div>
-            ) : (
-              usageData.reduce((sum, user) => sum + (user.usage[UsageType.FEEDBACK_GENERATION]?.daily || 0), 0)
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Active Users</CardTitle>
-            <CardDescription>Users with activity today</CardDescription>
-          </CardHeader>
-          <CardContent className="text-3xl font-bold">
-            {loading ? (
-              <div className="h-8 w-16 bg-gray-200 animate-pulse rounded"></div>
-            ) : (
-              usageData.filter(
-                (user) =>
-                  (user.usage[UsageType.INTERVIEW_SESSION]?.daily || 0) > 0 ||
-                  (user.usage[UsageType.FEEDBACK_GENERATION]?.daily || 0) > 0,
-              ).length
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>User Usage Details</CardTitle>
-          <CardDescription>Detailed usage statistics by user</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead className="text-right">Interviews</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {topUsersByInterviews.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>{user.name || "N/A"}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell className="text-right">{user._count.interviews}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-  )
+    <UsageDashboardClient
+      topUsersByInterviews={topUsers}
+      initialUsageStats={initialStats}
+    />
+  );
 }

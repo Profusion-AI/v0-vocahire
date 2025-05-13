@@ -1,5 +1,17 @@
-import type { NextAuthOptions } from "next-auth"
+import type { NextAuthOptions, Session } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
+
+// Extend the Session type to include 'id' on user
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string
+      name?: string | null
+      email?: string | null
+      image?: string | null
+    }
+  }
+}
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -13,8 +25,8 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.id as string
+      if (token && session.user && typeof token.id === 'string') {
+        session.user.id = token.id;
       }
 
       return session
