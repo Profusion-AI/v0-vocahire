@@ -1,5 +1,5 @@
 import React from 'react'
-// import Link from 'next/link' // Not used yet, but might be for actual page navigation
+import Link from 'next/link' // Used for actual page navigation
 
 const Navbar = () => {
   return (
@@ -38,13 +38,15 @@ const Navbar = () => {
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            {/* TODO: Replace with Link to actual sign-up page or auth modal trigger */}
-            <button 
-              type="button"
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-            >
-              Sign Up Free
-            </button>
+            {/* Link to actual sign-up page */}
+            <Link href="/register">
+              <button
+                type="button"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+              >
+                Sign Up Free
+              </button>
+            </Link>
           </div>
           {/* TODO: Add mobile menu button and functionality */}
         </div>
