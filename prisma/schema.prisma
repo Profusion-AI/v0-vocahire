@@ -1,0 +1,209 @@
+/// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// @summary User account and profile information.
+/// @remarks All PII is stored here. No secrets or tokens are stored in this table.
+model User {
+  id                   String    @id @default(cuid())
+  email                String?   @unique
+  name                 String?
+  image                String?
+  emailVerified        DateTime?
+  // Auth: NextAuth credentials
+  hashedPassword       String?   // Store bcrypt hash or similar
+  // Role & credits
+  role                 UserRole  @default(USER)
+  credits              Int       @default(3)
+
+  // Resume details snapshot (user profile default)
+  resumeJobTitle       String?
+  resumeSkills         String?   @db.Text
+  resumeExperience     String?   @db.Text
+  resumeEducation      String?   @db.Text
+  resumeAchievements   String?   @db.Text
+  resumeFileUrl        String?
+
+  // Privacy & consent
+  acceptedTermsAt      DateTime?
+  acceptedPrivacyAt    DateTime?
+  dataRetentionOverride Boolean? @default(false)
+
+  // Relations
+  accounts             Account[]
+  sessions             Session[]
+  interviewSessions    InterviewSession[]
+  feedbacks            Feedback[]
+  usageEvents          UsageEvent[]
+
+  // Audit
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([email])
+}
+
+/// OAuth account store (NextAuth)
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+/// Session store (NextAuth)
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Email verification tokens (NextAuth)
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+/// @summary A single mock interview session (voice or text).
+/// @remarks Stores session metadata and relations to transcript & feedback.
+model InterviewSession {
+  id                  String    @id @default(cuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  jobTitle            String
+  resumeSnapshot      Json?
+  // Optional context
+  company             String?
+  interviewType       String?   // e.g., "behavioral", "technical"
+  jdContext           String?   @db.Text
+
+  // Session metadata
+  webrtcSessionId     String?   @unique
+  openaiSessionId     String?   @unique
+  fallbackMode        Boolean   @default(false)
+  startedAt           DateTime  @default(now())
+  endedAt             DateTime?
+  durationSeconds     Int?
+  audioUrl            String?   // Blob storage URL
+
+  // Data retention
+  expiresAt           DateTime? // e.g., 12 months after startedAt
+
+  // Audit
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  transcript          Transcript[]
+  feedback            Feedback?
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+/// @summary Transcript entries for an interview session.
+/// @remarks Each message/turn with role, content, and timestamp.
+model Transcript {
+  id           String             @id @default(cuid())
+  sessionId    String
+  session      InterviewSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role         String             // "user" or "assistant"
+  content      String
+  confidence   Float?
+  timestamp    DateTime
+
+  // Data retention
+  expiresAt    DateTime?
+
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([sessionId])
+  @@index([timestamp])
+}
+
+/// @summary AI-generated feedback for an interview session.
+/// @remarks Linked to InterviewSession, holds structured feedback.
+model Feedback {
+  id                      String             @id @default(cuid())
+  sessionId               String             @unique
+  session                 InterviewSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId                  String
+  user                    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  summary                 String             @db.Text
+  strengths               String?            @db.Text
+  areasForImprovement      String?            @db.Text
+  fillerWordCount         Int?
+  transcriptScore         Float?
+
+  // Data retention
+  expiresAt               DateTime?
+
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+
+  @@index([userId])
+}
+
+/// @summary Usage and analytics events for operational monitoring.
+/// @remarks Tracks key actions for admin dashboards and rate limiting.
+model UsageEvent {
+  id           String   @id @default(cuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventType    String   // e.g., "interview_started", "feedback_viewed"
+  details      Json?
+  occurredAt   DateTime @default(now())
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([eventType])
+}
+
+/// User roles for authorization
+enum UserRole {
+  USER
+  ADMIN
+}
+
+/// @summary Interview session status.
+/// @remarks Tracks progression and error states.
+enum InterviewStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  FAILED
+  FEEDBACK_GENERATED
+}
