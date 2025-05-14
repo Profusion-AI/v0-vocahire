@@ -25,19 +25,17 @@ function InterviewPageContent() {
   const [skipResume, setSkipResume] = useState(false);
   const [currentView, setCurrentView] = useState<"interview" | "profile">("interview"); // State to manage view
 
-  // Use useCallback for the interview completion handler to prevent recreation on every render
-  const handleInterviewComplete = useCallback(
-    (messages: any[]) => {
-      // Store messages in localStorage for the feedback page
-      localStorage.setItem("vocahire_interview_messages", JSON.stringify(messages));
+  // Credits state
+  const [credits, setCredits] = useState<number | null>(null);
+  const [isCreditsLoading, setIsCreditsLoading] = useState(true);
+  const [isPremium, setIsPremium] = useState<boolean>(false);
 
-      // Navigate to feedback page
-      router.push("/feedback");
-    },
-    [router]
-  );
+  // Placeholder purchase flow handler (matches profile page)
+  const handlePurchaseCredits = () => {
+    alert("Purchase modal will open here.");
+  };
 
-  // Get job title from query params and load resume data - only run once on mount
+  // Fetch credits (and user data) on mount
   useEffect(() => {
     // Get skipResume from URL once
     setSkipResume(searchParams.get("skipResume") === "true");
@@ -67,8 +65,63 @@ function InterviewPageContent() {
       setHasResumeData(false);
     }
 
-    setIsLoading(false);
-  }, []); // Empty dependency array - only run once on mount
+    // Fetch credits from /api/user
+    const fetchCredits = async () => {
+      setIsCreditsLoading(true);
+      try {
+        const res = await fetch("/api/user");
+        if (res.ok) {
+          const data = await res.json();
+          setCredits(typeof data.credits === "number" ? data.credits : 0);
+          setIsPremium(!!data.isPremium || !!data.premium); // Accept either isPremium or premium
+        } else {
+          setCredits(0);
+          setIsPremium(false);
+        }
+      } catch {
+        setCredits(0);
+        setIsPremium(false);
+      } finally {
+        setIsCreditsLoading(false);
+        setIsLoading(false);
+      }
+    };
+    fetchCredits();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Optionally, refetch credits when user attempts to start interview (if needed)
+  const refetchCredits = async () => {
+    setIsCreditsLoading(true);
+    try {
+      const res = await fetch("/api/user");
+      if (res.ok) {
+        const data = await res.json();
+        setCredits(typeof data.credits === "number" ? data.credits : 0);
+        setIsPremium(!!data.isPremium || !!data.premium);
+      } else {
+        setCredits(0);
+        setIsPremium(false);
+      }
+    } catch {
+      setCredits(0);
+      setIsPremium(false);
+    } finally {
+      setIsCreditsLoading(false);
+    }
+  };
+
+  // Use useCallback for the interview completion handler to prevent recreation on every render
+  const handleInterviewComplete = useCallback(
+    (messages: any[]) => {
+      // Store messages in localStorage for the feedback page
+      localStorage.setItem("vocahire_interview_messages", JSON.stringify(messages));
+
+      // Navigate to feedback page
+      router.push("/feedback");
+    },
+    [router]
+  );
 
   if (isLoading) {
     return (
@@ -126,25 +179,110 @@ function InterviewPageContent() {
     <> {/* Use fragment to include Navbar */}
       <Navbar /> {/* Include Navbar */}
       <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "interview" | "profile")} className="w-full">
-        <div className="flex justify-center py-4 bg-gray-100 dark:bg-gray-800"> {/* Added background for tabs */}
-          <TabsList className="grid w-full max-w-md grid-cols-2 bg-gray-200 dark:bg-gray-700 rounded-md p-1"> {/* Styled TabsList */}
-            <TabsTrigger value="interview" className="data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-900 dark:data-[state=active]:text-indigo-400">Interview</TabsTrigger> {/* Styled TabsTrigger */}
-            <TabsTrigger value="profile" className="data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-900 dark:data-[state=active]:text-indigo-400">Profile</TabsTrigger> {/* Styled TabsTrigger */}
+        <div className="flex justify-center py-4 bg-gray-100 dark:bg-gray-800">
+          <TabsList className="grid w-full max-w-md grid-cols-2 bg-gray-200 dark:bg-gray-700 rounded-md p-1">
+            <TabsTrigger value="interview" className="data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-900 dark:data-[state=active]:text-indigo-400">Interview</TabsTrigger>
+            <TabsTrigger value="profile" className="data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-900 dark:data-[state=active]:text-indigo-400">Profile</TabsTrigger>
           </TabsList>
         </div>
-        <TabsContent value="interview" className="mt-0"> {/* Removed default margin-top */}
+        <TabsContent value="interview" className="mt-0">
           <SessionLayout>
             <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl text-center mb-8">Interview Session</h1>
-            <div className="mb-4 text-center text-base text-gray-700">
+            <div className="mb-4 text-center text-base text-gray-700 flex flex-col items-center">
               <p>
                 Position: <strong>{jobTitle}</strong>
                 {hasResumeData && " • Resume data loaded"}
               </p>
             </div>
-            <InterviewRoom jobTitle={jobTitle} onComplete={handleInterviewComplete} resumeData={resumeData} />
+            {/* Premium user experience */}
+            {isPremium ? (
+              <div className="flex flex-col items-center justify-center my-8">
+                <div className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-6 py-4 rounded-lg shadow-lg mb-4 font-semibold text-lg">
+                  Premium Access: Unlimited Interviews
+                </div>
+                {/* Optionally, add a subtle note about premium benefits */}
+                <span className="text-sm text-gray-500 dark:text-gray-400">Enjoy unlimited mock interviews as a premium member.</span>
+                {/* InterviewRoom for premium users */}
+                <div className="w-full mt-8">
+                  <InterviewRoom
+                    jobTitle={jobTitle}
+                    onComplete={handleInterviewComplete}
+                    resumeData={resumeData}
+                    credits={null}
+                    isCreditsLoading={false}
+                    onBuyCredits={undefined}
+                    refetchCredits={refetchCredits}
+                  />
+                </div>
+              </div>
+            ) : credits === 0 && !isCreditsLoading ? (
+              // Out of credits scenario for non-premium users
+              <div className="flex flex-col items-center justify-center my-12">
+                <Card className="max-w-md w-full shadow-lg border-2 border-red-400">
+                  <CardHeader>
+                    <CardTitle className="text-2xl font-bold text-red-600 text-center">You're out of interview credits!</CardTitle>
+                    <CardDescription className="text-center text-gray-600 mt-2">
+                      You need credits to start a new interview session.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col gap-4">
+                      <Button
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-lg py-3 rounded-md shadow"
+                        onClick={handlePurchaseCredits}
+                      >
+                        Buy More Credits
+                      </Button>
+                      <Button
+                        asChild
+                        className="w-full bg-gradient-to-r from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600 text-white font-semibold text-lg py-3 rounded-md shadow"
+                      >
+                        <Link href="/pricing">Upgrade to Premium (Unlimited Interviews)</Link>
+                      </Button>
+                      {/* If a "Free Basic Session" feature is added in the future, add a button here */}
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <span className="text-xs text-gray-400 mx-auto">Questions? <Link href="/profile" className="underline">Visit your profile</Link></span>
+                  </CardFooter>
+                </Card>
+              </div>
+            ) : (
+              // Standard credits display and InterviewRoom for non-premium users with credits
+              <>
+                <div className="mb-4 text-center">
+                  <button
+                    type="button"
+                    className="mt-4 text-lg font-semibold text-indigo-700 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded transition px-0 py-0 bg-transparent"
+                    style={{ cursor: "pointer" }}
+                    onClick={handlePurchaseCredits}
+                    disabled={isCreditsLoading}
+                    aria-label="Purchase more credits"
+                  >
+                    {isCreditsLoading || credits === null ? (
+                      <span className="text-gray-400">Loading credits...</span>
+                    ) : (
+                      <>
+                        You have <span className="font-bold">{credits}</span> Interview Credit{credits === 1 ? "" : "s"} remaining.
+                      </>
+                    )}
+                  </button>
+                  <span className="text-xs text-gray-500 mt-1 block">Click to purchase more credits.</span>
+                </div>
+                <InterviewRoom
+                  jobTitle={jobTitle}
+                  onComplete={handleInterviewComplete}
+                  resumeData={resumeData}
+                  credits={credits}
+                  isCreditsLoading={isCreditsLoading}
+                  onBuyCredits={handlePurchaseCredits}
+                  refetchCredits={refetchCredits}
+                />
+              </>
+            )}
           </SessionLayout>
         </TabsContent>
-        <TabsContent value="profile" className="mt-0"> {/* Removed default margin-top */}
+        <TabsContent value="profile" className="mt-0">
            {/* ProfilePage is already wrapped in SessionLayout */}
            <ProfilePage />
         </TabsContent>

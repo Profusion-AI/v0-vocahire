@@ -33,6 +33,7 @@ type ProfileFormData = z.infer<typeof profileFormSchema>;
 export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [credits, setCredits] = useState<number | null>(null);
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileFormSchema),
@@ -60,6 +61,7 @@ export default function ProfilePage() {
             jobSearchStage: data.jobSearchStage || "",
             linkedinUrl: data.linkedinUrl || "",
           });
+          setCredits(typeof data.credits === "number" ? data.credits : 0);
         } else {
           toast.error("Failed to load profile data.");
         }
@@ -119,6 +121,43 @@ export default function ProfilePage() {
           Back to Interview
         </Button>
       </div>
+      {/* Account / Subscription Section */}
+      <Card className="shadow-lg mb-8">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Account</CardTitle>
+          <CardDescription className="text-gray-600">
+            Manage your subscription and credits.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              className="text-lg font-semibold text-indigo-700 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded transition px-0 py-0 bg-transparent"
+              style={{ cursor: "pointer" }}
+              onClick={() => {
+                // Placeholder for purchase modal
+                alert("Purchase modal will open here.");
+                // Or: console.log("Purchase modal will open here.");
+              }}
+              disabled={isLoading}
+              aria-label="Purchase more credits"
+            >
+              {isLoading || credits === null ? (
+                <span className="text-gray-400">Loading credits...</span>
+              ) : (
+                <>
+                  Available Interview Credits:{" "}
+                  <span className="font-bold">{credits}</span>
+                </>
+              )}
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Click to purchase more credits.
+          </p>
+        </CardContent>
+      </Card>
       <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl text-center mb-8">
         Manage Your VocaHire Profile
       </h1>

@@ -25,9 +25,21 @@ interface InterviewRoomProps {
   onComplete?: (messages: Array<{ role: string; content: string; timestamp: number }>) => void
   jobTitle?: string
   resumeData?: ResumeData | null
+  credits?: number | null
+  isCreditsLoading?: boolean
+  onBuyCredits?: () => void
+  refetchCredits?: () => Promise<void>
 }
 
-export default function InterviewRoom({ onComplete, jobTitle = "Software Engineer", resumeData }: InterviewRoomProps) {
+export default function InterviewRoom({
+  onComplete,
+  jobTitle = "Software Engineer",
+  resumeData,
+  credits,
+  isCreditsLoading,
+  onBuyCredits,
+  refetchCredits,
+}: InterviewRoomProps) {
   // Debug render count
   renderCount++
   console.log(`InterviewRoom render #${renderCount}`)
@@ -1174,10 +1186,65 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
                       <li>The interview will automatically end after 10 minutes</li>
                     </ul>
                   </div>
-                  <div className="mt-6">
-                    <Button onClick={handleStartInterview} size="lg">
-                      Start Interview
+                  {/* Credits CTA */}
+                  <div className="mt-6 flex flex-col items-center gap-2">
+                    {typeof credits !== "undefined" && (
+                      <>
+                        <span className="text-base">
+                          {isCreditsLoading ? (
+                            <span className="text-gray-400">Loading credits...</span>
+                          ) : (
+                            <>
+                              Interview Credits:{" "}
+                              <span className="font-bold">{credits}</span>
+                            </>
+                          )}
+                        </span>
+                        {typeof onBuyCredits === "function" && (
+                          <button
+                            type="button"
+                            className="text-xs text-indigo-700 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded transition px-0 py-0 bg-transparent"
+                            style={{ cursor: "pointer" }}
+                            onClick={onBuyCredits}
+                            disabled={isCreditsLoading}
+                            aria-label="Purchase more credits"
+                          >
+                            Purchase more credits
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <div className="mt-6 flex flex-col items-center gap-2">
+                    <Button
+                      onClick={async () => {
+                        if (typeof refetchCredits === "function") await refetchCredits();
+                        if (typeof credits === "number" && credits === 0) {
+                          if (typeof onBuyCredits === "function") onBuyCredits();
+                          return;
+                        }
+                        handleStartInterview();
+                      }}
+                      size="lg"
+                      disabled={isCreditsLoading || typeof credits === "number" ? credits === 0 : false}
+                    >
+                      {isCreditsLoading
+                        ? "Checking credits..."
+                        : typeof credits === "number" && credits === 0
+                        ? "Purchase Credits to Start"
+                        : "Start Interview"}
                     </Button>
+                    {/* Show Buy Credits button if no credits */}
+                    {typeof credits === "number" && credits === 0 && typeof onBuyCredits === "function" && (
+                      <Button
+                        variant="outline"
+                        onClick={onBuyCredits}
+                        size="sm"
+                        className="mt-2"
+                      >
+                        Buy Credits
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
