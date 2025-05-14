@@ -1,79 +1,238 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Svix } from "svix";
+import type { WebhookEvent } from "svix";
+import Stripe from "stripe"; // Import Stripe
 
-// Placeholder for Clerk's webhook secret (should be set in env)
-const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET || "";
-
-// Utility: Verify Clerk webhook signature (implement as needed)
-async function verifyClerkSignature(req: NextRequest): Promise<boolean> {
-  // Clerk sends a signature in the 'svix-signature' header.
-  // You should use the svix library or Clerk's recommended method to verify.
-  // For now, this is a placeholder that always returns true.
-  // See: https://clerk.com/docs/reference/webhooks#verifying-webhooks
-  return true;
-}
+// Get the Clerk webhook secret from environment variables
+const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
 export async function POST(req: NextRequest) {
+  // Stripe initialization (needed for cancelling subscriptions)
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: "2025-04-30.basil",
+  });
+
+  // 1. Get the headers and body
+  const svixId = req.headers.get("svix-id");
+  const svixTimestamp = req.headers.get("svix-timestamp");
+  const svixSignature = req.headers.get("svix-signature");
+
+  // If there are no headers, error out
+  if (!svixId || !svixTimestamp || !svixSignature) {
+    return new NextResponse("Error occured -- no svix headers", {
+      status: 400,
+    });
+  }
+
+  // Get the body
+  const svixBody = await req.text();
+
+  // Create a new Svix instance with your secret.
+  const wh = new Svix(CLERK_WEBHOOK_SECRET!);
+
+  let event: WebhookEvent;
+
+  // Verify the payload with the headers
   try {
-    // 1. Verify signature
-    const isValid = await verifyClerkSignature(req);
-    if (!isValid) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
-    }
-
-    // 2. Parse body
-    const body = await req.json();
-
-    // 3. Check event type
-    if (body.type !== "user.created") {
-      return NextResponse.json({ message: "Event ignored" }, { status: 200 });
-    }
-
-    // 4. Extract Clerk user data
-    const user = body.data;
-    if (!user || !user.id) {
-      return NextResponse.json({ error: "Missing user data" }, { status: 400 });
-    }
-
-    // Map Clerk fields to Prisma User model
-    // Adjust these fields as needed to match your schema
-    const clerkId = user.id;
-    const email = user.email_addresses?.[0]?.email_address || null;
-    // Combine first and last name if available
-    let name = null;
-    if (user.first_name && user.last_name) {
-      name = `${user.first_name} ${user.last_name}`;
-    } else if (user.first_name) {
-      name = user.first_name;
-    } else if (user.last_name) {
-      name = user.last_name;
-    }
-
-    // Optionally, you can also set image if available
-    const image = user.image_url || null;
-
-    // 5. Create user in DB (handle duplicate gracefully)
-    try {
-      await prisma.user.create({
-        data: {
-          id: clerkId,
-          email,
-          name,
-          image,
-        },
-      });
-      return NextResponse.json({ message: "User created" }, { status: 200 });
-    } catch (err: any) {
-      // If user already exists, ignore
-      if (err.code === "P2002") {
-        return NextResponse.json({ message: "User already exists" }, { status: 200 });
-      }
-      // Other errors
-      console.error("Error creating user:", err);
-      return NextResponse.json({ error: "Database error" }, { status: 500 });
-    }
+    event = wh.verify(svixBody, {
+      "svix-id": svixId,
+      "svix-timestamp": svixTimestamp,
+      "svix-signature": svixSignature,
+    }) as WebhookEvent;
   } catch (err) {
-    console.error("Webhook handler error:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    console.error("Error verifying webhook:", err);
+    return new NextResponse("Error occured", {
+      status: 400,
+    });
+  }
+
+  // Get the ID and type
+  const { id, type } = event.data;
+  const eventType = type;
+
+  console.log(`Clerk Webhook received: ${eventType}`);
+
+  // Handle the event
+  switch (eventType) {
+    case "user.created":
+      const user = event.data;
+      if (!user || !user.id) {
+        return NextResponse.json({ error: "Missing user data" }, { status: 400 });
+      }
+
+      const clerkId = user.id;
+      const email = user.email_addresses?.[0]?.email_address || null;
+      let name = null;
+      if (user.first_name && user.last_name) {
+        name = `${user.first_name} ${user.last_name}`;
+      } else if (user.first_name) {
+        name = user.first_name;
+      } else if (user.last_name) {
+        name = user.last_name;
+      }
+      const image = user.image_url || null;
+
+      try {
+        // Create user in DB first
+        const dbUser = await prisma.user.create({
+          data: {
+            id: clerkId,
+            email,
+            name,
+            image,
+          },
+        });
+        console.log(`[Clerk Webhook] User created in DB: ${clerkId}`);
+
+        // Then, create Stripe Customer
+        try {
+          const customer = await stripe.customers.create({
+            email: email || undefined, // Stripe expects undefined, not null for optional fields
+            name: name || undefined,
+            metadata: {
+              clerkId: clerkId,
+            },
+          });
+          console.log(`[Clerk Webhook] Stripe Customer created: ${customer.id} for Clerk ID: ${clerkId}`);
+
+          // Update user in DB with Stripe Customer ID
+          await prisma.user.update({
+            where: { id: clerkId },
+            data: { stripeCustomerId: customer.id },
+          });
+          console.log(`[Clerk Webhook] User ${clerkId} updated with Stripe Customer ID: ${customer.id}`);
+          
+        } catch (stripeErr: any) {
+          console.error(`[Clerk Webhook] Error creating Stripe customer for ${clerkId}:`, stripeErr);
+          // If Stripe customer creation fails, the user is already created in our DB.
+          // Decide on error handling:
+          // - Log and continue (user exists, but no Stripe ID yet)
+          // - Attempt to delete the user from DB to maintain consistency (more complex)
+          // For now, log and return success as user is in DB.
+        }
+
+        return NextResponse.json({ message: "User created and Stripe customer initiated" }, { status: 200 });
+
+      } catch (err: any) {
+        if (err.code === "P2002") { // Prisma unique constraint violation
+          console.log(`[Clerk Webhook] User already exists: ${clerkId}. Attempting to ensure Stripe customer exists.`);
+          // User already exists, check if they have a stripeCustomerId
+          const existingUser = await prisma.user.findUnique({
+            where: { id: clerkId },
+            select: { stripeCustomerId: true, email: true, name: true }
+          });
+
+          if (existingUser && !existingUser.stripeCustomerId) {
+            try {
+              const customer = await stripe.customers.create({
+                email: existingUser.email || undefined,
+                name: existingUser.name || undefined,
+                metadata: {
+                  clerkId: clerkId,
+                },
+              });
+              console.log(`[Clerk Webhook] Stripe Customer created for existing user: ${customer.id} for Clerk ID: ${clerkId}`);
+              await prisma.user.update({
+                where: { id: clerkId },
+                data: { stripeCustomerId: customer.id },
+              });
+              console.log(`[Clerk Webhook] Existing user ${clerkId} updated with Stripe Customer ID: ${customer.id}`);
+            } catch (stripeErr: any) {
+              console.error(`[Clerk Webhook] Error creating Stripe customer for existing user ${clerkId}:`, stripeErr);
+            }
+          }
+          return NextResponse.json({ message: "User already exists, Stripe customer checked/created." }, { status: 200 });
+        }
+        console.error("[Clerk Webhook] Error creating user:", err);
+        return NextResponse.json({ error: "Database error" }, { status: 500 });
+      }
+
+    case "user.updated":
+      const updatedUser = event.data;
+      if (!updatedUser || !updatedUser.id) {
+        return NextResponse.json({ error: "Missing user data" }, { status: 400 });
+      }
+
+      const updatedClerkId = updatedUser.id;
+      const updatedEmail = updatedUser.email_addresses?.[0]?.email_address || null;
+      let updatedName = null;
+      if (updatedUser.first_name && updatedUser.last_name) {
+        updatedName = `${updatedUser.first_name} ${updatedUser.last_name}`;
+      } else if (updatedUser.first_name) {
+        updatedName = updatedUser.first_name;
+      } else if (updatedUser.last_name) {
+        updatedName = updatedUser.last_name;
+      }
+      const updatedImage = updatedUser.image_url || null;
+
+      try {
+        await prisma.user.update({
+          where: { id: updatedClerkId },
+          data: {
+            email: updatedEmail,
+            name: updatedName,
+            image: updatedImage,
+          },
+        });
+        console.log(`[Clerk Webhook] User updated: ${updatedClerkId}`);
+        return NextResponse.json({ message: "User updated" }, { status: 200 });
+      } catch (err) {
+        console.error("[Clerk Webhook] Error updating user:", err);
+        return NextResponse.json({ error: "Database error" }, { status: 500 });
+      }
+
+    case "user.deleted":
+      const deletedUser = event.data;
+      if (!deletedUser || !deletedUser.id) {
+        return NextResponse.json({ error: "Missing user data" }, { status: 400 });
+      }
+
+      const deletedClerkId = deletedUser.id;
+
+      try {
+        // Find the user in your DB to get their Stripe Subscription ID
+        const dbUser = await prisma.user.findUnique({
+          where: { id: deletedClerkId },
+          select: { premiumSubscriptionId: true },
+        });
+
+        if (dbUser?.premiumSubscriptionId) {
+          // Cancel the Stripe subscription
+          try {
+            await stripe.subscriptions.cancel(dbUser.premiumSubscriptionId);
+            console.log(`[Clerk Webhook] Cancelled Stripe subscription ${dbUser.premiumSubscriptionId} for user ${deletedClerkId}`);
+          } catch (stripeErr: any) {
+            console.error(`[Clerk Webhook] Failed to cancel Stripe subscription ${dbUser.premiumSubscriptionId} for user ${deletedClerkId}:`, stripeErr);
+            // Decide how to handle this error - maybe alert for manual cancellation?
+            // For now, we'll log and continue with soft delete in DB
+          }
+        }
+
+        // Soft-delete/anonymize the user in your DB
+        await prisma.user.update({
+          where: { id: deletedClerkId },
+          data: {
+            email: null, // Clear sensitive fields
+            name: null,
+            image: null,
+            stripeCustomerId: null,
+            premiumSubscriptionId: null,
+            premiumExpiresAt: null,
+            isPremium: false,
+            // Optionally add a deletedAt timestamp field to schema.prisma
+            // deletedAt: new Date(),
+          },
+        });
+        console.log(`[Clerk Webhook] User soft-deleted/anonymized: ${deletedClerkId}`);
+        return NextResponse.json({ message: "User deleted" }, { status: 200 });
+      } catch (err) {
+        console.error("[Clerk Webhook] Error handling user deletion:", err);
+        return NextResponse.json({ error: "Database error" }, { status: 500 });
+      }
+
+    default:
+      console.log(`[Clerk Webhook] Unhandled event type: ${eventType}`);
+      return new NextResponse("Event ignored", { status: 200 });
   }
 }

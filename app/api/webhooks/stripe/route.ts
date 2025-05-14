@@ -51,6 +51,13 @@ export async function POST(req: NextRequest) {
     // Handle event types
     switch (event.type) {
       case "checkout.session.completed": {
+        // IDEMPOTENCY CHECK:
+        // Before processing, check if event.id has already been processed.
+        // If yes, return NextResponse.json({ message: "Event already processed" }, { status: 200 });
+        // Example: if (await hasEventBeenProcessed(event.id)) { return ... }
+        // After successful processing, mark event.id as processed.
+        // Example: await markEventAsProcessed(event.id);
+
         const session = event.data.object as Stripe.Checkout.Session;
         const clientReferenceId = session.client_reference_id;
         const metadata = session.metadata || {};
@@ -129,6 +136,11 @@ export async function POST(req: NextRequest) {
       }
 
       case "invoice.payment_succeeded": {
+        // IDEMPOTENCY CHECK:
+        // Before processing, check if event.id has already been processed.
+        // If yes, return NextResponse.json({ message: "Event already processed" }, { status: 200 });
+        // After successful processing, mark event.id as processed.
+
         const invoice = event.data.object as Stripe.Invoice;
 
         // Log the full invoice object to inspect its structure
@@ -178,6 +190,11 @@ export async function POST(req: NextRequest) {
 
       case "customer.subscription.deleted":
       case "invoice.payment_failed": {
+        // IDEMPOTENCY CHECK:
+        // Before processing, check if event.id has already been processed.
+        // If yes, return NextResponse.json({ message: "Event already processed" }, { status: 200 });
+        // After successful processing, mark event.id as processed.
+
         let subscriptionId: string | undefined;
         let customerId: string | undefined;
 
