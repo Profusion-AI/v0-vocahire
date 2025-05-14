@@ -300,10 +300,12 @@ function InterviewPageContent() {
                         Buy More Credits
                       </Button>
                       <Button
+                        asChild // Use asChild to render Link as a Button
                         className="w-full bg-gradient-to-r from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600 text-white font-semibold text-lg py-3 rounded-md shadow"
-                        onClick={handleUpgradeToPremium}
                       >
-                        Upgrade to Premium (Unlimited Interviews)
+                        <Link href="/faq-credits">
+                          Upgrade to Premium (FAQ)
+                        </Link>
                       </Button>
                       {/* If a "Free Basic Session" feature is added in the future, add a button here */}
                     </div>
