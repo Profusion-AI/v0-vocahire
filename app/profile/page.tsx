@@ -105,8 +105,20 @@ export default function ProfilePage() {
     }
   };
 
+  const router = require("next/navigation").useRouter();
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
+      <div className="flex justify-end mb-4">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => router.push("/interview")}
+          className="border-gray-300 hover:bg-gray-50 text-gray-700 rounded-md"
+        >
+          Back to Interview
+        </Button>
+      </div>
       <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl text-center mb-8">
         Manage Your VocaHire Profile
       </h1>
