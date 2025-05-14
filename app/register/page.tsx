@@ -18,6 +18,16 @@ export default async function RegisterPage() {
           <p className="text-sm text-muted-foreground">Enter your details below to create your account</p>
         </div>
         <RegisterForm />
+        <div className="text-center mt-2">
+          <span className="text-sm text-muted-foreground">Already a Vocahire user?</span>
+          <a
+            href="/login"
+            className="ml-2 text-indigo-600 hover:text-indigo-800 font-medium underline transition"
+            style={{ fontSize: "1rem" }}
+          >
+            Log in here
+          </a>
+        </div>
       </div>
     </div>
   )

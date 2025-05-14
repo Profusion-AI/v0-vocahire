@@ -37,12 +37,23 @@ const Navbar = () => {
               </a>
             </div>
           </div>
-          <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            {/* Link to actual sign-up page */}
+          <div className="hidden sm:ml-6 sm:flex sm:items-center space-x-3">
+            {/* Login button */}
+            <Link href="/login">
+              <button
+                type="button"
+                className="bg-white border border-indigo-600 text-indigo-600 hover:bg-indigo-50 px-4 py-2 rounded-md text-sm font-medium transition"
+                style={{ minWidth: 90 }}
+              >
+                Login
+              </button>
+            </Link>
+            {/* Sign Up button */}
             <Link href="/register">
               <button
                 type="button"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition"
+                style={{ minWidth: 110 }}
               >
                 Sign Up Free
               </button>
