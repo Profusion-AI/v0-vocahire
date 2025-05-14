@@ -10,6 +10,7 @@ import Link from "next/link"
 import type { ResumeData } from "@/components/resume-input"
 
 import AuthGuard from "@/components/auth/AuthGuard";
+import SessionLayout from "@/components/SessionLayout";
 
 function InterviewPageContent() {
   const router = useRouter()
@@ -67,61 +68,63 @@ function InterviewPageContent() {
 
   if (isLoading) {
     return (
-      <div className="container py-8">
+      <SessionLayout>
         <Skeleton className="h-12 w-3/4 mx-auto mb-8" />
         <Skeleton className="h-[500px] w-full max-w-3xl mx-auto" />
-      </div>
+      </SessionLayout>
     )
   }
 
   // If no resume data and not skipping resume step, show resume prompt
   if (!hasResumeData && !skipResume) {
     return (
-      <div className="container py-8">
-        <h1 className="text-3xl font-bold mb-2 text-center">Mock Interview</h1>
-        <p className="text-center text-muted-foreground mb-8">
+      <SessionLayout>
+        <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl text-center">
+          Mock Interview
+        </h1>
+        <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl text-center">
           For a more personalized interview experience, please provide some details about your background
         </p>
 
-        <Card className="max-w-md mx-auto">
+        <Card className="max-w-md mx-auto shadow-lg">
           <CardHeader>
-            <CardTitle>Add Resume Details</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-2xl font-bold">Add Resume Details</CardTitle>
+            <CardDescription className="text-gray-600">
               Adding details from your resume will help our AI interviewer ask more relevant questions
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="mb-4">The AI interviewer will use your resume information to:</p>
-            <ul className="list-disc pl-5 space-y-1 mb-4">
+            <p className="mb-4 text-gray-700">The AI interviewer will use your resume information to:</p>
+            <ul className="list-disc pl-5 space-y-1 mb-4 text-gray-700">
               <li>Ask targeted questions about your experience</li>
               <li>Focus on skills relevant to the {jobTitle} position</li>
               <li>Provide more personalized feedback</li>
             </ul>
           </CardContent>
           <CardFooter className="flex flex-col gap-2">
-            <Button asChild className="w-full">
+            <Button asChild className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md">
               <Link href={`/prepare?jobTitle=${encodeURIComponent(jobTitle)}`}>Add Resume Details</Link>
             </Button>
-            <Button variant="outline" asChild className="w-full">
+            <Button variant="outline" asChild className="w-full border-gray-300 hover:bg-gray-50 text-gray-700 rounded-md">
               <Link href={`/interview?skipResume=true&jobTitle=${encodeURIComponent(jobTitle)}`}>Skip this step</Link>
             </Button>
           </CardFooter>
         </Card>
-      </div>
+      </SessionLayout>
     )
   }
 
   return (
-    <div className="container py-8">
-      <h1 className="text-3xl font-bold mb-8 text-center">Interview Session</h1>
-      <div className="mb-4 text-center text-sm text-muted-foreground">
+    <SessionLayout>
+      <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl text-center mb-8">Interview Session</h1>
+      <div className="mb-4 text-center text-base text-gray-700">
         <p>
           Position: <strong>{jobTitle}</strong>
           {hasResumeData && " • Resume data loaded"}
         </p>
       </div>
       <InterviewRoom jobTitle={jobTitle} onComplete={handleInterviewComplete} resumeData={resumeData} />
-    </div>
+    </SessionLayout>
   )
 }
 

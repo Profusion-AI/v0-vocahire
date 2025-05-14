@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, Download, RefreshCw } from "lucide-react"
 
 import AuthGuard from "@/components/auth/AuthGuard";
+import SessionLayout from "@/components/SessionLayout";
 
 function FeedbackPageContent() {
   const [isLoading, setIsLoading] = useState(true)
@@ -147,15 +148,15 @@ function FeedbackPageContent() {
 
   if (isLoading) {
     return (
-      <div className="container py-8">
-        <h1 className="text-3xl font-bold mb-2 text-center">Generating Interview Feedback</h1>
-        <p className="text-center text-muted-foreground mb-8">
+      <SessionLayout>
+        <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl text-center">Generating Interview Feedback</h1>
+        <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl text-center">
           Please wait while we analyze your interview performance...
         </p>
 
         <div className="grid gap-6 max-w-3xl mx-auto">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i}>
+            <Card key={i} className="shadow-lg">
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-center">
                   <Skeleton className="h-6 w-[200px]" />
@@ -170,19 +171,19 @@ function FeedbackPageContent() {
             </Card>
           ))}
         </div>
-      </div>
+      </SessionLayout>
     )
   }
 
   return (
-    <div className="container py-8">
-      <h1 className="text-3xl font-bold mb-2 text-center">Interview Feedback</h1>
-      <p className="text-center text-muted-foreground mb-8">
+    <SessionLayout>
+      <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl text-center">Interview Feedback</h1>
+      <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl text-center mb-8">
         Here's your personalized feedback from your mock interview
       </p>
 
       {error && (
-        <Alert variant="destructive" className="max-w-3xl mx-auto mb-6">
+        <Alert variant="destructive" className="max-w-3xl mx-auto mb-6 shadow-lg">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
@@ -196,11 +197,11 @@ function FeedbackPageContent() {
           ))}
 
         {fillerWordStats && fillerWordStats.total > 0 && (
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle>Speech Analysis</CardTitle>
+              <CardTitle className="text-2xl font-bold">Speech Analysis</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 text-gray-700">
               <p>
                 During your interview, you used <strong>{fillerWordStats.total} filler words</strong> in total.
                 {fillerWordStats.total > 15
@@ -227,17 +228,17 @@ function FeedbackPageContent() {
         )}
 
         {recordingUrl && (
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle>Interview Recording</CardTitle>
+              <CardTitle className="text-2xl font-bold">Interview Recording</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 text-gray-700">
               <p>
                 Your interview was recorded and is available for review. Listening to your responses can help you
                 identify areas for improvement.
               </p>
               <div className="flex justify-center">
-                <Button variant="outline" asChild>
+                <Button variant="outline" asChild className="border-gray-300 hover:bg-gray-50 text-gray-700 rounded-md">
                   <a href={recordingUrl} target="_blank" rel="noopener noreferrer" download="interview-recording.webm">
                     <Download className="mr-2 h-4 w-4" />
                     Download Recording
@@ -248,17 +249,17 @@ function FeedbackPageContent() {
           </Card>
         )}
 
-        <Card>
+        <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>What's Next?</CardTitle>
+            <CardTitle className="text-2xl font-bold">What's Next?</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 text-gray-700">
             <p>Practice makes perfect! Schedule another mock interview to continue improving your skills.</p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button asChild size="lg">
+              <Button asChild size="lg" className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md">
                 <Link href="/interview">Start New Interview</Link>
               </Button>
-              <Button variant="outline" size="lg" onClick={handleRegenerateFeedback} disabled={isGenerating}>
+              <Button variant="outline" size="lg" onClick={handleRegenerateFeedback} disabled={isGenerating} className="border-gray-300 hover:bg-gray-50 text-gray-700 rounded-md">
                 {isGenerating ? (
                   <>
                     <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
@@ -272,7 +273,7 @@ function FeedbackPageContent() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </SessionLayout>
   )
 }
 
