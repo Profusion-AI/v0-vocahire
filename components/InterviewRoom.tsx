@@ -57,8 +57,12 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
   const [audioLevel, setAudioLevel] = useState(0)
   const [isUserSpeaking, setIsUserSpeaking] = useState(false)
 
-  // State for connection status
-  const [connectionProgress, setConnectionProgress] = useState(0)
+    // State for confirmation dialog
+    const [showStopConfirmation, setShowStopConfirmation] = useState(false)
+    const [isConfirmButtonEnabled, setIsConfirmButtonEnabled] = useState(false)
+  
+    // State for connection status
+    const [connectionProgress, setConnectionProgress] = useState(0)
   const [connectionSteps, setConnectionSteps] = useState<
     Array<{ id: string; name: string; status: string; message?: string }>
   >([
@@ -91,6 +95,7 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
   const dataChannelRef = useRef<RTCDataChannel | null>(null)
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const connectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const confirmationTimerRef = useRef<NodeJS.Timeout | null>(null) // Ref for confirmation timer
   const audioContextRef = useRef<AudioContext | null>(null)
   const audioAnalyserRef = useRef<AnalyserNode | null>(null)
   const audioDataRef = useRef<Uint8Array | null>(null)
@@ -264,6 +269,12 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current)
       retryTimeoutRef.current = null
+    }
+
+    // Clear confirmation timer
+    if (confirmationTimerRef.current) {
+      clearTimeout(confirmationTimerRef.current)
+      confirmationTimerRef.current = null
     }
 
     // Clear audio level interval
@@ -943,6 +954,30 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     }
   }, [status, handleInterviewComplete]) // Only depend on status changes
 
+  // Effect to handle the confirmation timer
+  useEffect(() => {
+    if (showStopConfirmation) {
+      setIsConfirmButtonEnabled(false) // Disable button initially
+      confirmationTimerRef.current = setTimeout(() => {
+        setIsConfirmButtonEnabled(true) // Enable button after 3 seconds
+      }, 3000)
+    } else {
+      // Clear timer if confirmation is hidden
+      if (confirmationTimerRef.current) {
+        clearTimeout(confirmationTimerRef.current)
+        confirmationTimerRef.current = null
+      }
+      setIsConfirmButtonEnabled(false) // Ensure button is disabled when dialog is hidden
+    }
+
+    return () => {
+      // Cleanup timer on effect cleanup
+      if (confirmationTimerRef.current) {
+        clearTimeout(confirmationTimerRef.current)
+      }
+    }
+  }, [showStopConfirmation])
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -1073,6 +1108,32 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
           <>
             {/* Fallback mode message */}
             {isFallbackMode && renderFallbackMessage()}
+
+            {/* Stop Confirmation Dialog */}
+            {showStopConfirmation && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+                <Card className="w-full max-w-sm">
+                  <CardHeader>
+                    <CardTitle>Confirm Stop Interview</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p>Are you sure you'd like to stop the interview?</p>
+                  </CardContent>
+                  <CardFooter className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setShowStopConfirmation(false)}>
+                      No, continue interview
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleInterviewComplete}
+                      disabled={!isConfirmButtonEnabled}
+                    >
+                      Yes, stop interview
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </div>
+            )}
 
             <div className="min-h-[300px] p-4 rounded-md bg-muted">
               {status === "idle" && (
@@ -1361,8 +1422,8 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
 
       <CardFooter className="flex justify-between">
         {status === "active" && (
-          <Button variant="destructive" onClick={handleInterviewComplete}>
-            End Interview Early
+          <Button variant="destructive" onClick={() => setShowStopConfirmation(true)}>
+            Stop Interview
           </Button>
         )}
         {status !== "idle" && status !== "active" && (
