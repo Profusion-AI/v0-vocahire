@@ -2,14 +2,21 @@
 
 import { useState, useEffect } from "react"
 
-export function useTermsAgreement() {
+export function useTermsAgreement(userId: string | undefined) {
   const [hasAgreedToTerms, setHasAgreedToTerms] = useState<boolean | null>(null)
   const [showTermsModal, setShowTermsModal] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
-    // Check if user has already agreed to terms
-    const agreedToTerms = localStorage.getItem("agreedToTerms")
+    if (!userId) {
+      setIsLoaded(true)
+      setHasAgreedToTerms(null)
+      setShowTermsModal(false)
+      return
+    }
+    // Use Clerk userId for per-user agreement tracking
+    const key = `agreedToTerms_${userId}`
+    const agreedToTerms = localStorage.getItem(key)
     setHasAgreedToTerms(agreedToTerms === "true")
 
     // Only show the modal after we've checked localStorage
@@ -19,10 +26,12 @@ export function useTermsAgreement() {
     }
 
     setIsLoaded(true)
-  }, [])
+  }, [userId])
 
   const agreeToTerms = () => {
-    localStorage.setItem("agreedToTerms", "true")
+    if (!userId) return
+    const key = `agreedToTerms_${userId}`
+    localStorage.setItem(key, "true")
     setHasAgreedToTerms(true)
     setShowTermsModal(false)
   }

@@ -33,7 +33,10 @@ export function Navbar() {
         </div>
         <div className="flex items-center gap-4">
           <Button variant="outline" asChild>
-            <Link href="/mock-auth">Sign In</Link>
+            <Link href="/sign-in">Sign In</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/sign-up">Sign Up</Link>
           </Button>
           <Button asChild>
             <Link href="/interview">Start Interview</Link>

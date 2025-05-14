@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
 import { z } from "zod"
-import { authOptions } from "@/lib/auth"
+import { getAuth } from "@clerk/nextjs/server"
 import { checkRateLimit, incrementRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit"
 import { trackUsage, UsageType } from "@/lib/usage-tracking" // Added UsageType import
 import { prisma } from "@/lib/prisma"
@@ -13,11 +12,13 @@ import { prisma } from "@/lib/prisma"
 //   limit: 5, // 5 requests per minute
 // })
 
-export async function POST(request: Request) {
+import { NextRequest } from "next/server"
+
+export async function POST(request: NextRequest) {
   try {
-    // Authenticate the user
-    const session = await getServerSession(authOptions)
-    if (!session || !session.user?.email) {
+    // Authenticate the user with Clerk
+    const auth = getAuth(request)
+    if (!auth.userId) {
       return NextResponse.json(
         {
           success: false,
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const userId = session.user.email
+    const userId = auth.userId
 
     // Apply rate limiting
     const { isLimited, reset } = await checkRateLimit(userId, RATE_LIMIT_CONFIGS.GENERATE_FEEDBACK)

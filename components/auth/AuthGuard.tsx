@@ -1,30 +1,25 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@clerk/nextjs";
 import { TermsAgreement } from "@/components/terms-agreement";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const { isLoaded, isSignedIn } = useAuth();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        router.replace("/login");
-        setIsAuthenticated(false);
-      } else {
-        setIsAuthenticated(true);
-      }
-    });
-  }, [router]);
+    if (isLoaded && !isSignedIn) {
+      router.replace("/sign-in");
+    }
+  }, [isLoaded, isSignedIn, router]);
 
-  if (isAuthenticated === null) {
+  if (!isLoaded) {
     // Loading state
     return null;
   }
 
-  if (!isAuthenticated) {
+  if (!isSignedIn) {
     return null;
   }
 

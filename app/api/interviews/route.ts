@@ -1,18 +1,17 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
+import { getAuth } from "@clerk/nextjs/server"
+import { NextRequest } from "next/server"
 
-export async function GET() {
-  const session = await getServerSession(authOptions)
-
-  if (!session || !session.user) {
+export async function GET(request: NextRequest) {
+  const auth = getAuth(request)
+  if (!auth.userId) {
     return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
     })
   }
 
-  // In a real implementation, you would fetch the user's interviews from your database
+  // In a real implementation, you would fetch the user's interviews from your database using auth.userId
   // For now, we'll return mock data
   const mockInterviews = [
     {
@@ -34,10 +33,9 @@ export async function GET() {
   return NextResponse.json(mockInterviews)
 }
 
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions)
-
-  if (!session || !session.user) {
+export async function POST(request: NextRequest) {
+  const auth = getAuth(request)
+  if (!auth.userId) {
     return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
@@ -47,7 +45,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
 
-    // In a real implementation, you would create a new interview record in your database
+    // In a real implementation, you would create a new interview record in your database using auth.userId
     // For now, we'll just return a mock response
     return NextResponse.json({
       id: "new-interview-" + Date.now(),

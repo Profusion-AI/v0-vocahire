@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@auth/core": "latest",
+    "@clerk/clerk-sdk-node": "^5.1.6",
+    "@clerk/nextjs": "^6.19.3",
     "@hookform/resolvers": "^3.9.1",
     "@prisma/client": "6.7.0",
     "@radix-ui/react-accordion": "1.2.2",
@@ -39,7 +41,6 @@
     "@radix-ui/react-toggle": "1.1.1",
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "latest",
-    "@supabase/supabase-js": "^2.49.4",
     "@upstash/redis": "latest",
     "@vercel/blob": "latest",
     "autoprefixer": "^10.4.20",

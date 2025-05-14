@@ -1,23 +1,20 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
+import { getAuth } from "@clerk/nextjs/server"
+import { NextRequest } from "next/server"
 
-export async function GET() {
-  const session = await getServerSession(authOptions)
+export async function GET(request: NextRequest) {
+  const auth = getAuth(request)
 
-  if (!session || !session.user) {
+  if (!auth.userId) {
     return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
     })
   }
 
-  // Return user data (excluding sensitive information)
+  // Return Clerk userId (additional user info would require Clerk API)
   return NextResponse.json({
-    id: session.user.id || "user-id",
-    name: session.user.name,
-    email: session.user.email,
-    image: session.user.image,
-    // Add any other user data you want to expose
+    id: auth.userId,
+    // name/email/image can be added here if fetched from Clerk API
   })
 }
