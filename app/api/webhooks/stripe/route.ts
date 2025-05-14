@@ -5,7 +5,7 @@ import type { User } from "@prisma/client";
 
 // Stripe initialization
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2023-10-16",
+  apiVersion: "2025-04-30.basil",
 });
 
 // Disable Next.js body parsing for this route (required for Stripe signature verification)
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
           }
           let premiumExpiresAt: Date | null = null;
           try {
-            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any;
             if (subscription.current_period_end) {
               premiumExpiresAt = new Date(subscription.current_period_end * 1000);
             }
@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
 
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = invoice.subscription as string | undefined;
+        const subscriptionId = invoice.subscription as any;
         if (!subscriptionId) {
           console.error("No subscription ID in invoice.payment_succeeded");
           break;
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
         // Fetch subscription to get new expiry
         let premiumExpiresAt: Date | null = null;
         try {
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any;
           if (subscription.current_period_end) {
             premiumExpiresAt = new Date(subscription.current_period_end * 1000);
           }
@@ -174,7 +174,7 @@ export async function POST(req: NextRequest) {
           customerId = subscription.customer as string | undefined;
         } else {
           const invoice = event.data.object as Stripe.Invoice;
-          subscriptionId = invoice.subscription as string | undefined;
+          subscriptionId = invoice.subscription as any;
           customerId = invoice.customer as string | undefined;
         }
 

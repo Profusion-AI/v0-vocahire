@@ -9,7 +9,7 @@ const pricingTiers = [
     frequency: '/forever',
     buttonText: 'Start Free',
     buttonHref: '#simulation', // Or actual sign-up link
-    buttonVariant: 'secondary', // 'primary' or 'secondary' for styling
+    buttonVariant: 'secondary',
     features: [
       '5 AI interviews per month',
       'Basic voice analysis',
@@ -18,12 +18,12 @@ const pricingTiers = [
     ],
   },
   {
-    name: 'Premium',
-    description: 'For job seekers in active interview mode.',
-    price: '$19.99',
+    name: 'Premium Monthly',
+    description: 'Vocahire Premium Coaching, Enhanced Analytics Support, and monthly credit reloads.',
+    price: '$20.00',
     frequency: '/month',
-    buttonText: 'Upgrade Now',
-    buttonHref: '#', // Actual upgrade link
+    buttonText: 'Go Premium Monthly',
+    buttonHref: '#', // TODO: Link to checkout for PREMIUM_MONTHLY_SUB
     buttonVariant: 'primary',
     features: [
       'Unlimited AI interviews',
@@ -32,15 +32,30 @@ const pricingTiers = [
       'Real-time coaching during interviews',
       'Tailored questions from resume & job description',
       'AI-suggested improved answers',
+      'Monthly credit reloads',
     ],
   },
   {
-    name: 'Pay-Per-Use',
-    description: 'For occasional premium sessions without subscription.',
-    price: '$4.99',
-    frequency: '/session',
-    buttonText: 'Buy Credits',
-    buttonHref: '#', // Actual credits purchase link
+    name: 'Premium Annual',
+    description: 'Vocahire Premium Coaching, Enhanced Analytics Support, and monthly credit reloads. 20% off annual subscription.',
+    price: '$100.00',
+    frequency: '/year',
+    buttonText: 'Go Premium Annual',
+    buttonHref: '#', // TODO: Link to checkout for PREMIUM_ANNUAL_SUB
+    buttonVariant: 'secondary',
+    features: [
+      'All Premium Monthly features',
+      '20% discount compared to monthly',
+      'Priority support',
+    ],
+  },
+  {
+    name: 'One Interview Credit',
+    description: '1 (one) Vocahire Interview Credit. Please see the FAQ for how Interview Credits are consumed.',
+    price: '$5.00',
+    frequency: '/credit',
+    buttonText: 'Buy One Credit',
+    buttonHref: '#', // TODO: Link to checkout for CREDIT_PACK_1
     buttonVariant: 'secondary',
     features: [
       'One full interview (up to 10 questions)',
@@ -48,6 +63,22 @@ const pricingTiers = [
       'Detailed feedback for all answers',
       'Tailored questions from resume & job description',
       'Session recording for later review',
+    ],
+  },
+  {
+    name: 'Three Interview Credits',
+    description: '3 (three) Vocahire Interview Credit. Please see the FAQ for how Interview Credits are consumed.',
+    price: '$14.00',
+    frequency: '/3 credits',
+    buttonText: 'Buy Three Credits',
+    buttonHref: '#', // TODO: Link to checkout for CREDIT_PACK_3
+    buttonVariant: 'secondary',
+    features: [
+      'Three full interviews (up to 10 questions each)',
+      'Advanced voice & tone analysis',
+      'Detailed feedback for all answers',
+      'Tailored questions from resume & job description',
+      'Session recordings for later review',
     ],
   },
 ]

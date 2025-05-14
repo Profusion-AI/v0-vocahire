@@ -11,13 +11,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-04-30.basil",
 });
 
-const ITEM_PRICE_ENV_MAP: Record<string, string> = {
-  CREDIT_PACK_1: "STRIPE_PRICE_CREDIT_PACK_1",
-  CREDIT_PACK_5: "STRIPE_PRICE_CREDIT_PACK_5",
-  CREDIT_PACK_10: "STRIPE_PRICE_CREDIT_PACK_10",
-  PREMIUM_MONTHLY_SUB: "STRIPE_PRICE_PREMIUM_MONTHLY",
-  PREMIUM_ANNUAL_SUB: "STRIPE_PRICE_PREMIUM_ANNUAL",
-  // Add more mappings as needed
+const ITEM_PRICE_MAP: Record<string, string> = {
+  CREDIT_PACK_1: "price_1ROmztKk6VyljA3pVmGKszKi",
+  CREDIT_PACK_3: "price_1ROnHpKk6VyljA3pMbcYg4rw",
+  PREMIUM_MONTHLY_SUB: "price_1ROmvcKk6VyljA3pjJ5emu6R",
+  PREMIUM_ANNUAL_SUB: "price_1ROmxEKk6VyljA3pQzqtZgWo",
 };
 
 const SUBSCRIPTION_ITEMS = new Set([
@@ -41,7 +39,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { itemId, quantity } = body;
 
-    if (typeof itemId !== "string" || !ITEM_PRICE_ENV_MAP[itemId]) {
+    if (typeof itemId !== "string" || !ITEM_PRICE_MAP[itemId]) {
       return NextResponse.json(
         { error: "Invalid or missing itemId" },
         { status: 400 }
@@ -64,9 +62,8 @@ export async function POST(request: NextRequest) {
       qty = quantity;
     }
 
-    // 3. Get Stripe Price ID from env
-    const priceEnvVar = ITEM_PRICE_ENV_MAP[itemId];
-    const priceId = process.env[priceEnvVar];
+    // 3. Get Stripe Price ID
+    const priceId = ITEM_PRICE_MAP[itemId];
     if (!priceId) {
       return NextResponse.json(
         { error: "Stripe Price ID not configured for this item" },
