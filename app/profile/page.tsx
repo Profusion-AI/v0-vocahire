@@ -1,145 +1,223 @@
 "use client";
 
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Added SelectContent, SelectTrigger, SelectValue
-import { Label } from '@/components/ui/label'; // Added Label for consistency
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'; // Added Card components for structure
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { toast } from "sonner";
 
 const jobStages = [
-  'Exploring Options',
-  'Applying to Jobs',
-  'Interviewing',
-  'Negotiating Offers',
-  'Recently Hired',
-  'Other'
+  "Exploring Options",
+  "Applying to Jobs",
+  "Interviewing",
+  "Negotiating Offers",
+  "Recently Hired",
+  "Other",
 ];
 
-export default function ProfilePage() {
-  const [selectedStage, setSelectedStage] = useState('');
-  const [showOther, setShowOther] = useState(false);
-  const [creditsOpen, setCreditsOpen] = useState(false);
+// Zod schema for profile form
+const profileFormSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100),
+  resumeJobTitle: z.string().max(100).optional().or(z.literal("")),
+  resumeFileUrl: z.string().url("Invalid resume file URL").optional().or(z.literal("")),
+  jobSearchStage: z.string().max(100).optional().or(z.literal("")),
+  linkedinUrl: z.string().url("Invalid LinkedIn URL").optional().or(z.literal("")),
+});
 
-  const handleStageChange = (value: string) => {
-    setSelectedStage(value);
-    setShowOther(value === 'Other');
+type ProfileFormData = z.infer<typeof profileFormSchema>;
+
+export default function ProfilePage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const form = useForm<ProfileFormData>({
+    resolver: zodResolver(profileFormSchema),
+    defaultValues: {
+      name: "",
+      resumeJobTitle: "",
+      resumeFileUrl: "",
+      jobSearchStage: "",
+      linkedinUrl: "",
+    },
+  });
+
+  // Fetch user data on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch("/api/user");
+        if (res.ok) {
+          const data = await res.json();
+          form.reset({
+            name: data.name || "",
+            resumeJobTitle: data.resumeJobTitle || "",
+            resumeFileUrl: data.resumeFileUrl || "",
+            jobSearchStage: data.jobSearchStage || "",
+            linkedinUrl: data.linkedinUrl || "",
+          });
+        } else {
+          toast.error("Failed to load profile data.");
+        }
+      } catch {
+        toast.error("Failed to load profile data.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Save handler
+  const onSubmit = async (values: ProfileFormData) => {
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/user", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        form.reset(updated); // Mark as not dirty
+        toast.success("Profile saved!");
+      } else {
+        const error = await res.json();
+        if (error.issues) {
+          // Zod validation errors
+          Object.entries(error.issues.fieldErrors).forEach(([field, messages]) => {
+            if (Array.isArray(messages) && messages.length > 0) {
+              form.setError(field as keyof ProfileFormData, { message: messages[0] as string });
+            }
+          });
+        }
+        toast.error(error.error || "Failed to save profile.");
+      }
+    } catch {
+      toast.error("Failed to save profile.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12 space-y-12">
-      <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl text-center">Manage Your VocaHire Profile</h1>
-
-      <section className="space-y-8"> {/* Increased spacing */}
-        <Card className="shadow-lg"> {/* Added Card and shadow */}
+    <div className="max-w-2xl mx-auto px-4 py-12">
+      <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl text-center mb-8">
+        Manage Your VocaHire Profile
+      </h1>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold">LinkedIn Profile</CardTitle> {/* Styled title */}
-            <CardDescription className="text-gray-600">Connect your LinkedIn to personalize your interview questions.</CardDescription> {/* Styled description */}
+            <CardTitle className="text-2xl font-bold">Profile Details</CardTitle>
+            <CardDescription className="text-gray-600">Update your personal and professional info.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="mt-4">
-              <Button variant="secondary" className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-md">Connect LinkedIn</Button> {/* Styled button */}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg"> {/* Added Card and shadow */}
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">Job Search Stage</CardTitle> {/* Styled title */}
-          </CardHeader>
-          <CardContent className="space-y-4"> {/* Added spacing */}
-            <div className="flex flex-col space-y-1.5"> {/* Added container for label/select */}
-              <Label htmlFor="job-stage" className="text-gray-700">Current Stage</Label> {/* Added Label */}
-              <Select
-                value={selectedStage}
-                onValueChange={handleStageChange}
-              >
-                <SelectTrigger id="job-stage" className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"> {/* Styled trigger */}
-                  <SelectValue placeholder="Select your current stage" />
-                </SelectTrigger>
-                <SelectContent>
-                  {jobStages.map(stage => (
-                    <SelectItem key={stage} value={stage}>{stage}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <AnimatePresence>
-              {showOther && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  className="mt-2"
-                >
-                  <Input placeholder="Please specify..." className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500" /> {/* Styled input */}
-                </motion.div>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" {...form.register("name")} disabled={isLoading || isSaving} />
+              {form.formState.errors.name && (
+                <p className="text-sm text-red-500 mt-1">{form.formState.errors.name.message}</p>
               )}
-            </AnimatePresence>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg"> {/* Added Card and shadow */}
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">Resume & Role Context</CardTitle> {/* Styled title */}
-            <CardDescription className="text-gray-600">Upload your resume and optionally paste a job description to receive tailored questions.</CardDescription> {/* Styled description */}
-          </CardHeader>
-          <CardContent className="space-y-4"> {/* Added spacing */}
-            <div className="flex flex-col space-y-1.5"> {/* Added container for label/input */}
-              <Label htmlFor="resume-upload" className="text-gray-700">Upload Resume</Label> {/* Added Label */}
-              <Input id="resume-upload" type="file" accept=".pdf,.doc,.docx" className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500" /> {/* Styled input */}
             </div>
-            <div className="flex flex-col space-y-1.5"> {/* Added container for label/textarea */}
-              <Label htmlFor="job-description" className="text-gray-700">Job Description (Optional)</Label> {/* Added Label */}
-              <textarea
-                id="job-description"
-                placeholder="Paste job description (optional)"
-                className="w-full border border-gray-300 rounded-md p-2 mt-2 focus:border-indigo-500 focus:ring-indigo-500 text-gray-700" // Styled textarea
-                rows={4}
-              />
+            <div>
+              <Label htmlFor="linkedinUrl">LinkedIn URL</Label>
+              <Input id="linkedinUrl" {...form.register("linkedinUrl")} disabled={isLoading || isSaving} />
+              {form.formState.errors.linkedinUrl && (
+                <p className="text-sm text-red-500 mt-1">{form.formState.errors.linkedinUrl.message}</p>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg"> {/* Added Card and shadow */}
+        <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold">Interview Feedback Snapshot</CardTitle> {/* Styled title */}
-            <CardDescription className="text-gray-600">Preview your past performance and analytics.</CardDescription> {/* Styled description */}
+            <CardTitle className="text-2xl font-bold">Job Search Stage</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="mt-4 border border-dashed border-gray-300 rounded-md p-4 text-gray-500 text-center">
-              No feedback available yet. Complete a practice session to view your insights here.
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg"> {/* Added Card and shadow */}
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold flex justify-between items-center"> {/* Styled title */}
-              Interview Credits
-              <Button variant="ghost" onClick={() => setCreditsOpen(!creditsOpen)} className="text-indigo-600 hover:bg-gray-100"> {/* Styled button */}
-                {creditsOpen ? 'Hide' : 'Manage'}
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <AnimatePresence>
-            {creditsOpen && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="jobSearchStage">Current Stage</Label>
+              <select
+                id="jobSearchStage"
+                {...form.register("jobSearchStage")}
+                className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md w-full h-10 px-3 py-2"
+                disabled={isLoading || isSaving}
               >
-                <CardContent className="mt-4 space-y-4"> {/* Added CardContent and spacing */}
-                  <div className="text-base text-gray-700">You have <strong>3</strong> remaining credits.</div> {/* Styled text */}
-                  <Button variant="default" className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md">Purchase More Credits</Button> {/* Styled button */}
-                </CardContent>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <option value="">Select your current stage</option>
+                {jobStages.map((stage) => (
+                  <option key={stage} value={stage}>
+                    {stage}
+                  </option>
+                ))}
+              </select>
+              {form.formState.errors.jobSearchStage && (
+                <p className="text-sm text-red-500 mt-1">{form.formState.errors.jobSearchStage.message}</p>
+              )}
+            </div>
+          </CardContent>
         </Card>
-      </section>
+
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold">Resume & Role Context</CardTitle>
+            <CardDescription className="text-gray-600">
+              Upload your resume and optionally specify your target job title.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="resumeJobTitle">Target Job Title</Label>
+              <Input id="resumeJobTitle" {...form.register("resumeJobTitle")} disabled={isLoading || isSaving} />
+              {form.formState.errors.resumeJobTitle && (
+                <p className="text-sm text-red-500 mt-1">{form.formState.errors.resumeJobTitle.message}</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="resumeFileUrl">Resume File URL</Label>
+              <Input id="resumeFileUrl" {...form.register("resumeFileUrl")} disabled={isLoading || isSaving} />
+              {form.formState.errors.resumeFileUrl && (
+                <p className="text-sm text-red-500 mt-1">{form.formState.errors.resumeFileUrl.message}</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end">
+          <Button
+            type="submit"
+            disabled={isLoading || isSaving || !form.formState.isDirty}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md min-w-[120px]"
+          >
+            {isSaving ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                  />
+                </svg>
+                Saving...
+              </span>
+            ) : (
+              "Save"
+            )}
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }

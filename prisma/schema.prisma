@@ -29,6 +29,10 @@ model User {
   resumeAchievements String? @db.Text
   resumeFileUrl      String?
 
+  // Profile enhancements
+  jobSearchStage     String? // Current job search stage
+  linkedinUrl        String? // LinkedIn profile URL
+
   // Privacy & consent
   acceptedTermsAt       DateTime?
   acceptedPrivacyAt     DateTime?
