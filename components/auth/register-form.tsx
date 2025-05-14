@@ -1,24 +1,24 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button"; // Assuming shadcn/ui button
-import { Input } from "@/components/ui/input"; // Assuming shadcn/ui input
-import { Label } from "@/components/ui/label"; // Assuming shadcn/ui label
-import { toast } from "sonner"; // Assuming shadcn/ui toast
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { supabase } from "@/lib/supabaseClient";
 
 export function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState(""); // Added name state
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
+  // Email/password sign up
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Basic client-side validation
-    if (!name || !email || !password) {
+    if (!email || !password) {
       toast.error("Please fill in all fields.");
       setIsLoading(false);
       return;
@@ -31,24 +31,41 @@ export function RegisterForm() {
     }
 
     try {
-      const response = await fetch("/api/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name, email, password }), // Include name
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        toast.success("Registration successful! Redirecting to login...");
-        router.push("/login"); // Redirect to login after successful registration
+      if (error) {
+        toast.error(error.message || "Registration failed. Please try again.");
       } else {
-        toast.error(data.error || "Registration failed. Please try again.");
+        toast.success("Check your email for a confirmation link.");
+        router.push("/login");
       }
     } catch (error) {
-      console.error("Registration error:", error);
+      console.error("Supabase registration error:", error);
+      toast.error("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Google OAuth sign up
+  const handleGoogleSignUp = async () => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin + "/profile", // or wherever you want to land after sign in
+        },
+      });
+      if (error) {
+        toast.error(error.message || "Google sign-in failed.");
+      }
+      // Supabase will redirect on success
+    } catch (error) {
+      console.error("Google sign-in error:", error);
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
@@ -56,40 +73,47 @@ export function RegisterForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div className="mb-4">
-        <Label htmlFor="name">Name</Label> {/* Added name field */}
-        <Input
-          id="name"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          disabled={isLoading}
-        />
+    <div>
+      <form onSubmit={handleSubmit}>
+        <div className="mb-4">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={isLoading}
+            autoComplete="email"
+          />
+        </div>
+        <div className="mb-4">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={isLoading}
+            autoComplete="new-password"
+          />
+        </div>
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading ? "Registering..." : "Register"}
+        </Button>
+      </form>
+      <div className="my-4 flex items-center">
+        <div className="flex-grow border-t border-gray-300" />
+        <span className="mx-2 text-gray-500 text-sm">or</span>
+        <div className="flex-grow border-t border-gray-300" />
       </div>
-      <div className="mb-4">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          disabled={isLoading}
-        />
-      </div>
-      <div className="mb-4">
-        <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          disabled={isLoading}
-        />
-      </div>
-      <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading ? "Registering..." : "Register"}
+      <Button
+        type="button"
+        className="w-full bg-white text-gray-900 border border-gray-300 hover:bg-gray-50"
+        onClick={handleGoogleSignUp}
+        disabled={isLoading}
+      >
+        {isLoading ? "Redirecting..." : "Sign up with Google"}
       </Button>
-    </form>
+    </div>
   );
 }
