@@ -1,13 +1,12 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
-import { useSession, signOut } from "next-auth/react"; // Import useSession and signOut
+import { useUser, SignedIn, SignedOut, UserButton, SignInButton, SignUpButton } from "@clerk/nextjs"; // Import Clerk components and hooks
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"; // Import dropdown components
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Import avatar components
 
 export function Navbar() {
-  const { data: session, status } = useSession();
-  const isLoading = status === "loading";
+  const { isLoaded, isSignedIn, user } = useUser(); // Use Clerk's useUser hook
 
   // Check if we're in development mode
   const isDev = process.env.NODE_ENV === "development";
@@ -20,7 +19,7 @@ export function Navbar() {
             VocaHire Coach
           </Link>
           <nav className="hidden md:flex gap-6">
-            {session && ( // Show navigation links only when logged in
+            {isSignedIn && ( // Show navigation links only when logged in using Clerk's isSignedIn
               <>
                 <Link href="/prepare" className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"> {/* Styled link */}
                   Prepare
@@ -46,45 +45,17 @@ export function Navbar() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          {!session && !isLoading && ( // Show sign-in/sign-up when not logged in
-            <>
-              <Button variant="outline" asChild className="border-gray-300 hover:bg-gray-50 text-gray-700 rounded-md"> {/* Styled button */}
-                <Link href="/login">Sign In</Link> {/* Changed to /login */}
-              </Button>
-              <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md"> {/* Styled button */}
-                <Link href="/register">Sign Up</Link> {/* Changed to /register */}
-              </Button>
-            </>
-          )}
-          {session && ( // Show user dropdown when logged in
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={session.user?.image || ""} alt={session.user?.name || "User"} />
-                    <AvatarFallback>{session.user?.name?.[0] || "U"}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{session.user?.name}</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {session.user?.email}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/profile">Profile</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => signOut()}>
-                  Log Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          <SignedOut> {/* Show sign-in/sign-up when signed out using Clerk's SignedOut */}
+            <Button variant="outline" asChild className="border-gray-300 hover:bg-gray-50 text-gray-700 rounded-md"> {/* Styled button */}
+              <SignInButton>Sign In</SignInButton> {/* Use Clerk's SignInButton */}
+            </Button>
+            <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md"> {/* Styled button */}
+              <SignUpButton>Sign Up</SignUpButton> {/* Use Clerk's SignUpButton */}
+            </Button>
+          </SignedOut>
+          <SignedIn> {/* Show user button when signed in using Clerk's SignedIn */}
+            <UserButton afterSignOutUrl="/" /> {/* Use Clerk's UserButton */}
+          </SignedIn>
         </div>
       </div>
     </header>
