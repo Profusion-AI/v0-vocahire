@@ -802,15 +802,23 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
         } catch (err) {
           console.error("Failed to start interview:", err)
           addDebugMessage(`Session creation error: ${err}`)
-
-          // CRITICAL CHANGE: Check if this is an abort error (timeout)
-          if (err instanceof DOMException && err.name === "AbortError") {
+  
+          // Check for specific "Insufficient credits" error (Status 403)
+          if (err instanceof Error && err.message.includes("Status: 403")) {
+            setError("Insufficient credits. Please purchase more credits to continue.")
+            setStatus("error") // Set status to error to stop retries and connecting state
+            setIsConnecting(false)
+            updateConnectionStep("session", "error", "Insufficient credits")
+            cleanup() // Clean up resources as we won't retry
+          } else if (err instanceof DOMException && err.name === "AbortError") {
+            // Handle timeout errors
             updateConnectionStep("session", "error", "Request timeout")
-            handleConnectionFailure("Session creation timed out")
+            handleConnectionFailure("Session creation timed out") // Retry for timeouts
           } else {
+            // Handle other errors
             setError(err instanceof Error ? err.message : "An unknown error occurred")
             updateConnectionStep("session", "error", err instanceof Error ? err.message : "Unknown error")
-            handleConnectionFailure(`Session creation failed: ${err}`)
+            handleConnectionFailure(`Session creation failed: ${err}`) // Retry for other errors
           }
         }
       } catch (err) {
@@ -1086,21 +1094,35 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
             <div className="flex items-start gap-2">
               <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="font-medium">Connection Issue</p>
+                <p className="font-medium">
+                  {error === "Insufficient credits. Please purchase more credits to continue."
+                    ? "Action Required"
+                    : "Connection Issue"}
+                </p>
                 <p>{error}</p>
-                <div className="mt-3 flex gap-2">
-                  {/* CRITICAL CHANGE: Add retry button */}
-                  <Button variant="default" onClick={retryConnection} disabled={retryCount >= maxRetries}>
-                    Retry Connection
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleConnectionFailure("User chose text mode")}
-                    disabled={isFallbackMode}
-                  >
-                    Continue with Text-Based Interview
-                  </Button>
-                </div>
+                {error !== "Insufficient credits. Please purchase more credits to continue." && (
+                  <div className="mt-3 flex gap-2">
+                    {/* CRITICAL CHANGE: Add retry button */}
+                    <Button variant="default" onClick={retryConnection} disabled={retryCount >= maxRetries}>
+                      Retry Connection
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleConnectionFailure("User chose text mode")}
+                      disabled={isFallbackMode}
+                    >
+                      Continue with Text-Based Interview
+                    </Button>
+                  </div>
+                )}
+                {error === "Insufficient credits. Please purchase more credits to continue." && (
+                  <div className="mt-3">
+                    {/* Link to pricing/profile page - assuming /profile is the place to manage credits */}
+                    <Button asChild>
+                      <Link href="/profile">Manage Credits</Link>
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
