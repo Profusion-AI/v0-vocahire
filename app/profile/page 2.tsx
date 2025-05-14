@@ -52,6 +52,20 @@ export default async function ProfilePage() {
   }
   */
 
+  /**
+   * TODO: Integrate Clerk authentication and user fetching here.
+   * All NextAuth session logic and user queries are deprecated and removed.
+   * See https://clerk.com/docs/nextjs/get-session for Clerk usage.
+   *
+   * The previous implementation (below) is commented out for reference.
+   * Uncomment and refactor with Clerk when ready.
+   */
+
+  // --- Clerk integration required here ---
+  // throw new Error("ProfilePage: NextAuth session logic is deprecated. Refactor to use Clerk authentication.");
+
+  // The following code is commented out because it depends on the removed NextAuth session logic.
+  /*
   if (!session) {
     redirect("/login")
   }
@@ -152,4 +166,5 @@ export default async function ProfilePage() {
       </div>
     </div>
   )
+  */
 }
