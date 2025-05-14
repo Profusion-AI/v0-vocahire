@@ -130,9 +130,22 @@ export async function POST(req: NextRequest) {
 
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = (invoice.subscription as any) as string | undefined;
+
+        // Log the full invoice object to inspect its structure
+        console.log("Full Stripe Invoice Object:", JSON.stringify(invoice, null, 2));
+
+        let subscriptionId: string | undefined;
+
+        // Find the subscription ID within the invoice line items
+        for (const lineItem of invoice.lines.data) {
+          if (lineItem.subscription) {
+            subscriptionId = lineItem.subscription as string;
+            break;
+          }
+        }
+
         if (!subscriptionId) {
-          console.error("No subscription ID in invoice.payment_succeeded");
+          console.error("No subscription ID found in invoice line items for invoice.payment_succeeded");
           break;
         }
         // Fetch subscription to get new expiry
@@ -174,8 +187,15 @@ export async function POST(req: NextRequest) {
           customerId = subscription.customer as string | undefined;
         } else {
           const invoice = event.data.object as Stripe.Invoice;
-          subscriptionId = invoice.subscription as any;
           customerId = invoice.customer as string | undefined;
+
+          // Find the subscription ID within the invoice line items for payment_failed
+          for (const lineItem of invoice.lines.data) {
+            if (lineItem.subscription) {
+              subscriptionId = lineItem.subscription as string;
+              break;
+            }
+          }
         }
 
         // Find user by subscription or customer ID
