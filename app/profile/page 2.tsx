@@ -1,5 +1,9 @@
 import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
+/**
+ * TODO: Refactor this page to use Clerk authentication.
+ * The previous NextAuth-based session logic is deprecated.
+ * See https://clerk.com/docs/nextjs/get-session for Clerk usage.
+ */
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -7,7 +11,46 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 
 export default async function ProfilePage() {
-  const session = await getServerSession(authOptions)
+  // TODO: Replace with Clerk's getAuth or getUser as appropriate
+  // See: https://clerk.com/docs/nextjs/get-session
+  throw new Error("ProfilePage: NextAuth session logic is deprecated. Refactor to use Clerk authentication.");
+
+  // The following code is commented out because it depends on the removed NextAuth session logic.
+  /*
+  if (!session) {
+    redirect("/login")
+  }
+
+  if (!session?.user?.email) {
+    throw new Error('User session or user email is missing')
+  }
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    include: {
+      interviewSessions: {
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      },
+    },
+  }) as unknown as {
+    id: string
+    name: string | null
+    email: string | null
+    image: string | null
+    credits: number
+    createdAt: Date
+    interviewSessions: Array<{
+      id: string
+      createdAt: Date
+      duration: number | null
+      feedback: any
+    }>
+  }
+
+  if (!user) {
+    redirect("/login")
+  }
+  */
 
   if (!session) {
     redirect("/login")
