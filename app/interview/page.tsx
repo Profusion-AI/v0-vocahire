@@ -9,7 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import Link from "next/link"
 import type { ResumeData } from "@/components/resume-input"
 
-export default function InterviewPage() {
+import AuthGuard from "@/components/auth/AuthGuard";
+
+function InterviewPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [jobTitle, setJobTitle] = useState<string>("Software Engineer")
@@ -121,4 +123,12 @@ export default function InterviewPage() {
       <InterviewRoom jobTitle={jobTitle} onComplete={handleInterviewComplete} resumeData={resumeData} />
     </div>
   )
+}
+
+export default function InterviewPage() {
+  return (
+    <AuthGuard>
+      <InterviewPageContent />
+    </AuthGuard>
+  );
 }

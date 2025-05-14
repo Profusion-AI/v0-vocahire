@@ -10,7 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ResumeUpload } from "@/components/resume-upload"
 import { ResumeInput, type ResumeData } from "@/components/resume-input" // Imported ResumeData type
 
-export default function PreparePage() {
+import AuthGuard from "@/components/auth/AuthGuard";
+
+function PreparePageContent() {
   const router = useRouter()
   const [jobTitle, setJobTitle] = useState("Software Engineer")
   const [resumeData, setResumeData] = useState<ResumeData>({
@@ -88,4 +90,12 @@ export default function PreparePage() {
       </div>
     </div>
   )
+}
+
+export default function PreparePage() {
+  return (
+    <AuthGuard>
+      <PreparePageContent />
+    </AuthGuard>
+  );
 }

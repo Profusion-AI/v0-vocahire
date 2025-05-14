@@ -9,7 +9,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, Download, RefreshCw } from "lucide-react"
 
-export default function FeedbackPage() {
+import AuthGuard from "@/components/auth/AuthGuard";
+
+function FeedbackPageContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -272,4 +274,12 @@ export default function FeedbackPage() {
       </div>
     </div>
   )
+}
+
+export default function FeedbackPage() {
+  return (
+    <AuthGuard>
+      <FeedbackPageContent />
+    </AuthGuard>
+  );
 }
