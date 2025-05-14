@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
 
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = invoice.subscription as any;
+        const subscriptionId = (invoice.subscription as any) as string | undefined;
         if (!subscriptionId) {
           console.error("No subscription ID in invoice.payment_succeeded");
           break;
