@@ -15,9 +15,15 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import AuthGuard from "@/components/auth/AuthGuard";
 import SessionLayout from "@/components/SessionLayout";
 
+// Stripe and toast imports
+import { loadStripe } from "@stripe/stripe-js";
+import { useToast } from "@/hooks/use-toast";
+
 function InterviewPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
+
   const [jobTitle, setJobTitle] = useState<string>("Software Engineer");
   const [isLoading, setIsLoading] = useState(true);
   const [resumeData, setResumeData] = useState<ResumeData | null>(null);
@@ -30,9 +36,69 @@ function InterviewPageContent() {
   const [isCreditsLoading, setIsCreditsLoading] = useState(true);
   const [isPremium, setIsPremium] = useState<boolean>(false);
 
-  // Placeholder purchase flow handler (matches profile page)
-  const handlePurchaseCredits = () => {
-    alert("Purchase modal will open here.");
+  // Stripe publishable key (from env)
+  const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
+
+  // Stripe Checkout handler for credits
+  const handlePurchaseCredits = async () => {
+    try {
+      const res = await fetch("/api/payments/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: "CREDIT_PACK_1" }),
+      });
+      if (!res.ok) {
+        throw new Error("Failed to create checkout session.");
+      }
+      const data = await res.json();
+      if (!data.sessionId) {
+        throw new Error("No sessionId returned from server.");
+      }
+      const stripe = await loadStripe(STRIPE_PUBLISHABLE_KEY);
+      if (!stripe) {
+        throw new Error("Stripe.js failed to load.");
+      }
+      const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
+      if (error) {
+        throw error;
+      }
+    } catch (err: any) {
+      toast({
+        title: "Payment Error",
+        description: err?.message || "Unable to start purchase flow. Please try again.",
+      });
+    }
+  };
+
+  // Stripe Checkout handler for premium upgrade
+  const handleUpgradeToPremium = async () => {
+    try {
+      const res = await fetch("/api/payments/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: "PREMIUM_MONTHLY_SUB" }),
+      });
+      if (!res.ok) {
+        throw new Error("Failed to create checkout session.");
+      }
+      const data = await res.json();
+      if (!data.sessionId) {
+        throw new Error("No sessionId returned from server.");
+      }
+      const stripe = await loadStripe(STRIPE_PUBLISHABLE_KEY);
+      if (!stripe) {
+        throw new Error("Stripe.js failed to load.");
+      }
+      const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
+      if (error) {
+        throw error;
+      }
+    } catch (err: any) {
+      toast({
+        title: "Payment Error",
+        description: err?.message || "Unable to start upgrade flow. Please try again.",
+      });
+    }
   };
 
   // Fetch credits (and user data) on mount
@@ -234,10 +300,10 @@ function InterviewPageContent() {
                         Buy More Credits
                       </Button>
                       <Button
-                        asChild
                         className="w-full bg-gradient-to-r from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600 text-white font-semibold text-lg py-3 rounded-md shadow"
+                        onClick={handleUpgradeToPremium}
                       >
-                        <Link href="/pricing">Upgrade to Premium (Unlimited Interviews)</Link>
+                        Upgrade to Premium (Unlimited Interviews)
                       </Button>
                       {/* If a "Free Basic Session" feature is added in the future, add a button here */}
                     </div>

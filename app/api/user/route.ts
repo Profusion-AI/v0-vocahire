@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
       resumeJobTitle: true,
       resumeFileUrl: true,
       credits: true,
+      isPremium: true,
       // Add more fields as needed
     },
   });

@@ -33,6 +33,12 @@ model User {
   jobSearchStage     String? // Current job search stage
   linkedinUrl        String? // LinkedIn profile URL
 
+  // Stripe & premium subscription
+  stripeCustomerId        String?   @unique
+  premiumSubscriptionId   String?   @unique
+  premiumExpiresAt        DateTime?
+  isPremium               Boolean   @default(false)
+
   // Privacy & consent
   acceptedTermsAt       DateTime?
   acceptedPrivacyAt     DateTime?
