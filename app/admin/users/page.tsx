@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
-import { redirect } from "next/navigation"
+// TODO: Implement Clerk-based admin authentication here.
+// import { redirect } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
@@ -27,13 +26,8 @@ async function getUsersWithUsage() {
 }
 
 export default async function AdminUsersPage() {
-  const session = await getServerSession(authOptions)
-
-  // Check if user is authenticated and has admin role
-  // This is a simplified example - in a real app, you'd check for admin role in your database
-  if (!session || session.user.email !== "admin@example.com") {
-    redirect("/")
-  }
+  // TODO: Implement Clerk-based admin authentication and admin check here.
+  // Example: Use Clerk's server-side helpers to verify admin status and redirect if unauthorized.
 
   const users = await getUsersWithUsage()
 
