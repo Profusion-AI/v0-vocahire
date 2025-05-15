@@ -8,7 +8,8 @@ import { UsageDashboardClient, UsageData, UsageType } from "./UsageDashboardClie
 // Helper function to get admin user details and check authorization
 async function getAdminUserServerSide(userId: string) {
   const user = await prisma.user.findUnique({
-    where: { id: userId }
+    where: { id: userId },
+    select: { id: true, email: true }, // Ensure email is always present for type safety
   });
   // Prefer environment variables for admin emails or a proper role system
   const adminEmailsEnv = process.env.ADMIN_EMAILS?.split(",") || [];
