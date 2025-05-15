@@ -144,22 +144,30 @@ export async function POST(req: NextRequest) {
         const invoice = event.data.object as Stripe.Invoice;
 
         // Log the full invoice object to inspect its structure
-        console.log("Full Stripe Invoice Object:", JSON.stringify(invoice, null, 2));
-
-        let subscriptionId: string | undefined;
-
-        // Find the subscription ID within the invoice line items
-        for (const lineItem of invoice.lines.data) {
-          if (lineItem.subscription) {
-            subscriptionId = lineItem.subscription as string;
-            break;
-          }
-        }
+        // console.log("Full Stripe Invoice Object for debugging:", JSON.stringify(invoice, null, 2)); // Keep this commented out unless debugging
+ 
+         let subscriptionId: string | undefined;
+ 
+         // Iterate through line items to find the subscription ID
+         if (invoice.lines && invoice.lines.data) {
+           for (const lineItem of invoice.lines.data) {
+             if (lineItem.subscription) {
+               // lineItem.subscription is the ID string
+               subscriptionId = lineItem.subscription as string;
+               break;
+             }
+           }
+         }
+        
+        console.log(`[Stripe Webhook] invoice.payment_succeeded: Extracted subscriptionId: ${subscriptionId} from invoice ${invoice.id} via line items.`);
 
         if (!subscriptionId) {
-          console.error("No subscription ID found in invoice line items for invoice.payment_succeeded");
-          break;
+          console.error(`[Stripe Webhook] CRITICAL: No subscription ID found in invoice.lines.data or directly on invoice object for invoice.payment_succeeded, invoice ID: ${invoice.id}. Cannot update premium status.`);
+          // Return 200 to Stripe to acknowledge receipt and prevent retries for this specific event,
+          // but log this as a critical issue for manual investigation.
+          return new NextResponse("OK - but subscription ID missing in invoice", { status: 200 });
         }
+        
         // Fetch subscription to get new expiry
         let premiumExpiresAt: Date | null = null;
         try {
