@@ -4,7 +4,9 @@ import { NextRequest, NextResponse } from 'next/server';
 const isPublicRoute = createRouteMatcher([
   '/',
   '/login',
+  '/login/sso-callback(.*)', // Add SSO callback for login
   '/register',
+  '/register/sso-callback(.*)', // Add SSO callback for register
   '/api/webhooks/clerk',
   '/api/webhooks/stripe',
   '/forgot-password(.*)', // Added forgot-password as public
