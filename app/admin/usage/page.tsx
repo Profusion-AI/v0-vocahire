@@ -47,8 +47,13 @@ async function getTopUsersByInterviewsServerSide() {
   });
 }
 
-// Exportable type for TopUser, derived from the prisma query result
-export type TopUser = Awaited<ReturnType<typeof getTopUsersByInterviewsServerSide>>[0];
+// Exportable type for TopUser
+export type TopUser = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  interviewSessionCount: number;
+};
 
 // Helper function to fetch initial usage statistics for the cards
 // NOTE: You'll need to implement the actual data fetching logic here based on your database schema.
