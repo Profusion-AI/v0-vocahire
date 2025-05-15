@@ -83,7 +83,6 @@ async function getInitialUsageStatsServerSide(): Promise<UsageData[]> {
     return [
       {
         userId: "global_summary_stats", // A unique ID for these global stats
-        email: null,
         usage: {
           [UsageType.INTERVIEW_SESSION]: {
             daily: dailyInterviewsCount,
@@ -101,7 +100,6 @@ async function getInitialUsageStatsServerSide(): Promise<UsageData[]> {
     return [
       {
         userId: "global_summary_stats_error",
-        email: null,
         usage: {
           [UsageType.INTERVIEW_SESSION]: { daily: 0, monthly: 0 },
           [UsageType.FEEDBACK_GENERATION]: { daily: 0, monthly: 0 }
