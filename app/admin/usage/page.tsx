@@ -31,14 +31,19 @@ async function getTopUsersByInterviewsServerSide() {
   const userIds = topSessions.map((s: { userId: string }) => s.userId);
   const users = await prisma.user.findMany({
     where: { id: { in: userIds } },
-    select: { id: true, name: true },
+    // No 'name' field in User model, use 'resumeJobTitle' as display name fallback
+    select: { id: true, resumeJobTitle: true },
   });
 
   // Merge counts into user objects
-  return users.map((user) => {
-    const session = topSessions.find((s: { userId: string }) => s.userId === user.id);
+  // Ensure every returned object has id, name, and interviewSessionCount
+  return userIds.map((userId) => {
+    const user = users.find((u) => u.id === userId);
+    const session = topSessions.find((s: { userId: string }) => s.userId === userId);
     return {
-      ...user,
+      id: userId,
+      // Use resumeJobTitle as the display name, or fallback to "Unknown"
+      name: user?.resumeJobTitle ?? "Unknown",
       interviewSessionCount: session?._count._all ?? 0,
     };
   });
