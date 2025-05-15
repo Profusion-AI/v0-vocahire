@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react";
 import InterviewRoom from "@/components/InterviewRoom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,211 +8,197 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
 import type { ResumeData } from "@/components/resume-input";
-import { Navbar } from "@/components/navbar"; // Import Navbar
-import ProfilePage from "@/app/profile/page"; // Import ProfilePage
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"; // Import Tabs for view switching
-
+import { Navbar } from "@/components/navbar";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import AuthGuard from "@/components/auth/AuthGuard";
 import SessionLayout from "@/components/SessionLayout";
-
-// Stripe and toast imports
 import { loadStripe } from "@stripe/stripe-js";
 import { useToast } from "@/hooks/use-toast";
+import { ProfileSettingsForm, type ProfileFormData } from "@/components/ProfileSettingsForm";
+import { prisma } from "@/lib/prisma"; // For server-side fetch
+import { auth, currentUser } from "@clerk/nextjs/server"; // For server-side auth
+import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
 
-function InterviewPageContent() {
+// Import Dialog components for confirmation modal
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+
+
+interface InterviewPageContentProps {
+  initialJobTitle: string;
+  initialResumeData: ResumeData | null;
+  initialHasResumeData: boolean;
+  initialSkipResume: boolean;
+  initialCreditsData: {
+    credits: number | null;
+    isPremium: boolean;
+  };
+  initialProfileFormData: ProfileFormData;
+  stripePublishableKey: string;
+}
+
+function InterviewPageContent({
+  initialJobTitle,
+  initialResumeData,
+  initialHasResumeData,
+  initialSkipResume,
+  initialCreditsData,
+  initialProfileFormData,
+  stripePublishableKey,
+}: InterviewPageContentProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { toast } = useToast();
 
-  const [jobTitle, setJobTitle] = useState<string>("Software Engineer");
-  const [isLoading, setIsLoading] = useState(true);
-  const [resumeData, setResumeData] = useState<ResumeData | null>(null);
-  const [hasResumeData, setHasResumeData] = useState<boolean>(false);
-  const [skipResume, setSkipResume] = useState(false);
-  const [currentView, setCurrentView] = useState<"interview" | "profile">("interview"); // State to manage view
+  const [jobTitle, setJobTitle] = useState<string>(initialJobTitle);
+  const [resumeData, setResumeData] = useState<ResumeData | null>(initialResumeData);
+  const [hasResumeData, setHasResumeData] = useState<boolean>(initialHasResumeData);
+  const [skipResume, setSkipResume] = useState(initialSkipResume);
+  const [currentView, setCurrentView] = useState<"interview" | "profile">("interview");
 
-  // Credits state
-  const [credits, setCredits] = useState<number | null>(null);
-  const [isCreditsLoading, setIsCreditsLoading] = useState(true);
-  const [isPremium, setIsPremium] = useState<boolean>(false);
+  const [credits, setCredits] = useState<number | null>(initialCreditsData.credits);
+  const [isPremium, setIsPremium] = useState<boolean>(initialCreditsData.isPremium);
+  const [isCreditsLoading, setIsCreditsLoading] = useState(false);
 
-  // Stripe publishable key (from env)
-  const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [isConfirmStartModalOpen, setIsConfirmStartModalOpen] = useState(false);
+  
+  const [profileFormData, setProfileFormData] = useState<ProfileFormData>(initialProfileFormData);
 
-  // Stripe Checkout handler for credits
-  const handlePurchaseCredits = async () => {
-    try {
-      const res = await fetch("/api/payments/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId: "CREDIT_PACK_1" }),
-      });
-      if (!res.ok) {
-        throw new Error("Failed to create checkout session.");
-      }
-      const data = await res.json();
-      if (!data.sessionId) {
-        throw new Error("No sessionId returned from server.");
-      }
-      const stripe = await loadStripe(STRIPE_PUBLISHABLE_KEY);
-      if (!stripe) {
-        throw new Error("Stripe.js failed to load.");
-      }
-      const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
-      if (error) {
-        throw error;
-      }
-    } catch (err: any) {
-      toast({
-        title: "Payment Error",
-        description: err?.message || "Unable to start purchase flow. Please try again.",
-      });
-    }
-  };
-
-  // Stripe Checkout handler for premium upgrade
-  const handleUpgradeToPremium = async () => {
-    try {
-      const res = await fetch("/api/payments/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId: "PREMIUM_MONTHLY_SUB" }),
-      });
-      if (!res.ok) {
-        throw new Error("Failed to create checkout session.");
-      }
-      const data = await res.json();
-      if (!data.sessionId) {
-        throw new Error("No sessionId returned from server.");
-      }
-      const stripe = await loadStripe(STRIPE_PUBLISHABLE_KEY);
-      if (!stripe) {
-        throw new Error("Stripe.js failed to load.");
-      }
-      const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
-      if (error) {
-        throw error;
-      }
-    } catch (err: any) {
-      toast({
-        title: "Payment Error",
-        description: err?.message || "Unable to start upgrade flow. Please try again.",
-      });
-    }
-  };
-
-  // Fetch credits (and user data) on mount
   useEffect(() => {
-    // Get skipResume from URL once
-    setSkipResume(searchParams.get("skipResume") === "true");
+    setJobTitle(initialJobTitle);
+    setResumeData(initialResumeData);
+    setHasResumeData(initialHasResumeData);
+    setSkipResume(initialSkipResume);
+    setCredits(initialCreditsData.credits);
+    setIsPremium(initialCreditsData.isPremium);
+    setProfileFormData(initialProfileFormData);
+  }, [initialJobTitle, initialResumeData, initialHasResumeData, initialSkipResume, initialCreditsData, initialProfileFormData]);
 
-    const title = searchParams.get("jobTitle");
-    if (title) {
-      setJobTitle(title);
-    }
-
-    // Try to get resume data from localStorage
-    try {
-      const storedResumeData = localStorage.getItem("vocahire_resume_data");
-      if (storedResumeData) {
-        const parsedData = JSON.parse(storedResumeData);
-        setResumeData(parsedData);
-        setHasResumeData(true);
-
-        // Use job title from resume data if not specified in URL
-        if (!title && parsedData.jobTitle) {
-          setJobTitle(parsedData.jobTitle);
-        }
-      } else {
-        setHasResumeData(false);
-      }
-    } catch (err) {
-      console.error("Error loading resume data:", err);
-      setHasResumeData(false);
-    }
-
-    // Fetch credits from /api/user
-    const fetchCredits = async () => {
-      setIsCreditsLoading(true);
-      try {
-        const res = await fetch("/api/user");
-        if (res.ok) {
-          const data = await res.json();
-          setCredits(typeof data.credits === "number" ? data.credits : 0);
-          setIsPremium(!!data.isPremium || !!data.premium); // Accept either isPremium or premium
-        } else {
-          setCredits(0);
-          setIsPremium(false);
-        }
-      } catch {
-        setCredits(0);
-        setIsPremium(false);
-      } finally {
-        setIsCreditsLoading(false);
-        setIsLoading(false);
-      }
-    };
-    fetchCredits();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Optionally, refetch credits when user attempts to start interview (if needed)
-  const refetchCredits = async () => {
+  const refetchCreditsAndProfile = async () => {
     setIsCreditsLoading(true);
     try {
-      const res = await fetch("/api/user");
+      const res = await fetch("/api/user"); // This should fetch combined Clerk and DB user data
       if (res.ok) {
         const data = await res.json();
-        setCredits(typeof data.credits === "number" ? data.credits : 0);
-        setIsPremium(!!data.isPremium || !!data.premium);
+        const user = data.user || data; 
+        setCredits(typeof user.credits === "number" ? user.credits : 0);
+        setIsPremium(!!user.isPremium);
+        
+        // Assuming /api/user now also returns name derived from Clerk for consistency
+        setProfileFormData({
+            name: user.name || profileFormData.name, 
+            resumeJobTitle: user.resumeJobTitle || "",
+            resumeFileUrl: user.resumeFileUrl || "",
+            jobSearchStage: user.jobSearchStage || "",
+            linkedinUrl: user.linkedinUrl || "",
+        });
+
       } else {
-        setCredits(0);
-        setIsPremium(false);
+        toast({ title: "Error", description: "Failed to refresh user data." });
       }
-    } catch {
-      setCredits(0);
-      setIsPremium(false);
+    } catch (error) {
+      toast({ title: "Error", description: "Could not refresh user data." });
+      console.error("Refetch error:", error);
     } finally {
       setIsCreditsLoading(false);
     }
   };
+  
+  const handleProfileSaveSuccess = (updatedFormData: ProfileFormData) => {
+    setProfileFormData(updatedFormData);
+    toast({title: "Success", description: "Profile updated successfully!"});
+    // If name is part of ProfileFormData and displayed directly on InterviewPageContent, it will update.
+  };
 
-  // Use useCallback for the interview completion handler to prevent recreation on every render
+  const handleStripeAction = async (itemId: string) => {
+    if (!stripePublishableKey) {
+      toast({ title: "Configuration Error", description: "Stripe is not configured. Please contact support."});
+      return;
+    }
+    try {
+      const res = await fetch("/api/payments/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to create checkout session.");
+      }
+      const data = await res.json();
+      if (!data.url) {
+        throw new Error("No checkout URL returned from server.");
+      }
+      const stripe = await loadStripe(stripePublishableKey);
+      if (!stripe) {
+        throw new Error("Stripe.js failed to load.");
+      }
+      // Use data.sessionId for redirectToCheckout as per Stripe's API
+      const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId }); 
+      if (error) {
+        console.error("Stripe redirect error:", error);
+        throw new Error(error.message || "Failed to redirect to Stripe.");
+      }
+    } catch (err: any) {
+      toast({
+        title: "Payment Error",
+        description: err?.message || "Unable to start payment flow. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handlePurchaseCreditsClick = () => { // Renamed to avoid conflict if modal had same name
+    setIsPurchaseModalOpen(true);
+  };
+
+  const handleUpgradeToPremium = () => {
+    handleStripeAction("PREMIUM_MONTHLY_SUB"); 
+  };
+
   const handleInterviewComplete = useCallback(
     (messages: any[]) => {
-      // Store messages in localStorage for the feedback page
       localStorage.setItem("vocahire_interview_messages", JSON.stringify(messages));
-
-      // Navigate to feedback page
       router.push("/feedback");
     },
     [router]
   );
+  
+  const handleStartInterviewAttempt = () => {
+    if (!isPremium && credits !== null && credits > 0) {
+      setIsConfirmStartModalOpen(true);
+    } else if (isPremium || (credits !== null && credits > 0)) {
+      startInterview();
+    }
+  };
 
-  if (isLoading) {
-    return (
-      <> {/* Use fragment to include Navbar */}
-        <Navbar /> {/* Include Navbar */}
-        <SessionLayout>
-          <Skeleton className="h-12 w-3/4 mx-auto mb-8" />
-          <Skeleton className="h-[500px] w-full max-w-3xl mx-auto" />
-        </SessionLayout>
-      </>
-    );
-  }
+  const startInterview = () => {
+    console.log("Interview started logic triggered");
+    setIsConfirmStartModalOpen(false);
+    // Here, you would typically set some state to make the InterviewRoom component visible
+    // or to trigger the actual interview session start within InterviewRoom.
+    // For now, we assume InterviewRoom becomes active based on other conditions or props.
+    // If credits need to be deducted *before* API call to OpenAI, it's risky.
+    // Best to deduct on successful session creation via /api/realtime-session
+    refetchCreditsAndProfile(); // Refresh credits in case one was just used by backend
+  };
 
-  // If no resume data and not skipping resume step, show resume prompt
-  if (!hasResumeData && !skipResume && currentView === "interview") { // Conditionally render based on view
+  if (!hasResumeData && !skipResume && currentView === "interview") {
     return (
-      <> {/* Use fragment to include Navbar */}
-        <Navbar /> {/* Include Navbar */}
+      <>
+        <Navbar />
         <SessionLayout>
           <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl text-center">Mock Interview</h1>
           <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl text-center">
             For a more personalized interview experience, please provide some details about your background
           </p>
-
-          <Card className="max-w-md mx-auto shadow-lg">
+          <Card className="max-w-md mx-auto shadow-lg mt-8">
             <CardHeader>
               <CardTitle className="text-2xl font-bold">Add Resume Details</CardTitle>
               <CardDescription className="text-gray-600">
@@ -242,127 +228,178 @@ function InterviewPageContent() {
   }
 
   return (
-    <> {/* Use fragment to include Navbar */}
-      <Navbar /> {/* Include Navbar */}
+    <>
+      <Navbar />
       <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "interview" | "profile")} className="w-full">
-        <div className="flex justify-center py-4 bg-gray-100 dark:bg-gray-800">
-          <TabsList className="grid w-full max-w-md grid-cols-2 bg-gray-200 dark:bg-gray-700 rounded-md p-1">
-            <TabsTrigger value="interview" className="data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-900 dark:data-[state=active]:text-indigo-400">Interview</TabsTrigger>
-            <TabsTrigger value="profile" className="data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-900 dark:data-[state=active]:text-indigo-400">Profile</TabsTrigger>
+        <div className="flex justify-center py-4 bg-gray-100 dark:bg-gray-800 border-b">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="interview">Interview</TabsTrigger>
+            <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
         </div>
+
         <TabsContent value="interview" className="mt-0">
           <SessionLayout>
-            <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl text-center mb-8">Interview Session</h1>
-            <div className="mb-4 text-center text-base text-gray-700 flex flex-col items-center">
-              <p>
-                Position: <strong>{jobTitle}</strong>
-                {hasResumeData && " • Resume data loaded"}
-              </p>
+            <h1 className="text-3xl md:text-4xl tracking-tight font-extrabold text-gray-900 dark:text-white text-center mb-6">Interview Session</h1>
+            <div className="mb-6 text-center text-gray-700 dark:text-gray-300">
+              <p>Position: <strong>{jobTitle}</strong> {hasResumeData && " • Resume data loaded"}</p>
             </div>
-            {/* Premium user experience */}
+
             {isPremium ? (
-              <div className="flex flex-col items-center justify-center my-8">
-                <div className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-6 py-4 rounded-lg shadow-lg mb-4 font-semibold text-lg">
+              <div className="text-center my-6">
+                <div className="inline-block bg-gradient-to-r from-green-400 to-blue-500 text-white px-5 py-3 rounded-lg shadow-md font-semibold text-md mb-2">
                   Premium Access: Unlimited Interviews
                 </div>
-                {/* Optionally, add a subtle note about premium benefits */}
-                <span className="text-sm text-gray-500 dark:text-gray-400">Enjoy unlimited mock interviews as a premium member.</span>
-                {/* InterviewRoom for premium users */}
-                <div className="w-full mt-8">
-                  <InterviewRoom
-                    jobTitle={jobTitle}
-                    onComplete={handleInterviewComplete}
-                    resumeData={resumeData}
-                    credits={null}
-                    isCreditsLoading={false}
-                    onBuyCredits={undefined}
-                    refetchCredits={refetchCredits}
-                  />
-                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Enjoy your premium benefits!</p>
               </div>
-            ) : credits === 0 && !isCreditsLoading ? (
-              // Out of credits scenario for non-premium users
-              <div className="flex flex-col items-center justify-center my-12">
-                <Card className="max-w-md w-full shadow-lg border-2 border-red-400">
-                  <CardHeader>
-                    <CardTitle className="text-2xl font-bold text-red-600 text-center">You're out of interview credits!</CardTitle>
-                    <CardDescription className="text-center text-gray-600 mt-2">
-                      You need credits to start a new interview session.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-col gap-4">
-                      <Button
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-lg py-3 rounded-md shadow"
-                        onClick={handlePurchaseCredits}
-                      >
-                        Buy More Credits
-                      </Button>
-                      <Button
-                        asChild // Use asChild to render Link as a Button
-                        className="w-full bg-gradient-to-r from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600 text-white font-semibold text-lg py-3 rounded-md shadow"
-                      >
-                        <Link href="/faq-credits">
-                          Upgrade to Premium (FAQ)
-                        </Link>
-                      </Button>
-                      {/* If a "Free Basic Session" feature is added in the future, add a button here */}
-                    </div>
-                  </CardContent>
-                  <CardFooter>
-                    <span className="text-xs text-gray-400 mx-auto">Questions? <Link href="/profile" className="underline">Visit your profile</Link></span>
-                  </CardFooter>
-                </Card>
+            ) : isCreditsLoading ? (
+                <div className="text-center my-6"><Skeleton className="h-8 w-48 inline-block" /></div>
+            ) : credits !== null && credits > 0 ? (
+              <div className="text-center my-6">
+                <p className="text-lg">
+                  You have <span className="font-bold text-indigo-600 dark:text-indigo-400">{credits}</span> Interview Credit{credits === 1 ? "" : "s"} remaining.
+                </p>
+                <Button onClick={handlePurchaseCreditsClick} variant="link" className="text-indigo-600 dark:text-indigo-400 p-0 h-auto">
+                  Buy More Credits
+                </Button>
               </div>
-            ) : (
-              // Standard credits display and InterviewRoom for non-premium users with credits
-              <>
-                <div className="mb-4 text-center">
-                  <button
-                    type="button"
-                    className="mt-4 text-lg font-semibold text-indigo-700 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded transition px-0 py-0 bg-transparent"
-                    style={{ cursor: "pointer" }}
-                    onClick={handlePurchaseCredits}
-                    disabled={isCreditsLoading}
-                    aria-label="Purchase more credits"
-                  >
-                    {isCreditsLoading || credits === null ? (
-                      <span className="text-gray-400">Loading credits...</span>
-                    ) : (
-                      <>
-                        You have <span className="font-bold">{credits}</span> Interview Credit{credits === 1 ? "" : "s"} remaining.
-                      </>
-                    )}
-                  </button>
-                  <span className="text-xs text-gray-500 mt-1 block">Click to purchase more credits.</span>
-                </div>
-                <InterviewRoom
-                  jobTitle={jobTitle}
-                  onComplete={handleInterviewComplete}
-                  resumeData={resumeData}
-                  credits={credits}
-                  isCreditsLoading={isCreditsLoading}
-                  onBuyCredits={handlePurchaseCredits}
-                  refetchCredits={refetchCredits}
-                />
-              </>
+            ) : ( 
+              <Card className="max-w-lg mx-auto my-8 shadow-xl border-2 border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20">
+                <CardHeader className="text-center">
+                  <CardTitle className="text-2xl font-bold text-red-600 dark:text-red-400">Out of Interview Credits!</CardTitle>
+                  <CardDescription className="text-red-500 dark:text-red-300 mt-1">
+                    Purchase more credits or upgrade to premium for unlimited access.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col sm:flex-row gap-3 p-6">
+                  <Button onClick={handlePurchaseCreditsClick} className="w-full sm:w-auto flex-1 bg-indigo-600 hover:bg-indigo-700">Buy More Credits</Button>
+                  <Button onClick={handleUpgradeToPremium} className="w-full sm:w-auto flex-1 bg-purple-600 hover:bg-purple-700">Upgrade to Premium</Button>
+                </CardContent>
+                 <CardFooter className="text-xs text-gray-500 dark:text-gray-400 justify-center">
+                    <Link href="/pricing" className="underline hover:text-indigo-500">View Pricing & Plans</Link>
+                </CardFooter>
+              </Card>
             )}
+
+            { (isPremium || (credits !== null && credits > 0)) ? (
+                <div className="mt-8">
+                     <Button 
+                        onClick={handleStartInterviewAttempt} 
+                        className="w-full max-w-md mx-auto flex justify-center py-3 text-lg bg-green-500 hover:bg-green-600"
+                        disabled={isCreditsLoading}
+                    >
+                        Start Mock Interview
+                    </Button>
+                     <InterviewRoom
+                        jobTitle={jobTitle}
+                        onComplete={handleInterviewComplete}
+                        resumeData={resumeData}
+                        credits={credits} 
+                        isCreditsLoading={isCreditsLoading}
+                        onBuyCredits={handlePurchaseCreditsClick} 
+                        refetchCredits={refetchCreditsAndProfile} 
+                     />
+                </div>
+            ) : !isCreditsLoading && credits === 0 && !isPremium ? (
+                <div className="text-center text-gray-600 dark:text-gray-400 mt-6">
+                    Please purchase credits or upgrade to premium to start an interview.
+                </div>
+            ) : null }
           </SessionLayout>
         </TabsContent>
+
         <TabsContent value="profile" className="mt-0">
-           {/* ProfilePage is already wrapped in SessionLayout */}
-           <ProfilePage />
+          <SessionLayout> 
+            <div className="max-w-2xl mx-auto py-8"> 
+              <h2 className="text-3xl font-semibold text-center mb-6 dark:text-white">Profile Settings</h2>
+              <ProfileSettingsForm 
+                initialProfileData={profileFormData} 
+                onProfileSaveSuccess={handleProfileSaveSuccess}
+              />
+            </div>
+          </SessionLayout>
         </TabsContent>
       </Tabs>
+      
+      <PurchaseCreditsModal
+        isOpen={isPurchaseModalOpen}
+        onOpenChange={setIsPurchaseModalOpen}
+        // The modal itself handles which package is selected and calls handleStripeAction with itemId
+        // So no need to pass handleActualPurchase here.
+        // onPurchaseSuccess callback in modal can trigger refetchCreditsAndProfile if needed after redirecting to Stripe
+      />
+
+      {isConfirmStartModalOpen && (
+        <Dialog open={isConfirmStartModalOpen} onOpenChange={setIsConfirmStartModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Start Interview</DialogTitle>
+              <DialogDescription>
+                Starting this interview will use 1 credit. You will have {credits !== null ? credits - 1 : 'N/A'} credit(s) remaining. Do you want to proceed?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsConfirmStartModalOpen(false)}>Cancel</Button>
+              <Button onClick={startInterview}>Proceed</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
 
-export default function InterviewPage() {
-  return (
-    <AuthGuard>
-      <InterviewPageContent />
-    </AuthGuard>
-  );
+// Server Component Wrapper for initial data fetching
+export default async function InterviewPage() { // Changed name for clarity
+    const { userId } = await auth(); // Correctly await auth
+    const searchParams = useSearchParams(); 
+
+    if (!userId) {
+        // AuthGuard should handle this, but as a fallback for direct access:
+        return (
+            <AuthGuard> {/* Ensure AuthGuard is still effective */}
+                <SessionLayout>
+                    <Navbar />
+                    <div className="text-center py-10">Please log in to continue.</div>
+                </SessionLayout>
+            </AuthGuard>
+        );
+    }
+
+    const clerkServerUser = await currentUser();
+    const dbUser = await prisma.user.findUnique({ where: { id: userId } });
+
+    let initialName = "";
+    if (clerkServerUser?.firstName && clerkServerUser?.lastName) initialName = `${clerkServerUser.firstName} ${clerkServerUser.lastName}`;
+    else if (clerkServerUser?.firstName) initialName = clerkServerUser.firstName;
+    else if (clerkServerUser?.lastName) initialName = clerkServerUser.lastName;
+    else if (clerkServerUser?.emailAddresses[0]?.emailAddress) initialName = clerkServerUser.emailAddresses[0].emailAddress;
+
+    const jobTitleFromParams = searchParams.get("jobTitle") || "Software Engineer";
+    const skipResumeFromParams = searchParams.get("skipResume") === "true";
+
+    // Resume data is client-side (localStorage), so initialResumeData and initialHasResumeData
+    // will be determined by the client component.
+    return (
+        <AuthGuard>
+            <InterviewPageContent
+                initialJobTitle={jobTitleFromParams}
+                initialResumeData={null} 
+                initialHasResumeData={false} 
+                initialSkipResume={skipResumeFromParams}
+                initialCreditsData={{
+                    credits: dbUser?.credits ?? 0,
+                    isPremium: !!dbUser?.isPremium,
+                }}
+                initialProfileFormData={{
+                    name: initialName,
+                    resumeJobTitle: dbUser?.resumeJobTitle || "",
+                    resumeFileUrl: dbUser?.resumeFileUrl || "",
+                    jobSearchStage: dbUser?.jobSearchStage || "",
+                    linkedinUrl: dbUser?.linkedinUrl || "",
+                }}
+                stripePublishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""}
+            />
+        </AuthGuard>
+    );
 }
