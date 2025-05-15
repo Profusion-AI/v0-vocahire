@@ -15,6 +15,11 @@ model User {
   /// Clerk userId is now the primary key for all user data.
   id             String    @id @unique
 
+  // Basic profile information from Clerk
+  email          String?   @unique
+  name           String?
+  image          String?
+
   // Role & credits
   role           UserRole  @default(USER)
   credits        Int       @default(3)

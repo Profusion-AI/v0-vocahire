@@ -80,10 +80,9 @@ export async function POST(req: NextRequest) {
         const dbUser = await prisma.user.create({
           data: {
             id: clerkId,
-            // The User model does not have email, name, or image fields.
-            // If you want to store a display name, use resumeJobTitle.
-            // If you want to store an avatar, add a field to the schema.
-            // For now, only id is stored.
+            email: email,
+            name: name,
+            image: image,
           },
         });
         console.log(`[Clerk Webhook] User created in DB: ${clerkId}`);
@@ -128,7 +127,8 @@ export async function POST(req: NextRequest) {
           if (existingUser && !existingUser.stripeCustomerId) {
             try {
               const customer = await stripe.customers.create({
-                // No email or name fields in User model, so do not include them
+                email: email || undefined,
+                name: name || undefined,
                 metadata: {
                   clerkId: clerkId,
                 },
@@ -172,7 +172,9 @@ export async function POST(req: NextRequest) {
         await prisma.user.update({
           where: { id: updatedClerkId },
           data: {
-            // No email, name, or image fields in User model
+            email: updatedEmail,
+            name: updatedName,
+            image: updatedImage,
           },
         });
         console.log(`[Clerk Webhook] User updated: ${updatedClerkId}`);
@@ -214,7 +216,9 @@ export async function POST(req: NextRequest) {
         await prisma.user.update({
           where: { id: deletedClerkId },
           data: {
-            // No email, name, or image fields in User model
+            email: null,
+            name: null,
+            image: null,
             stripeCustomerId: null,
             // DO NOT touch isPremium, premiumExpiresAt, premiumSubscriptionId here!
             // Let the Stripe webhook handle those fields.
