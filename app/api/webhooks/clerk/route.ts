@@ -1,3 +1,6 @@
+// Refactored to ensure only Stripe webhook manages isPremium, premiumExpiresAt, premiumSubscriptionId.
+// Clerk webhook only manages stripeCustomerId (on creation) and clears non-Stripe fields on deletion.
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Webhook } from "svix";
@@ -54,7 +57,7 @@ export async function POST(req: NextRequest) {
 
   // Handle the event
   switch (eventType) {
-    case "user.created":
+    case "user.created": {
       const user = event.data;
       if (!user || !user.id) {
         return NextResponse.json({ error: "Missing user data" }, { status: 400 });
@@ -96,8 +99,11 @@ export async function POST(req: NextRequest) {
           console.log(`[Clerk Webhook] Stripe Customer created: ${customer.id} for Clerk ID: ${clerkId}`);
 
           // Update user in DB with Stripe Customer ID
-          console.log(`[Clerk Webhook] Stripe Customer created: ${customer.id} for Clerk ID: ${clerkId}`);
-          
+          await prisma.user.update({
+            where: { id: clerkId },
+            data: { stripeCustomerId: customer.id },
+          });
+          console.log(`[Clerk Webhook] stripeCustomerId set for user: ${clerkId}`);
         } catch (stripeErr: any) {
           console.error(`[Clerk Webhook] Error creating Stripe customer for ${clerkId}:`, stripeErr);
           // If Stripe customer creation fails, the user is already created in our DB.
@@ -128,7 +134,11 @@ export async function POST(req: NextRequest) {
                 },
               });
               console.log(`[Clerk Webhook] Stripe Customer created for existing user: ${customer.id} for Clerk ID: ${clerkId}`);
-             console.log(`[Clerk Webhook] Stripe Customer created for existing user: ${customer.id} for Clerk ID: ${clerkId}`);
+              await prisma.user.update({
+                where: { id: clerkId },
+                data: { stripeCustomerId: customer.id },
+              });
+              console.log(`[Clerk Webhook] stripeCustomerId set for existing user: ${clerkId}`);
             } catch (stripeErr: any) {
               console.error(`[Clerk Webhook] Error creating Stripe customer for existing user ${clerkId}:`, stripeErr);
             }
@@ -138,8 +148,9 @@ export async function POST(req: NextRequest) {
         console.error("[Clerk Webhook] Error creating user:", err);
         return NextResponse.json({ error: "Database error" }, { status: 500 });
       }
+    }
 
-    case "user.updated":
+    case "user.updated": {
       const updatedUser = event.data;
       if (!updatedUser || !updatedUser.id) {
         return NextResponse.json({ error: "Missing user data" }, { status: 400 });
@@ -172,8 +183,9 @@ export async function POST(req: NextRequest) {
         console.error("[Clerk Webhook] Error updating user:", err);
         return NextResponse.json({ error: "Database error" }, { status: 500 });
       }
+    }
 
-    case "user.deleted":
+    case "user.deleted": {
       const deletedUser = event.data;
       if (!deletedUser || !deletedUser.id) {
         return NextResponse.json({ error: "Missing user data" }, { status: 400 });
@@ -208,9 +220,8 @@ export async function POST(req: NextRequest) {
             name: null,
             image: null,
             stripeCustomerId: null,
-            premiumSubscriptionId: null,
-            premiumExpiresAt: null,
-            isPremium: false,
+            // DO NOT touch isPremium, premiumExpiresAt, premiumSubscriptionId here!
+            // Let the Stripe webhook handle those fields.
             // Optionally add a deletedAt timestamp field to schema.prisma
             // deletedAt: new Date(),
           },
@@ -221,6 +232,7 @@ export async function POST(req: NextRequest) {
         console.error("[Clerk Webhook] Error handling user deletion:", err);
         return NextResponse.json({ error: "Database error" }, { status: 500 });
       }
+    }
 
     default:
       console.log(`[Clerk Webhook] Unhandled event type: ${eventType}`);
