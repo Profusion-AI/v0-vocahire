@@ -1,36 +1,34 @@
 // No "use client"; directive - this is a Server Component by default
-import { Suspense } from "react"; // For useSearchParams with Server Components
+import { Suspense } from "react"; 
 import { prisma } from "@/lib/prisma";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { useSearchParams as useSearchParamsServer } from 'next/navigation'; // For server-side use
 import { Navbar } from "@/components/navbar";
 import AuthGuard from "@/components/auth/AuthGuard";
 import SessionLayout from "@/components/SessionLayout";
-import InterviewPageClient, { type InterviewPageClientProps } from "./InterviewPageClient"; // Corrected import path
-import { type ProfileFormData } from "@/components/ProfileSettingsForm"; // Type for profile form data
-import { Skeleton } from "@/components/ui/skeleton"; // For loading state
+import InterviewPageClient, { type InterviewPageClientProps } from "./InterviewPageClient";
+import { type ProfileFormData } from "@/components/ProfileSettingsForm";
+import { Skeleton } from "@/components/ui/skeleton";
+import { redirect } from 'next/navigation';
 
-// Helper to use searchParams in a Server Component context
-function SearchParamsReader() {
-  const searchParams = useSearchParamsServer();
-  return <InterviewPageDataFetcher searchParams={searchParams} />;
+interface InterviewPageProps {
+  searchParams: { [key: string]: string | string[] | undefined };
 }
 
-async function InterviewPageDataFetcher({ searchParams }: { searchParams: ReturnType<typeof useSearchParamsServer> }) {
+async function InterviewPageDataFetcher({ searchParams }: InterviewPageProps) {
   const { userId } = await auth();
   
   if (!userId) {
-      // This case should ideally be handled by AuthGuard on the client,
-      // or middleware. If reached, it means auth state is not yet resolved client-side
-      // or user is genuinely not logged in.
-      // AuthGuard will likely redirect or show a login prompt.
-      // Returning a loading or minimal state here is fine.
-      return (
-          <SessionLayout>
-              <Navbar /> {/* Navbar should be visible even if content is loading/auth pending */}
-              <div className="text-center py-10">Loading user session...</div>
-          </SessionLayout>
-      );
+    // This should ideally be caught by AuthGuard on client or middleware.
+    // If redirecting server-side:
+    // redirect('/login'); 
+    // For now, let AuthGuard handle client-side redirection.
+    // Returning null or a minimal loading state if AuthGuard is expected to handle it.
+    return (
+        <SessionLayout>
+            <Navbar />
+            <div className="text-center py-10">Authenticating...</div>
+        </SessionLayout>
+    );
   }
 
   const clerkServerUser = await currentUser();
@@ -44,12 +42,11 @@ async function InterviewPageDataFetcher({ searchParams }: { searchParams: Return
     else if (clerkServerUser.emailAddresses[0]?.emailAddress) initialName = clerkServerUser.emailAddresses[0].emailAddress;
   }
 
-  const jobTitleFromParams = searchParams.get("jobTitle") || "Software Engineer";
-  const skipResumeFromParams = searchParams.get("skipResume") === "true";
+  const jobTitleFromParams = typeof searchParams.jobTitle === 'string' ? searchParams.jobTitle : "Software Engineer";
+  const skipResumeFromParams = searchParams.skipResume === "true";
 
   const clientProps: InterviewPageClientProps = {
     initialJobTitle: jobTitleFromParams,
-    // initialResumeData and initialHasResumeData are handled client-side by InterviewPageClient
     initialSkipResume: skipResumeFromParams,
     initialCredits: dbUser?.credits ?? 0,
     initialIsPremium: !!dbUser?.isPremium,
@@ -67,23 +64,19 @@ async function InterviewPageDataFetcher({ searchParams }: { searchParams: Return
   return <InterviewPageClient {...clientProps} />;
 }
 
-
-export default function InterviewPage() {
+// The Page component itself receives searchParams as a prop
+export default function InterviewPage({ searchParams }: InterviewPageProps) {
   return (
-    <AuthGuard> {/* AuthGuard handles client-side auth protection and Clerk context */}
-      <Navbar /> {/* Navbar is part of the server layout */}
-      {/* Suspense is needed because useSearchParams is a client hook, 
-          but we are using a server-compatible version via a helper.
-          Alternatively, pass searchParams directly if page itself is async.
-          For App Router, pages are Server Components by default.
-      */}
+    <AuthGuard> 
+      <Navbar /> 
       <Suspense fallback={
         <SessionLayout>
           <Skeleton className="h-12 w-3/4 mx-auto mb-8" />
           <Skeleton className="h-[500px] w-full max-w-3xl mx-auto" />
         </SessionLayout>
       }>
-        <SearchParamsReader />
+        {/* Pass searchParams to the data fetching component */}
+        <InterviewPageDataFetcher searchParams={searchParams} />
       </Suspense>
     </AuthGuard>
   );
