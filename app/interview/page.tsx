@@ -1,4 +1,4 @@
-"use client";
+"use client"; // InterviewPageContent remains a client component
 
 import { useState, useEffect, useCallback } from "react";
 import InterviewRoom from "@/components/InterviewRoom";
@@ -15,11 +15,9 @@ import SessionLayout from "@/components/SessionLayout";
 import { loadStripe } from "@stripe/stripe-js";
 import { useToast } from "@/hooks/use-toast";
 import { ProfileSettingsForm, type ProfileFormData } from "@/components/ProfileSettingsForm";
-import { prisma } from "@/lib/prisma"; // For server-side fetch
-import { auth, currentUser } from "@clerk/nextjs/server"; // For server-side auth
+import { prisma } from "@/lib/prisma";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
-
-// Import Dialog components for confirmation modal
 import {
   Dialog,
   DialogContent,
@@ -29,76 +27,107 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-
 interface InterviewPageContentProps {
   initialJobTitle: string;
-  initialResumeData: ResumeData | null;
-  initialHasResumeData: boolean;
+  initialResumeData: ResumeData | null; // Will be loaded client-side from localStorage
+  initialHasResumeData: boolean; // Will be determined client-side
   initialSkipResume: boolean;
-  initialCreditsData: {
-    credits: number | null;
-    isPremium: boolean;
-  };
+  initialCredits: number | null;
+  initialIsPremium: boolean;
   initialProfileFormData: ProfileFormData;
   stripePublishableKey: string;
+  userId: string; // Pass userId for any client-side specific needs if any, though most data is server-fetched
 }
 
 function InterviewPageContent({
   initialJobTitle,
-  initialResumeData,
-  initialHasResumeData,
+  // initialResumeData, // Loaded client-side
+  // initialHasResumeData, // Determined client-side
   initialSkipResume,
-  initialCreditsData,
+  initialCredits,
+  initialIsPremium,
   initialProfileFormData,
   stripePublishableKey,
+  userId,
 }: InterviewPageContentProps) {
   const router = useRouter();
+  const searchParams = useSearchParams(); // Keep for client-side URL param access if needed after initial load
   const { toast } = useToast();
 
   const [jobTitle, setJobTitle] = useState<string>(initialJobTitle);
-  const [resumeData, setResumeData] = useState<ResumeData | null>(initialResumeData);
-  const [hasResumeData, setHasResumeData] = useState<boolean>(initialHasResumeData);
+  const [isLoadingResume, setIsLoadingResume] = useState(true); // For localStorage resume loading
+  const [resumeData, setResumeData] = useState<ResumeData | null>(null);
+  const [hasResumeData, setHasResumeData] = useState<boolean>(false);
   const [skipResume, setSkipResume] = useState(initialSkipResume);
   const [currentView, setCurrentView] = useState<"interview" | "profile">("interview");
 
-  const [credits, setCredits] = useState<number | null>(initialCreditsData.credits);
-  const [isPremium, setIsPremium] = useState<boolean>(initialCreditsData.isPremium);
-  const [isCreditsLoading, setIsCreditsLoading] = useState(false);
+  const [credits, setCredits] = useState<number | null>(initialCredits);
+  const [isPremium, setIsPremium] = useState<boolean>(initialIsPremium);
+  const [isCreditsLoading, setIsCreditsLoading] = useState(false); // For refetches
 
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [isConfirmStartModalOpen, setIsConfirmStartModalOpen] = useState(false);
   
-  const [profileFormData, setProfileFormData] = useState<ProfileFormData>(initialProfileFormData);
+  const [profileDataForForm, setProfileDataForForm] = useState<ProfileFormData>(initialProfileFormData);
 
+  // Client-side effect to load resume from localStorage
   useEffect(() => {
-    setJobTitle(initialJobTitle);
-    setResumeData(initialResumeData);
-    setHasResumeData(initialHasResumeData);
+    setIsLoadingResume(true);
+    try {
+      const storedResumeData = localStorage.getItem("vocahire_resume_data");
+      if (storedResumeData) {
+        const parsedData = JSON.parse(storedResumeData) as ResumeData;
+        setResumeData(parsedData);
+        setHasResumeData(true);
+        // If jobTitle wasn't in URL, but is in resume, update it
+        if (initialJobTitle === "Software Engineer" && parsedData.jobTitle) {
+             setJobTitle(parsedData.jobTitle);
+        }
+      } else {
+        setHasResumeData(false);
+      }
+    } catch (err) {
+      console.error("Error loading resume data from localStorage:", err);
+      setHasResumeData(false);
+    }
+    setIsLoadingResume(false);
+  }, [initialJobTitle]); // Rerun if initialJobTitle changes (e.g. from URL)
+
+  // Effect to update states if initial props change (e.g., after server-side re-fetch if page reloads)
+  useEffect(() => {
+    setCredits(initialCredits);
+    setIsPremium(initialIsPremium);
+    setProfileDataForForm(initialProfileFormData);
     setSkipResume(initialSkipResume);
-    setCredits(initialCreditsData.credits);
-    setIsPremium(initialCreditsData.isPremium);
-    setProfileFormData(initialProfileFormData);
-  }, [initialJobTitle, initialResumeData, initialHasResumeData, initialSkipResume, initialCreditsData, initialProfileFormData]);
+    if(initialJobTitle !== jobTitle && !resumeData?.jobTitle) { // Avoid overwriting if resume already set a title
+        setJobTitle(initialJobTitle);
+    }
+  }, [initialCredits, initialIsPremium, initialProfileFormData, initialJobTitle, skipResume, resumeData?.jobTitle, jobTitle]);
+
 
   const refetchCreditsAndProfile = async () => {
     setIsCreditsLoading(true);
     try {
-      const res = await fetch("/api/user"); // This should fetch combined Clerk and DB user data
+      const res = await fetch("/api/user"); 
       if (res.ok) {
         const data = await res.json();
-        const user = data.user || data; 
+        const user = data.user || data;
         setCredits(typeof user.credits === "number" ? user.credits : 0);
         setIsPremium(!!user.isPremium);
         
-        // Assuming /api/user now also returns name derived from Clerk for consistency
-        setProfileFormData({
-            name: user.name || profileFormData.name, 
+        // Update profile form data based on the fetched user data
+        // This assumes /api/user returns the necessary fields for ProfileFormData
+        // or that we can reconstruct the 'name' field if it's not directly available.
+        // For 'name', it's tricky if it's only from Clerk server-side.
+        // We might need a separate client-side hook for Clerk's user name if it changes.
+        setProfileDataForForm(prev => ({
+            ...prev, // Keep existing name if not returned by /api/user
+            name: user.name || prev.name, // Or fetch from useUser() from Clerk if needed client-side
             resumeJobTitle: user.resumeJobTitle || "",
             resumeFileUrl: user.resumeFileUrl || "",
             jobSearchStage: user.jobSearchStage || "",
             linkedinUrl: user.linkedinUrl || "",
-        });
-
+        }));
       } else {
         toast({ title: "Error", description: "Failed to refresh user data." });
       }
@@ -111,14 +140,14 @@ function InterviewPageContent({
   };
   
   const handleProfileSaveSuccess = (updatedFormData: ProfileFormData) => {
-    setProfileFormData(updatedFormData);
+    setProfileDataForForm(updatedFormData); 
     toast({title: "Success", description: "Profile updated successfully!"});
-    // If name is part of ProfileFormData and displayed directly on InterviewPageContent, it will update.
+    // If name changed, and it's displayed elsewhere, that part might need Clerk's useUser() for reactivity
   };
 
   const handleStripeAction = async (itemId: string) => {
     if (!stripePublishableKey) {
-      toast({ title: "Configuration Error", description: "Stripe is not configured. Please contact support."});
+      toast({ title: "Configuration Error", description: "Stripe is not configured."});
       return;
     }
     try {
@@ -132,14 +161,13 @@ function InterviewPageContent({
         throw new Error(errorData.error || "Failed to create checkout session.");
       }
       const data = await res.json();
-      if (!data.url) {
-        throw new Error("No checkout URL returned from server.");
+      if (!data.url || !data.sessionId) { 
+        throw new Error("Checkout session details not returned from server.");
       }
       const stripe = await loadStripe(stripePublishableKey);
       if (!stripe) {
         throw new Error("Stripe.js failed to load.");
       }
-      // Use data.sessionId for redirectToCheckout as per Stripe's API
       const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId }); 
       if (error) {
         console.error("Stripe redirect error:", error);
@@ -148,13 +176,13 @@ function InterviewPageContent({
     } catch (err: any) {
       toast({
         title: "Payment Error",
-        description: err?.message || "Unable to start payment flow. Please try again.",
+        description: err?.message || "Unable to start payment flow.",
         variant: "destructive",
       });
     }
   };
   
-  const handlePurchaseCreditsClick = () => { // Renamed to avoid conflict if modal had same name
+  const handlePurchaseCreditsClick = () => {
     setIsPurchaseModalOpen(true);
   };
 
@@ -176,18 +204,29 @@ function InterviewPageContent({
     } else if (isPremium || (credits !== null && credits > 0)) {
       startInterview();
     }
+    // If no credits and not premium, the UI should prevent this action.
   };
 
   const startInterview = () => {
-    console.log("Interview started logic triggered");
     setIsConfirmStartModalOpen(false);
-    // Here, you would typically set some state to make the InterviewRoom component visible
-    // or to trigger the actual interview session start within InterviewRoom.
-    // For now, we assume InterviewRoom becomes active based on other conditions or props.
-    // If credits need to be deducted *before* API call to OpenAI, it's risky.
-    // Best to deduct on successful session creation via /api/realtime-session
-    refetchCreditsAndProfile(); // Refresh credits in case one was just used by backend
+    // Logic to make InterviewRoom active/visible would go here
+    // For now, assume InterviewRoom component itself handles starting the session when appropriate props are set
+    // Potentially deduct credit via API call here if not handled by /api/realtime-session
+    console.log("Attempting to start interview...");
+    // The actual rendering of InterviewRoom is handled below based on conditions
   };
+
+  if (isLoadingResume) { // Show loading skeleton only for resume part
+    return (
+      <>
+        <Navbar />
+        <SessionLayout>
+          <Skeleton className="h-12 w-3/4 mx-auto mb-8" />
+          <Skeleton className="h-[500px] w-full max-w-3xl mx-auto" />
+        </SessionLayout>
+      </>
+    );
+  }
 
   if (!hasResumeData && !skipResume && currentView === "interview") {
     return (
@@ -286,7 +325,7 @@ function InterviewPageContent({
                      <Button 
                         onClick={handleStartInterviewAttempt} 
                         className="w-full max-w-md mx-auto flex justify-center py-3 text-lg bg-green-500 hover:bg-green-600"
-                        disabled={isCreditsLoading}
+                        disabled={isCreditsLoading} // Disable if credits are currently being refetched
                     >
                         Start Mock Interview
                     </Button>
@@ -295,7 +334,7 @@ function InterviewPageContent({
                         onComplete={handleInterviewComplete}
                         resumeData={resumeData}
                         credits={credits} 
-                        isCreditsLoading={isCreditsLoading}
+                        isCreditsLoading={isCreditsLoading} // Pass this down
                         onBuyCredits={handlePurchaseCreditsClick} 
                         refetchCredits={refetchCreditsAndProfile} 
                      />
@@ -313,7 +352,7 @@ function InterviewPageContent({
             <div className="max-w-2xl mx-auto py-8"> 
               <h2 className="text-3xl font-semibold text-center mb-6 dark:text-white">Profile Settings</h2>
               <ProfileSettingsForm 
-                initialProfileData={profileFormData} 
+                initialProfileData={profileDataForForm} 
                 onProfileSaveSuccess={handleProfileSaveSuccess}
               />
             </div>
@@ -324,9 +363,8 @@ function InterviewPageContent({
       <PurchaseCreditsModal
         isOpen={isPurchaseModalOpen}
         onOpenChange={setIsPurchaseModalOpen}
-        // The modal itself handles which package is selected and calls handleStripeAction with itemId
-        // So no need to pass handleActualPurchase here.
-        // onPurchaseSuccess callback in modal can trigger refetchCreditsAndProfile if needed after redirecting to Stripe
+        // onPurchaseSuccess is handled by Stripe redirect and webhook.
+        // refetchCreditsAndProfile can be called when user returns to this page or modal closes.
       />
 
       {isConfirmStartModalOpen && (
@@ -335,7 +373,7 @@ function InterviewPageContent({
             <DialogHeader>
               <DialogTitle>Confirm Start Interview</DialogTitle>
               <DialogDescription>
-                Starting this interview will use 1 credit. You will have {credits !== null ? credits - 1 : 'N/A'} credit(s) remaining. Do you want to proceed?
+                Starting this interview will use 1 credit. You will have {credits !== null && credits > 0 ? credits - 1 : 0} credit(s) remaining. Do you want to proceed?
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -350,14 +388,13 @@ function InterviewPageContent({
 }
 
 // Server Component Wrapper for initial data fetching
-export default async function InterviewPage() { // Changed name for clarity
-    const { userId } = await auth(); // Correctly await auth
+export default async function InterviewPage() {
+    const { userId } = await auth(); 
     const searchParams = useSearchParams(); 
 
     if (!userId) {
-        // AuthGuard should handle this, but as a fallback for direct access:
         return (
-            <AuthGuard> {/* Ensure AuthGuard is still effective */}
+            <AuthGuard> 
                 <SessionLayout>
                     <Navbar />
                     <div className="text-center py-10">Please log in to continue.</div>
@@ -378,8 +415,6 @@ export default async function InterviewPage() { // Changed name for clarity
     const jobTitleFromParams = searchParams.get("jobTitle") || "Software Engineer";
     const skipResumeFromParams = searchParams.get("skipResume") === "true";
 
-    // Resume data is client-side (localStorage), so initialResumeData and initialHasResumeData
-    // will be determined by the client component.
     return (
         <AuthGuard>
             <InterviewPageContent
@@ -387,10 +422,8 @@ export default async function InterviewPage() { // Changed name for clarity
                 initialResumeData={null} 
                 initialHasResumeData={false} 
                 initialSkipResume={skipResumeFromParams}
-                initialCreditsData={{
-                    credits: dbUser?.credits ?? 0,
-                    isPremium: !!dbUser?.isPremium,
-                }}
+                initialCredits={dbUser?.credits ?? 0}
+                initialIsPremium={!!dbUser?.isPremium}
                 initialProfileFormData={{
                     name: initialName,
                     resumeJobTitle: dbUser?.resumeJobTitle || "",
@@ -399,6 +432,7 @@ export default async function InterviewPage() { // Changed name for clarity
                     linkedinUrl: dbUser?.linkedinUrl || "",
                 }}
                 stripePublishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""}
+                userId={userId}
             />
         </AuthGuard>
     );
