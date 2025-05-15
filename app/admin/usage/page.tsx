@@ -9,7 +9,7 @@ import { UsageDashboardClient, UsageData, UsageType } from "./UsageDashboardClie
 async function getAdminUserServerSide(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true }, // Removed 'role' from select
+    select: { id: true, email: true }, // Select id and email for admin check
   });
 
   // Prefer environment variables for admin emails or a proper role system
