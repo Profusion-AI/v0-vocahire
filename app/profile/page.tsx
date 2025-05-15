@@ -5,11 +5,15 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
+import { prisma } from "@/lib/prisma"; // For server-side fetch in ProfilePageServerData
+import { auth, currentUser } from "@clerk/nextjs/server"; // For server-side auth
+import { type User as PrismaUser } from "@prisma/client"; // Alias Prisma User type
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
-import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal"; // Import the modal
+import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
+import { useRouter } from "next/navigation";
 
 const jobStages = [
   "Exploring Options",
@@ -31,62 +35,88 @@ const profileFormSchema = z.object({
 
 type ProfileFormData = z.infer<typeof profileFormSchema>;
 
-export default function ProfilePage() {
-  const [isLoading, setIsLoading] = useState(true);
+// Server Component to fetch initial data
+export default async function ProfilePageServerData() {
+  const { userId: currentAuthUserId } = await auth(); // Renamed to avoid conflict in client component scope
+  const clerkUser = await currentUser();
+
+  if (!currentAuthUserId || !clerkUser) {
+    return <div className="text-center py-10">Please log in to view your profile.</div>;
+  }
+
+  const initialDbUser = await prisma.user.findUnique({
+    where: { id: currentAuthUserId },
+  });
+
+  let initialName = "";
+  if (clerkUser.firstName && clerkUser.lastName) {
+    initialName = `${clerkUser.firstName} ${clerkUser.lastName}`;
+  } else if (clerkUser.firstName) {
+    initialName = clerkUser.firstName;
+  } else if (clerkUser.lastName) {
+    initialName = clerkUser.lastName;
+  } else if (clerkUser.emailAddresses[0]?.emailAddress) {
+    initialName = clerkUser.emailAddresses[0].emailAddress; // Fallback to email if name parts are missing
+  }
+
+
+  // Pass initial data to a client component
+  return (
+    <ProfilePageClient
+      initialCredits={initialDbUser?.credits ?? 0}
+      initialProfileData={{
+        name: initialName,
+        resumeJobTitle: initialDbUser?.resumeJobTitle || "",
+        resumeFileUrl: initialDbUser?.resumeFileUrl || "",
+        jobSearchStage: initialDbUser?.jobSearchStage || "",
+        linkedinUrl: initialDbUser?.linkedinUrl || "",
+      }}
+    />
+  );
+}
+
+interface ProfilePageClientProps {
+  initialCredits: number;
+  initialProfileData: ProfileFormData;
+}
+
+function ProfilePageClient({ initialCredits, initialProfileData }: ProfilePageClientProps) {
+  const [credits, setCredits] = useState<number>(initialCredits);
   const [isSaving, setIsSaving] = useState(false);
-  const [credits, setCredits] = useState<number | null>(null);
-  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false); // State for modal
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const router = useRouter();
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileFormSchema),
-    defaultValues: {
-      name: "",
-      resumeJobTitle: "",
-      resumeFileUrl: "",
-      jobSearchStage: "",
-      linkedinUrl: "",
-    },
+    defaultValues: initialProfileData,
   });
 
-  // Fetch user data on mount
   useEffect(() => {
-    const fetchProfile = async () => {
-      setIsLoading(true);
-      try {
-        const res = await fetch("/api/user");
-        if (res.ok) {
-          const data = await res.json();
-          form.reset({
-            name: data.name || "",
-            resumeJobTitle: data.resumeJobTitle || "",
-            resumeFileUrl: data.resumeFileUrl || "",
-            jobSearchStage: data.jobSearchStage || "",
-            linkedinUrl: data.linkedinUrl || "",
-          });
-          setCredits(typeof data.credits === "number" ? data.credits : 0);
-        } else {
-          toast.error("Failed to load profile data.");
-        }
-      } catch {
-        toast.error("Failed to load profile data.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    form.reset(initialProfileData);
+  }, [initialProfileData, form]);
 
-  // Function to refresh credits, can be passed to modal
   const refreshCredits = async () => {
-    const res = await fetch("/api/user");
-    if (res.ok) {
-      const data = await res.json();
-      setCredits(typeof data.credits === "number" ? data.credits : 0);
+    try {
+      const res = await fetch("/api/user");
+      if (res.ok) {
+        const data = await res.json();
+        // Assuming /api/user returns an object like { user: { credits: number } } or { credits: number }
+        const newCredits = data.user?.credits ?? data.credits;
+        if (typeof newCredits === 'number') {
+          setCredits(newCredits);
+        } else {
+          toast.error("Could not retrieve updated credit count.");
+          console.error("Unexpected data structure from /api/user for credits:", data);
+        }
+      } else {
+        toast.error("Failed to refresh credits.");
+      }
+    } catch (error) {
+      toast.error("Error refreshing credits.");
+      console.error("Refresh credits error:", error);
     }
   };
 
-  // Save handler
   const onSubmit = async (values: ProfileFormData) => {
     setIsSaving(true);
     try {
@@ -96,29 +126,41 @@ export default function ProfilePage() {
         body: JSON.stringify(values),
       });
       if (res.ok) {
-        const updated = await res.json();
-        form.reset(updated); // Mark as not dirty
+        const updatedData = await res.json();
+        // Assuming the API returns the updated profile data that matches ProfileFormData
+        // and potentially the updated user object with credits
+        const updatedProfile = updatedData.user || updatedData;
+
+        form.reset({
+            name: updatedProfile.name || initialProfileData.name, // Fallback to initial if not returned
+            resumeJobTitle: updatedProfile.resumeJobTitle || initialProfileData.resumeJobTitle,
+            resumeFileUrl: updatedProfile.resumeFileUrl || initialProfileData.resumeFileUrl,
+            jobSearchStage: updatedProfile.jobSearchStage || initialProfileData.jobSearchStage,
+            linkedinUrl: updatedProfile.linkedinUrl || initialProfileData.linkedinUrl,
+        });
         toast.success("Profile saved!");
+        if (typeof updatedProfile.credits === 'number') {
+            setCredits(updatedProfile.credits);
+        }
       } else {
         const error = await res.json();
-        if (error.issues) {
-          // Zod validation errors
+        if (error.issues && error.issues.fieldErrors) {
           Object.entries(error.issues.fieldErrors).forEach(([field, messages]) => {
             if (Array.isArray(messages) && messages.length > 0) {
               form.setError(field as keyof ProfileFormData, { message: messages[0] as string });
             }
           });
+        } else {
+            toast.error(error.error || "Failed to save profile.");
         }
-        toast.error(error.error || "Failed to save profile.");
       }
-    } catch {
+    } catch (error) {
       toast.error("Failed to save profile.");
+      console.error("Save profile error:", error);
     } finally {
       setIsSaving(false);
     }
   };
-
-  const router = require("next/navigation").useRouter();
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
@@ -146,20 +188,12 @@ export default function ProfilePage() {
               type="button"
               className="text-lg font-semibold text-indigo-700 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded transition px-0 py-0 bg-transparent"
               style={{ cursor: "pointer" }}
-              onClick={() => {
-                  setIsPurchaseModalOpen(true); // Open the modal
-              }}
-              disabled={isLoading}
+              onClick={() => setIsPurchaseModalOpen(true)}
+              disabled={isSaving}
               aria-label="Purchase more credits"
             >
-              {isLoading || credits === null ? (
-                <span className="text-gray-400">Loading credits...</span>
-              ) : (
-                <>
-                  Available Interview Credits:{" "}
-                  <span className="font-bold">{credits}</span>
-                </>
-              )}
+              Available Interview Credits:{" "}
+              <span className="font-bold">{credits}</span>
             </button>
           </div>
           <p className="text-xs text-gray-500 mt-2">
@@ -179,14 +213,14 @@ export default function ProfilePage() {
           <CardContent className="space-y-4">
             <div>
               <Label htmlFor="name">Name</Label>
-              <Input id="name" {...form.register("name")} disabled={isLoading || isSaving} />
+              <Input id="name" {...form.register("name")} disabled={isSaving} />
               {form.formState.errors.name && (
                 <p className="text-sm text-red-500 mt-1">{form.formState.errors.name.message}</p>
               )}
             </div>
             <div>
               <Label htmlFor="linkedinUrl">LinkedIn URL</Label>
-              <Input id="linkedinUrl" {...form.register("linkedinUrl")} disabled={isLoading || isSaving} />
+              <Input id="linkedinUrl" {...form.register("linkedinUrl")} disabled={isSaving} />
               {form.formState.errors.linkedinUrl && (
                 <p className="text-sm text-red-500 mt-1">{form.formState.errors.linkedinUrl.message}</p>
               )}
@@ -205,7 +239,7 @@ export default function ProfilePage() {
                 id="jobSearchStage"
                 {...form.register("jobSearchStage")}
                 className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md w-full h-10 px-3 py-2"
-                disabled={isLoading || isSaving}
+                disabled={isSaving}
               >
                 <option value="">Select your current stage</option>
                 {jobStages.map((stage) => (
@@ -231,14 +265,14 @@ export default function ProfilePage() {
           <CardContent className="space-y-4">
             <div>
               <Label htmlFor="resumeJobTitle">Target Job Title</Label>
-              <Input id="resumeJobTitle" {...form.register("resumeJobTitle")} disabled={isLoading || isSaving} />
+              <Input id="resumeJobTitle" {...form.register("resumeJobTitle")} disabled={isSaving} />
               {form.formState.errors.resumeJobTitle && (
                 <p className="text-sm text-red-500 mt-1">{form.formState.errors.resumeJobTitle.message}</p>
               )}
             </div>
             <div>
               <Label htmlFor="resumeFileUrl">Resume File URL</Label>
-              <Input id="resumeFileUrl" {...form.register("resumeFileUrl")} disabled={isLoading || isSaving} />
+              <Input id="resumeFileUrl" {...form.register("resumeFileUrl")} disabled={isSaving} />
               {form.formState.errors.resumeFileUrl && (
                 <p className="text-sm text-red-500 mt-1">{form.formState.errors.resumeFileUrl.message}</p>
               )}
@@ -249,26 +283,14 @@ export default function ProfilePage() {
         <div className="flex justify-end">
           <Button
             type="submit"
-            disabled={isLoading || isSaving || !form.formState.isDirty}
+            disabled={isSaving || !form.formState.isDirty}
             className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md min-w-[120px]"
           >
             {isSaving ? (
               <span className="flex items-center gap-2">
                 <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                  />
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                 </svg>
                 Saving...
               </span>
@@ -281,7 +303,7 @@ export default function ProfilePage() {
       <PurchaseCreditsModal
         isOpen={isPurchaseModalOpen}
         onOpenChange={setIsPurchaseModalOpen}
-        onPurchaseSuccess={refreshCredits} // Refresh credits after Stripe redirect
+        onPurchaseSuccess={refreshCredits}
       />
     </div>
   );
