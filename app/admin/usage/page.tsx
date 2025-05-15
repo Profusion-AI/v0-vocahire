@@ -9,12 +9,12 @@ import { UsageDashboardClient, UsageData, UsageType } from "./UsageDashboardClie
 async function getAdminUserServerSide(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true }, // Ensure email is always present for type safety
+    select: { id: true }, // No email field in schema
   });
-  // Prefer environment variables for admin emails or a proper role system
-  const adminEmailsEnv = process.env.ADMIN_EMAILS?.split(",") || [];
-  const isAdminByEmail = user?.email ? adminEmailsEnv.includes(user.email) : false;
-  return { user, isAdmin: isAdminByEmail };
+  // Prefer environment variables for admin user IDs or a proper role system
+  const adminIdsEnv = process.env.ADMIN_USER_IDS?.split(",") || [];
+  const isAdminById = user ? adminIdsEnv.includes(user.id) : false;
+  return { user, isAdmin: isAdminById };
 }
 
 // Helper function to fetch top users by interview session count using groupBy
@@ -31,7 +31,7 @@ async function getTopUsersByInterviewsServerSide() {
   const userIds = topSessions.map((s: { userId: string }) => s.userId);
   const users = await prisma.user.findMany({
     where: { id: { in: userIds } },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true },
   });
 
   // Merge counts into user objects
@@ -48,7 +48,6 @@ async function getTopUsersByInterviewsServerSide() {
 export type TopUser = {
   id: string;
   name: string | null;
-  email: string | null;
   interviewSessionCount: number;
 };
 
