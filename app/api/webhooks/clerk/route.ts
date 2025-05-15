@@ -96,11 +96,7 @@ export async function POST(req: NextRequest) {
           console.log(`[Clerk Webhook] Stripe Customer created: ${customer.id} for Clerk ID: ${clerkId}`);
 
           // Update user in DB with Stripe Customer ID
-          await prisma.user.update({
-            where: { id: clerkId },
-            data: { stripeCustomerId: customer.id },
-          });
-          console.log(`[Clerk Webhook] User ${clerkId} updated with Stripe Customer ID: ${customer.id}`);
+          console.log(`[Clerk Webhook] Stripe Customer created: ${customer.id} for Clerk ID: ${clerkId}`);
           
         } catch (stripeErr: any) {
           console.error(`[Clerk Webhook] Error creating Stripe customer for ${clerkId}:`, stripeErr);
@@ -132,11 +128,7 @@ export async function POST(req: NextRequest) {
                 },
               });
               console.log(`[Clerk Webhook] Stripe Customer created for existing user: ${customer.id} for Clerk ID: ${clerkId}`);
-              await prisma.user.update({
-                where: { id: clerkId },
-                data: { stripeCustomerId: customer.id },
-              });
-              console.log(`[Clerk Webhook] Existing user ${clerkId} updated with Stripe Customer ID: ${customer.id}`);
+             console.log(`[Clerk Webhook] Stripe Customer created for existing user: ${customer.id} for Clerk ID: ${clerkId}`);
             } catch (stripeErr: any) {
               console.error(`[Clerk Webhook] Error creating Stripe customer for existing user ${clerkId}:`, stripeErr);
             }

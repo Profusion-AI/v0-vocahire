@@ -13,10 +13,8 @@ datasource db {
 /// @remarks All PII is stored here. No secrets or tokens are stored in this table.
 model User {
   /// Clerk userId is now the primary key for all user data.
-  id             String    @id
-  email          String?   @unique
-  name           String?
-  image          String?
+  id             String    @id @unique
+
   // Role & credits
   role           UserRole  @default(USER)
   credits        Int       @default(3)
@@ -52,8 +50,6 @@ model User {
   // Audit
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@index([email])
 }
 
 
