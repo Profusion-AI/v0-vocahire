@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Svix } from "svix";
-import type { WebhookEvent } from "svix";
+import { Webhook } from "svix";
 import Stripe from "stripe"; // Import Stripe
 
 // Get the Clerk webhook secret from environment variables
@@ -29,9 +28,9 @@ export async function POST(req: NextRequest) {
   const svixBody = await req.text();
 
   // Create a new Svix instance with your secret.
-  const wh = new Svix(CLERK_WEBHOOK_SECRET!);
+  const wh = new Webhook(CLERK_WEBHOOK_SECRET!);
 
-  let event: WebhookEvent;
+  let event: any;
 
   // Verify the payload with the headers
   try {
@@ -39,7 +38,7 @@ export async function POST(req: NextRequest) {
       "svix-id": svixId,
       "svix-timestamp": svixTimestamp,
       "svix-signature": svixSignature,
-    }) as WebhookEvent;
+    });
   } catch (err) {
     console.error("Error verifying webhook:", err);
     return new NextResponse("Error occured", {
