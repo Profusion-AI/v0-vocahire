@@ -12,20 +12,21 @@ import { redirect } from 'next/navigation';
 
 // Props for the Page Server Component, as provided by Next.js
 interface PageProps {
-  params: { [key: string]: string | string[] | undefined };
-  searchParams: { [key: string]: string | string[] | undefined };
+  // Both params and searchParams are promises that resolve to the respective objects
+  params: Promise<{ [key: string]: string | string[] | undefined }>; 
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 // This component fetches data using the searchParams passed from the Page
-async function InterviewPageDataFetcher({ searchParams }: { searchParams: PageProps['searchParams'] }) {
-  const { userId } = await auth(); 
-  
-  // If userId is not available here, it means the user is not authenticated server-side.
-  // AuthGuard will handle client-side redirection if the session is invalid or missing.
-  // We might still want to redirect server-side if no userId is found to avoid rendering further.
+async function InterviewPageDataFetcher({ searchParams: searchParamsPromise, params: paramsPromise }: { 
+  searchParams: PageProps['searchParams'];
+  params: PageProps['params']; // Added params promise here
+}) {
+  const { userId } = await auth();
+  const resolvedSearchParams = await searchParamsPromise; 
+  // const resolvedParams = await paramsPromise; // Await params if you need to use them
+
   if (!userId) {
-    // This redirect will happen during server rendering if user is not authenticated.
-    // Ensure your /login path is correct.
     redirect('/login'); 
   }
 
@@ -40,8 +41,8 @@ async function InterviewPageDataFetcher({ searchParams }: { searchParams: PagePr
     else if (clerkServerUser.emailAddresses[0]?.emailAddress) initialName = clerkServerUser.emailAddresses[0].emailAddress;
   }
 
-  const jobTitleFromParams = typeof searchParams.jobTitle === 'string' ? searchParams.jobTitle : "Software Engineer";
-  const skipResumeFromParams = searchParams.skipResume === "true";
+  const jobTitleFromParams = typeof resolvedSearchParams.jobTitle === 'string' ? resolvedSearchParams.jobTitle : "Software Engineer";
+  const skipResumeFromParams = resolvedSearchParams.skipResume === "true";
 
   const clientProps: InterviewPageClientProps = {
     initialJobTitle: jobTitleFromParams,
@@ -59,16 +60,14 @@ async function InterviewPageDataFetcher({ searchParams }: { searchParams: PagePr
     userId: userId, 
   };
 
-  // InterviewPageClient is a Client Component and will be wrapped by AuthGuard in the Page export
   return <InterviewPageClient {...clientProps} />;
 }
 
-// The Page component itself receives searchParams as a prop from Next.js
-export default function InterviewPage({ searchParams }: PageProps) {
+// The Page component itself receives params and searchParams as promise props from Next.js
+export default function InterviewPage({ params, searchParams }: PageProps) {
   return (
     <>
       <Navbar /> 
-      {/* AuthGuard wraps the part of the tree that needs client-side auth context and renders client components */}
       <AuthGuard> 
         <Suspense fallback={
           <SessionLayout>
@@ -76,8 +75,7 @@ export default function InterviewPage({ searchParams }: PageProps) {
             <Skeleton className="h-[500px] w-full max-w-3xl mx-auto" />
           </SessionLayout>
         }>
-          {/* InterviewPageDataFetcher is a Server Component, its result (InterviewPageClient) is what AuthGuard protects */}
-          <InterviewPageDataFetcher searchParams={searchParams} />
+          <InterviewPageDataFetcher params={params} searchParams={searchParams} />
         </Suspense>
       </AuthGuard>
     </>
