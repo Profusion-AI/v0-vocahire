@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
+import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal"; // Import the modal
 
 const jobStages = [
   "Exploring Options",
@@ -34,6 +35,7 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [credits, setCredits] = useState<number | null>(null);
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false); // State for modal
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileFormSchema),
@@ -74,6 +76,15 @@ export default function ProfilePage() {
     fetchProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Function to refresh credits, can be passed to modal
+  const refreshCredits = async () => {
+    const res = await fetch("/api/user");
+    if (res.ok) {
+      const data = await res.json();
+      setCredits(typeof data.credits === "number" ? data.credits : 0);
+    }
+  };
 
   // Save handler
   const onSubmit = async (values: ProfileFormData) => {
@@ -136,9 +147,7 @@ export default function ProfilePage() {
               className="text-lg font-semibold text-indigo-700 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded transition px-0 py-0 bg-transparent"
               style={{ cursor: "pointer" }}
               onClick={() => {
-                // Placeholder for purchase modal
-                alert("Purchase modal will open here.");
-                // Or: console.log("Purchase modal will open here.");
+                  setIsPurchaseModalOpen(true); // Open the modal
               }}
               disabled={isLoading}
               aria-label="Purchase more credits"
@@ -269,6 +278,11 @@ export default function ProfilePage() {
           </Button>
         </div>
       </form>
+      <PurchaseCreditsModal
+        isOpen={isPurchaseModalOpen}
+        onOpenChange={setIsPurchaseModalOpen}
+        onPurchaseSuccess={refreshCredits} // Refresh credits after Stripe redirect
+      />
     </div>
   );
 }

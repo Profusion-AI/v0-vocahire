@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
       ...(stripeCustomerId ? { customer: stripeCustomerId } : {}),
     });
 
-    return NextResponse.json({ sessionId: session.id });
+    return NextResponse.json({ sessionId: session.id, url: session.url });
   } catch (err: any) {
     console.error("Stripe Checkout error:", err);
     if (err?.type === "StripeCardError") {
