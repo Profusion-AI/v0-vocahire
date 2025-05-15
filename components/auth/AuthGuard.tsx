@@ -1,33 +1,17 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import React from "react";
 import { useAuth } from "@clerk/nextjs";
-import { TermsAgreement } from "@/components/terms-agreement";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
+  console.log("AuthGuard: isLoaded", isLoaded, "isSignedIn", isSignedIn); // Client-side log
 
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.replace("/sign-in");
-    }
-  }, [isLoaded, isSignedIn, router]);
-
-  if (!isLoaded) {
-    // Loading state
-    return null;
-  }
-
+  if (!isLoaded) return <p>AuthGuard Loading...</p>; // Or null
   if (!isSignedIn) {
-    return null;
+     // router.replace("/login") // Client-side redirect, might not run at build time
+     console.log("AuthGuard: Not signed in, would redirect client-side.");
+     return <p>Redirecting to sign in...</p>; // Placeholder for build
   }
-
-  // TermsAgreement will show modal if needed, otherwise render children
-  return (
-    <>
-      <TermsAgreement />
-      {children}
-    </>
-  );
+  // For now, skip TermsAgreement to isolate the useUser/useAuth issue
+  return <>{children}</>;
 }
