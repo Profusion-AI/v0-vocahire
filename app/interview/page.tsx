@@ -2,6 +2,7 @@
 import { Suspense } from "react"; 
 import { prisma } from "@/lib/prisma";
 import { auth, currentUser } from "@clerk/nextjs/server";
+// No need to import useSearchParams from 'next/navigation' in the Server Component file itself
 import { Navbar } from "@/components/navbar";
 import AuthGuard from "@/components/auth/AuthGuard";
 import SessionLayout from "@/components/SessionLayout";
@@ -10,23 +11,24 @@ import { type ProfileFormData } from "@/components/ProfileSettingsForm";
 import { Skeleton } from "@/components/ui/skeleton";
 import { redirect } from 'next/navigation';
 
-interface InterviewPageProps {
+// Props for the Page Server Component, as provided by Next.js
+interface PageProps {
+  params: { [key: string]: string | string[] | undefined }; // Or a more specific type if you have route params
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-async function InterviewPageDataFetcher({ searchParams }: InterviewPageProps) {
+// This component fetches data using the searchParams passed from the Page
+async function InterviewPageDataFetcher({ searchParams }: { searchParams: PageProps['searchParams'] }) {
   const { userId } = await auth();
   
   if (!userId) {
-    // This should ideally be caught by AuthGuard on client or middleware.
-    // If redirecting server-side:
+    // Consider redirecting or returning a specific UI for unauthenticated users
+    // For now, letting AuthGuard handle client-side, but server-side redirect is an option:
     // redirect('/login'); 
-    // For now, let AuthGuard handle client-side redirection.
-    // Returning null or a minimal loading state if AuthGuard is expected to handle it.
     return (
         <SessionLayout>
             <Navbar />
-            <div className="text-center py-10">Authenticating...</div>
+            <div className="text-center py-10">Authenticating user...</div>
         </SessionLayout>
     );
   }
@@ -64,8 +66,8 @@ async function InterviewPageDataFetcher({ searchParams }: InterviewPageProps) {
   return <InterviewPageClient {...clientProps} />;
 }
 
-// The Page component itself receives searchParams as a prop
-export default function InterviewPage({ searchParams }: InterviewPageProps) {
+// The Page component itself receives searchParams as a prop from Next.js
+export default function InterviewPage({ searchParams }: PageProps) {
   return (
     <AuthGuard> 
       <Navbar /> 
@@ -75,7 +77,6 @@ export default function InterviewPage({ searchParams }: InterviewPageProps) {
           <Skeleton className="h-[500px] w-full max-w-3xl mx-auto" />
         </SessionLayout>
       }>
-        {/* Pass searchParams to the data fetching component */}
         <InterviewPageDataFetcher searchParams={searchParams} />
       </Suspense>
     </AuthGuard>
