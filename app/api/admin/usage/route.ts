@@ -8,11 +8,13 @@ import { Prisma } from "@prisma/client";
 async function getAdminUser(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true },
+    // No 'email' field in User model, use 'id' for admin check
+    select: { id: true },
   });
 
-  const adminEmailsEnv = process.env.ADMIN_EMAILS?.split(",") || ["help@vocahire.com"]; // Default to provided admin email
-  const isAdmin = user?.email ? adminEmailsEnv.includes(user.email) : false;
+  // Use ADMIN_USER_IDS for admin check, as in other parts of the codebase
+  const adminIdsEnv = process.env.ADMIN_USER_IDS?.split(",") || [];
+  const isAdmin = user?.id ? adminIdsEnv.includes(user.id) : false;
   return isAdmin;
 }
 
@@ -37,8 +39,9 @@ export async function GET(request: NextRequest) {
     const users = await prisma.user.findMany({
       select: {
         id: true,
-        email: true,
-        // Optionally include name if you want to display it, though UsageData only has email
+        // No email field in User model
+        // Optionally include resumeJobTitle if you want to display it
+        resumeJobTitle: true,
       },
     });
 
@@ -65,7 +68,8 @@ export async function GET(request: NextRequest) {
 
       return {
         userId: user.id,
-        email: user.email,
+        // No email field, optionally use resumeJobTitle as a display name
+        name: user.resumeJobTitle ?? "Unknown",
         usage: {
           [UsageType.INTERVIEW_SESSION]: { daily: dailyInterviews, monthly: 0 }, // Monthly can be added later
           [UsageType.FEEDBACK_GENERATION]: { daily: dailyFeedbackGenerations, monthly: 0 },
