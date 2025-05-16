@@ -11,8 +11,12 @@ import { redirect } from 'next/navigation';
 
 // This is now the main Server Component for the /profile route
 export default async function ProfilePage() {
-  const { userId: currentAuthUserId } = await auth(); // This is fine in a Server Component
-  const clerkUser = await currentUser(); // This is fine in a Server Component
+  console.log("[ProfilePage SERVER] Page rendering started.");
+  const { userId: currentAuthUserId } = await auth();
+  const clerkUser = await currentUser();
+
+  console.log("[ProfilePage SERVER] currentAuthUserId from Clerk auth():", currentAuthUserId);
+  console.log("[ProfilePage SERVER] clerkUser object from currentUser():", clerkUser ? 'Exists' : 'null');
 
   if (!currentAuthUserId) {
     // If AuthGuard is meant to handle client-side redirection,
@@ -25,9 +29,13 @@ export default async function ProfilePage() {
 
   let initialDbUser: PrismaUser | null = null;
   if (currentAuthUserId) {
+    console.log(`[ProfilePage SERVER] Fetching user from DB with id: ${currentAuthUserId}`);
     initialDbUser = await prisma.user.findUnique({
       where: { id: currentAuthUserId },
     });
+    console.log("[ProfilePage SERVER] initialDbUser fetched from DB:", initialDbUser);
+  } else {
+    console.log("[ProfilePage SERVER] No currentAuthUserId, skipping DB fetch for initialDbUser.");
   }
 
   // If the user is authenticated via Clerk but doesn't exist in your DB yet,
@@ -58,6 +66,9 @@ export default async function ProfilePage() {
     linkedinUrl: initialDbUser?.linkedinUrl || "",
   };
 
+  // Log the exact value being passed as initialCredits just before returning the client component
+  console.log("[ProfilePage SERVER] Passing to ProfilePageClient - initialCredits:", initialDbUser?.credits ?? 0, "initialProfileData.name:", initialProfileData.name);
+
   return (
     <>
       <Navbar />
@@ -65,7 +76,7 @@ export default async function ProfilePage() {
       <AuthGuard>
         <SessionLayout>
           <ProfilePageClient
-            initialCredits={initialDbUser?.credits ?? 0} // Pass default 0 if no DB user yet
+            initialCredits={initialDbUser?.credits ?? 0}
             initialProfileData={initialProfileData}
           />
         </SessionLayout>
