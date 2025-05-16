@@ -51,13 +51,13 @@ const creditPackages: CreditPackage[] = [
 interface PurchaseCreditsModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  onPurchaseSuccess?: () => void;
+  // onPurchaseSuccess?: () => void; // Removed as per feedback
 }
 
 export function PurchaseCreditsModal({
   isOpen,
   onOpenChange,
-  onPurchaseSuccess,
+  // onPurchaseSuccess, // Removed as per feedback
 }: PurchaseCreditsModalProps) {
   const [selectedPackage, setSelectedPackage] = useState<CreditPackage | null>(
     null
@@ -89,9 +89,9 @@ export function PurchaseCreditsModal({
 
       if (url) {
         router.push(url); // Redirect to Stripe Checkout
-        if (onPurchaseSuccess) {
-          onPurchaseSuccess();
-        }
+        // if (onPurchaseSuccess) { // Removed as per feedback
+        //   onPurchaseSuccess();
+        // }
       } else {
         // This case implies the backend did not return the Stripe session URL.
         toast.error("Could not initiate purchase. Checkout URL not provided by server.");

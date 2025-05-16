@@ -8,15 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
 import type { ResumeData } from "@/components/resume-input";
-import { Navbar } from "@/components/navbar";
+// import { Navbar } from "@/components/navbar"; // Navbar is in parent server component
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-// AuthGuard is typically used in the layout or page server component that wraps client components
-// For this client component, if specific auth checks are needed beyond what props provide, use useAuth from "@clerk/nextjs"
 import SessionLayout from "@/components/SessionLayout";
 import { loadStripe } from "@stripe/stripe-js";
 import { useToast } from "@/hooks/use-toast";
 import { ProfileSettingsForm, type ProfileFormData } from "@/components/ProfileSettingsForm";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
+import { useUserData } from "@/hooks/useUserData"; // Import the new hook
 import {
   Dialog,
   DialogContent,
@@ -26,28 +25,33 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-export interface InterviewPageClientProps { // Renamed from InterviewPageContentProps for clarity
+export interface InterviewPageClientProps {
   initialJobTitle: string;
   initialSkipResume: boolean;
-  initialCredits: number | null;
-  initialIsPremium: boolean;
+  // initialCredits, initialIsPremium are no longer needed as useUserData handles fetching
   initialProfileFormData: ProfileFormData;
   stripePublishableKey: string;
-  userId: string; 
+  userId: string; // Still needed for some operations or if useUserData doesn't expose it directly
 }
 
-export default function InterviewPageClient({ // Renamed from InterviewPageContent
+export default function InterviewPageClient({
   initialJobTitle,
   initialSkipResume,
-  initialCredits,
-  initialIsPremium,
   initialProfileFormData,
   stripePublishableKey,
-  userId,
+  // userId, // userId can be sourced from useUserData if available there
 }: InterviewPageClientProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  // const searchParams = useSearchParams(); // Not used currently
   const { toast } = useToast();
+
+  const {
+    user,
+    credits,
+    isPremium,
+    isLoading: isUserDataLoading, // Renamed to avoid conflict if another isLoading is used
+    refetchUserData
+  } = useUserData();
 
   const [jobTitle, setJobTitle] = useState<string>(initialJobTitle);
   const [isLoadingResume, setIsLoadingResume] = useState(true);
@@ -56,13 +60,11 @@ export default function InterviewPageClient({ // Renamed from InterviewPageConte
   const [skipResume, setSkipResume] = useState(initialSkipResume);
   const [currentView, setCurrentView] = useState<"interview" | "profile">("interview");
 
-  const [credits, setCredits] = useState<number | null>(initialCredits);
-  const [isPremium, setIsPremium] = useState<boolean>(initialIsPremium);
-  const [isCreditsLoading, setIsCreditsLoading] = useState(false);
-
+  // Local state for modals
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [isConfirmStartModalOpen, setIsConfirmStartModalOpen] = useState(false);
   
+  // Profile form data state, initialized from props, potentially updated by useUserData
   const [profileDataForForm, setProfileDataForForm] = useState<ProfileFormData>(initialProfileFormData);
 
   useEffect(() => {
@@ -73,6 +75,7 @@ export default function InterviewPageClient({ // Renamed from InterviewPageConte
         const parsedData = JSON.parse(storedResumeData) as ResumeData;
         setResumeData(parsedData);
         setHasResumeData(true);
+        // Only set jobTitle from resume if initialJobTitle was the default placeholder
         if (initialJobTitle === "Software Engineer" && parsedData.jobTitle) {
              setJobTitle(parsedData.jobTitle);
         }
@@ -84,50 +87,34 @@ export default function InterviewPageClient({ // Renamed from InterviewPageConte
       setHasResumeData(false);
     }
     setIsLoadingResume(false);
-  }, [initialJobTitle]);
+  }, [initialJobTitle]); // Only re-run if initialJobTitle changes
 
   useEffect(() => {
-    setCredits(initialCredits);
-    setIsPremium(initialIsPremium);
-    setProfileDataForForm(initialProfileFormData);
+    // Update profileDataForForm when user data from the hook changes
+    if (user) {
+      setProfileDataForForm(prev => ({
+        name: user.name || prev.name || "", // Prioritize user.name, then prev.name, then empty
+        resumeJobTitle: user.resumeJobTitle || prev.resumeJobTitle || "",
+        resumeFileUrl: user.resumeFileUrl || prev.resumeFileUrl || "",
+        jobSearchStage: user.jobSearchStage || prev.jobSearchStage || "",
+        linkedinUrl: user.linkedinUrl || prev.linkedinUrl || "",
+      }));
+    }
+    // Update skipResume based on initial prop
     setSkipResume(initialSkipResume);
-    if(initialJobTitle !== jobTitle && !resumeData?.jobTitle) {
+
+    // If jobTitle from prop is different and no resume job title, update local jobTitle
+    if (initialJobTitle !== jobTitle && !resumeData?.jobTitle) {
         setJobTitle(initialJobTitle);
     }
-  }, [initialCredits, initialIsPremium, initialProfileFormData, initialJobTitle, skipResume, resumeData?.jobTitle, jobTitle]);
 
-  const refetchCreditsAndProfile = async () => {
-    setIsCreditsLoading(true);
-    try {
-      const res = await fetch("/api/user"); 
-      if (res.ok) {
-        const data = await res.json();
-        const user = data.user || data; 
-        setCredits(typeof user.credits === "number" ? user.credits : 0);
-        setIsPremium(!!user.isPremium);
-        
-        setProfileDataForForm(prev => ({
-            ...prev,
-            name: user.name || prev.name, 
-            resumeJobTitle: user.resumeJobTitle || "",
-            resumeFileUrl: user.resumeFileUrl || "",
-            jobSearchStage: user.jobSearchStage || "",
-            linkedinUrl: user.linkedinUrl || "",
-        }));
-      } else {
-        toast({ title: "Error", description: "Failed to refresh user data." });
-      }
-    } catch (error) {
-      toast({ title: "Error", description: "Could not refresh user data." });
-      console.error("Refetch error:", error);
-    } finally {
-      setIsCreditsLoading(false);
-    }
-  };
-  
+  }, [user, initialProfileFormData, initialSkipResume, initialJobTitle, jobTitle, resumeData?.jobTitle]);
+
+
   const handleProfileSaveSuccess = (updatedFormData: ProfileFormData) => {
-    setProfileDataForForm(updatedFormData); 
+    setProfileDataForForm(updatedFormData);
     toast({title: "Success", description: "Profile updated successfully!"});
+    refetchUserData(); // Refetch user data to ensure consistency, e.g. if name changed
   };
 
   const handleStripeAction = async (itemId: string) => {
@@ -195,12 +182,12 @@ export default function InterviewPageClient({ // Renamed from InterviewPageConte
     setIsConfirmStartModalOpen(false);
     console.log("Interview started logic triggered");
     // Actual interview start logic will be handled by InterviewRoom based on its props/state
-    refetchCreditsAndProfile(); 
+    refetchUserData();
   };
 
-  if (isLoadingResume) { 
+  if (isLoadingResume || isUserDataLoading) { // Check both resume and user data loading
     return (
-        <SessionLayout> {/* Navbar is now in the parent Server Component */}
+        <SessionLayout>
           <Skeleton className="h-12 w-3/4 mx-auto mb-8" />
           <Skeleton className="h-[500px] w-full max-w-3xl mx-auto" />
         </SessionLayout>
@@ -266,7 +253,7 @@ export default function InterviewPageClient({ // Renamed from InterviewPageConte
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Enjoy your premium benefits!</p>
               </div>
-            ) : isCreditsLoading ? (
+            ) : isUserDataLoading ? ( // Use isUserDataLoading from the hook
                 <div className="text-center my-6"><Skeleton className="h-8 w-48 inline-block" /></div>
             ) : credits !== null && credits > 0 ? (
               <div className="text-center my-6">
@@ -277,7 +264,7 @@ export default function InterviewPageClient({ // Renamed from InterviewPageConte
                   Buy More Credits
                 </Button>
               </div>
-            ) : ( 
+            ) : ( // This covers credits === 0 or credits === null (and not premium, not loading)
               <Card className="max-w-lg mx-auto my-8 shadow-xl border-2 border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20">
                 <CardHeader className="text-center">
                   <CardTitle className="text-2xl font-bold text-red-600 dark:text-red-400">Out of Interview Credits!</CardTitle>
@@ -295,12 +282,13 @@ export default function InterviewPageClient({ // Renamed from InterviewPageConte
               </Card>
             )}
 
+            {/* Start Interview Button Logic */}
             { (isPremium || (credits !== null && credits > 0)) ? (
                 <div className="mt-8">
-                     <Button 
-                        onClick={handleStartInterviewAttempt} 
+                     <Button
+                        onClick={handleStartInterviewAttempt}
                         className="w-full max-w-md mx-auto flex justify-center py-3 text-lg bg-green-500 hover:bg-green-600"
-                        disabled={isCreditsLoading}
+                        disabled={isUserDataLoading} // Use isUserDataLoading
                     >
                         Start Mock Interview
                     </Button>
@@ -308,13 +296,13 @@ export default function InterviewPageClient({ // Renamed from InterviewPageConte
                         jobTitle={jobTitle}
                         onComplete={handleInterviewComplete}
                         resumeData={resumeData}
-                        credits={credits} 
-                        isCreditsLoading={isCreditsLoading}
-                        onBuyCredits={handlePurchaseCreditsClick} 
-                        refetchCredits={refetchCreditsAndProfile} 
+                        credits={credits}
+                        isCreditsLoading={isUserDataLoading} // Pass isUserDataLoading
+                        onBuyCredits={handlePurchaseCreditsClick}
+                        refetchCredits={refetchUserData} // Pass refetchUserData from hook
                      />
                 </div>
-            ) : !isCreditsLoading && credits === 0 && !isPremium ? (
+            ) : !isUserDataLoading && credits === 0 && !isPremium ? (
                 <div className="text-center text-gray-600 dark:text-gray-400 mt-6">
                     Please purchase credits or upgrade to premium to start an interview.
                 </div>

@@ -1,96 +1,106 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useState, useCallback } from "react"; // Removed useCallback as refreshUserData is now from hook
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
 import { useRouter } from "next/navigation";
 import { ProfileSettingsForm, type ProfileFormData } from "@/components/ProfileSettingsForm";
-
-const jobStages = [ // This can be kept here or moved to a shared constants file if used elsewhere
-  "Exploring Options",
-  "Applying to Jobs",
-  "Interviewing",
-  "Negotiating Offers",
-  "Recently Hired",
-  "Other",
-];
-
-// Zod schema for profile form (can be defined here or imported if shared)
-// This is already defined in ProfileSettingsForm, so we just need the type.
-// const profileFormSchema = z.object({
-//   name: z.string().min(1, "Name is required").max(100),
-//   resumeJobTitle: z.string().max(100).optional().or(z.literal("")),
-//   resumeFileUrl: z.string().url("Invalid resume file URL").optional().or(z.literal("")),
-//   jobSearchStage: z.string().max(100).optional().or(z.literal("")),
-//   linkedinUrl: z.string().url("Invalid LinkedIn URL").optional().or(z.literal("")),
-// });
-// type ProfileFormData = z.infer<typeof profileFormSchema>;
-
+import Link from "next/link";
+import { loadStripe } from "@stripe/stripe-js";
+import { useUserData } from "@/hooks/useUserData"; // Import the new hook
 
 interface ProfilePageClientProps {
-  initialCredits: number;
-  initialProfileData: ProfileFormData; // This type is now imported from ProfileSettingsForm
+  // initialCredits and initialIsPremium are no longer needed from props
+  initialProfileData: ProfileFormData;
+  stripePublishableKey: string;
 }
 
-export default function ProfilePageClient({ initialCredits, initialProfileData }: ProfilePageClientProps) {
-  console.log("[ProfilePageClient] PROPS RECEIVED - initialCredits:", initialCredits, "initialProfileData.name:", initialProfileData.name);
-  const [credits, setCredits] = useState<number>(initialCredits);
+export default function ProfilePageClient({
+  initialProfileData,
+  stripePublishableKey,
+}: ProfilePageClientProps) {
+  const {
+    user,
+    credits,
+    isPremium,
+    isLoading: isUserDataLoading, // Renamed to avoid conflict
+    refetchUserData
+  } = useUserData();
+  
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const router = useRouter();
-  
   const [currentProfileData, setCurrentProfileData] = useState<ProfileFormData>(initialProfileData);
 
   useEffect(() => {
-    console.log("[ProfilePageClient] useEffect RUNNING - initialCredits:", initialCredits, "initialProfileData.name:", initialProfileData.name);
-    setCredits(initialCredits);
-    setCurrentProfileData(initialProfileData);
-    // To see the state *after* update, log in the render or use a separate useEffect watching 'credits'
-  }, [initialCredits, initialProfileData]);
+    // Update currentProfileData if the user object from the hook has more recent data
+    // or to set it initially from props if user from hook is not yet available.
+    if (user) {
+      setCurrentProfileData(prev => ({
+        name: user.name || prev.name || "",
+        resumeJobTitle: user.resumeJobTitle || prev.resumeJobTitle || "",
+        resumeFileUrl: user.resumeFileUrl || prev.resumeFileUrl || "",
+        jobSearchStage: user.jobSearchStage || prev.jobSearchStage || "",
+        linkedinUrl: user.linkedinUrl || prev.linkedinUrl || "",
+      }));
+    } else {
+        // If user from hook is null (e.g. initial load of hook), ensure currentProfileData is set from initialProfileData prop
+        setCurrentProfileData(initialProfileData);
+    }
+  }, [user, initialProfileData]);
 
-  // Log current state before render
-  console.log("[ProfilePageClient] PRE-RENDER - current credits state:", credits, "currentProfileData.name:", currentProfileData.name);
 
+  const handleProfileSaveSuccess = (updatedData: ProfileFormData) => {
+    setCurrentProfileData(updatedData);
+    toast.success("Profile updated successfully!");
+    refetchUserData(); // Refetch to ensure all user data is consistent after save
+  };
 
-  const refreshCredits = async () => {
+  const handleStripeAction = async (itemId: string) => {
+    if (!stripePublishableKey) {
+      toast.error("Stripe is not configured.");
+      return;
+    }
     try {
-      const res = await fetch("/api/user");
-      console.log("[ProfilePageClient] refreshCredits - fetch response status:", res.status);
-      if (res.ok) {
-        const data = await res.json();
-        console.log("[ProfilePageClient] refreshCredits - data from /api/user:", data);
-        const newCredits = data.user?.credits ?? data.credits;
-        console.log("[ProfilePageClient] refreshCredits - parsed newCredits:", newCredits);
-        if (typeof newCredits === 'number') {
-          setCredits(newCredits);
-          console.log("[ProfilePageClient] refreshCredits - credits state updated to:", newCredits);
-        } else {
-          toast.error("Could not retrieve updated credit count from API response.");
-          console.error("[ProfilePageClient] refreshCredits - newCredits is not a number:", newCredits);
-        }
-      } else {
-        toast.error("Failed to refresh credits. API request failed.");
-        console.error("[ProfilePageClient] refreshCredits - API request failed with status:", res.status);
+      const res = await fetch("/api/payments/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId, quantity: 1 }), // Assuming quantity 1 for subscriptions/packs here
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to create checkout session.");
       }
-    } catch (error) {
-      toast.error("Error refreshing credits.");
-      console.error("Refresh credits error:", error);
+      const data = await res.json();
+      if (!data.url || !data.sessionId) {
+        throw new Error("Checkout session details not returned from server.");
+      }
+      const stripe = await loadStripe(stripePublishableKey);
+      if (!stripe) {
+        throw new Error("Stripe.js failed to load.");
+      }
+      const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
+      if (error) {
+        console.error("Stripe redirect error:", error);
+        throw new Error(error.message || "Failed to redirect to Stripe.");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Unable to start payment flow.");
     }
   };
 
-  const handleProfileSaveSuccess = (updatedData: ProfileFormData) => {
-    setCurrentProfileData(updatedData); 
-    // If /api/user PATCH also returns updated credits, you could call refreshCredits here
-    // For now, we assume credits are refreshed separately or after Stripe flow.
-    // We might also want to refresh the 'name' if it's displayed directly from Clerk user data
-    // on the parent server component, which would require a page reload or more complex state sharing.
+  const handlePurchaseCreditsClick = () => {
+    setIsPurchaseModalOpen(true);
   };
+
+  const handleUpgradeToPremium = () => {
+    // Ensure you have a Stripe Price ID for premium mapped in your backend
+    // For example, "PREMIUM_MONTHLY_SUB" or "PREMIUM_ANNUAL_SUB"
+    handleStripeAction("PREMIUM_MONTHLY_SUB"); // Or allow selection
+  };
+
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
@@ -104,6 +114,7 @@ export default function ProfilePageClient({ initialCredits, initialProfileData }
           Back to Interview
         </Button>
       </div>
+
       {/* Account / Subscription Section */}
       <Card className="shadow-lg mb-8">
         <CardHeader>
@@ -113,36 +124,59 @@ export default function ProfilePageClient({ initialCredits, initialProfileData }
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              className="text-lg font-semibold text-indigo-700 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded transition px-0 py-0 bg-transparent"
-              style={{ cursor: "pointer" }}
-              onClick={() => setIsPurchaseModalOpen(true)}
-              aria-label="Purchase more credits"
-            >
-              Available Interview Credits:{" "}
-              <span className="font-bold">{credits}</span>
-            </button>
-          </div>
-          <p className="text-xs text-gray-500 mt-2">
-            Click to purchase more credits.
-          </p>
+          {isUserDataLoading ? ( // Use isUserDataLoading from the hook
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-3/4" />
+              <Skeleton className="h-6 w-1/2" />
+            </div>
+          ) : isPremium ? (
+            <div>
+              <div className="inline-block bg-gradient-to-r from-green-400 to-blue-500 text-white px-5 py-3 rounded-lg shadow-md font-semibold text-md mb-2">
+                Premium Access: Unlimited Interviews
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Enjoy your premium benefits!</p>
+            </div>
+          ) : credits !== null && credits > 0 ? (
+            <div>
+              <p className="text-lg">
+                Available Interview Credits:{" "}
+                <span className="font-bold text-indigo-600 dark:text-indigo-400">{credits}</span>
+              </p>
+              <Button onClick={handlePurchaseCreditsClick} variant="link" className="text-indigo-600 dark:text-indigo-400 p-0 h-auto mt-1">
+                Buy More Credits
+              </Button>
+            </div>
+          ) : ( // Not premium and (credits are 0 or credits are null)
+            <div className="border-2 border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 p-6 rounded-lg">
+              <h3 className="text-xl font-bold text-red-600 dark:text-red-400">You're out of interview credits!</h3>
+              <p className="text-red-500 dark:text-red-300 mt-1 mb-4">
+                Purchase more credits or upgrade to premium for unlimited access.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button onClick={handlePurchaseCreditsClick} className="w-full sm:w-auto flex-1 bg-indigo-600 hover:bg-indigo-700">Buy More Credits</Button>
+                <Button onClick={handleUpgradeToPremium} className="w-full sm:w-auto flex-1 bg-purple-600 hover:bg-purple-700">Upgrade to Premium</Button>
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-3 text-center">
+                  <Link href="/pricing" className="underline hover:text-indigo-500">View Pricing & Plans</Link>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
       <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl text-center mb-8">
         Manage Your VocaHire Profile
       </h1>
       
-      <ProfileSettingsForm 
-        initialProfileData={currentProfileData} 
+      <ProfileSettingsForm
+        initialProfileData={currentProfileData}
         onProfileSaveSuccess={handleProfileSaveSuccess}
       />
 
       <PurchaseCreditsModal
         isOpen={isPurchaseModalOpen}
         onOpenChange={setIsPurchaseModalOpen}
-        onPurchaseSuccess={refreshCredits} // This will be called after Stripe redirect is initiated
+        // onPurchaseSuccess is removed as per feedback
       />
     </div>
   );

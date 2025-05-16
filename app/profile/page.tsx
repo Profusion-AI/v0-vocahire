@@ -67,7 +67,18 @@ export default async function ProfilePage() {
   };
 
   // Log the exact value being passed as initialCredits just before returning the client component
-  console.log("[ProfilePage SERVER] Passing to ProfilePageClient - initialCredits:", initialDbUser?.credits ?? 0, "initialProfileData.name:", initialProfileData.name);
+  const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  if (!stripePublishableKey) {
+    console.error("[ProfilePage SERVER] CRITICAL: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set.");
+    // Handle this error appropriately, maybe throw an error or return a specific error page/component
+    // For now, we'll proceed but Stripe functionality will be broken on the client.
+  }
+
+  console.log(
+    "[ProfilePage SERVER] Passing to ProfilePageClient - initialProfileData.name:", initialProfileData.name,
+    "stripePublishableKey exists:", !!stripePublishableKey
+    // initialCredits and initialIsPremium are no longer passed as they are handled by useUserData
+  );
 
   return (
     <>
@@ -76,8 +87,8 @@ export default async function ProfilePage() {
       <AuthGuard>
         <SessionLayout>
           <ProfilePageClient
-            initialCredits={initialDbUser?.credits ?? 0}
             initialProfileData={initialProfileData}
+            stripePublishableKey={stripePublishableKey || ""} // Pass empty string if undefined
           />
         </SessionLayout>
       </AuthGuard>
