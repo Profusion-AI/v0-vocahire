@@ -40,7 +40,7 @@ interface ProfilePageClientProps {
 }
 
 export default function ProfilePageClient({ initialCredits, initialProfileData }: ProfilePageClientProps) {
-  console.log("[ProfilePageClient] Initial props - initialCredits:", initialCredits, "initialProfileData:", initialProfileData);
+  console.log("[ProfilePageClient] PROPS RECEIVED - initialCredits:", initialCredits, "initialProfileData.name:", initialProfileData.name);
   const [credits, setCredits] = useState<number>(initialCredits);
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const router = useRouter();
@@ -48,11 +48,14 @@ export default function ProfilePageClient({ initialCredits, initialProfileData }
   const [currentProfileData, setCurrentProfileData] = useState<ProfileFormData>(initialProfileData);
 
   useEffect(() => {
-    console.log("[ProfilePageClient] useEffect - initialCredits:", initialCredits, "Setting credits state.");
+    console.log("[ProfilePageClient] useEffect RUNNING - initialCredits:", initialCredits, "initialProfileData.name:", initialProfileData.name);
     setCredits(initialCredits);
     setCurrentProfileData(initialProfileData);
-    console.log("[ProfilePageClient] useEffect - current credits state after set:", initialCredits); // Log what it was set to
+    // To see the state *after* update, log in the render or use a separate useEffect watching 'credits'
   }, [initialCredits, initialProfileData]);
+
+  // Log current state before render
+  console.log("[ProfilePageClient] PRE-RENDER - current credits state:", credits, "currentProfileData.name:", currentProfileData.name);
 
 
   const refreshCredits = async () => {
