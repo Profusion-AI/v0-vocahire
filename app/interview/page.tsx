@@ -47,8 +47,8 @@ async function InterviewPageDataFetcher({ searchParams: searchParamsPromise, par
   const clientProps: InterviewPageClientProps = {
     initialJobTitle: jobTitleFromParams,
     initialSkipResume: skipResumeFromParams,
-    initialCredits: dbUser?.credits ?? 0,
-    initialIsPremium: !!dbUser?.isPremium,
+    // initialCredits and initialIsPremium are no longer passed
+    // as they are handled by the useUserData hook in InterviewPageClient
     initialProfileFormData: {
       name: initialName,
       resumeJobTitle: dbUser?.resumeJobTitle || "",
@@ -57,7 +57,7 @@ async function InterviewPageDataFetcher({ searchParams: searchParamsPromise, par
       linkedinUrl: dbUser?.linkedinUrl || "",
     },
     stripePublishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
-    userId: userId, 
+    userId: userId, // userId might still be useful for specific actions not covered by the hook immediately
   };
 
   return <InterviewPageClient {...clientProps} />;
