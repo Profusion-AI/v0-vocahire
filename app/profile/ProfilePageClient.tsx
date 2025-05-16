@@ -40,6 +40,7 @@ interface ProfilePageClientProps {
 }
 
 export default function ProfilePageClient({ initialCredits, initialProfileData }: ProfilePageClientProps) {
+  console.log("[ProfilePageClient] Initial props - initialCredits:", initialCredits, "initialProfileData:", initialProfileData);
   const [credits, setCredits] = useState<number>(initialCredits);
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const router = useRouter();
@@ -47,24 +48,32 @@ export default function ProfilePageClient({ initialCredits, initialProfileData }
   const [currentProfileData, setCurrentProfileData] = useState<ProfileFormData>(initialProfileData);
 
   useEffect(() => {
+    console.log("[ProfilePageClient] useEffect - initialCredits:", initialCredits, "Setting credits state.");
     setCredits(initialCredits);
     setCurrentProfileData(initialProfileData);
+    console.log("[ProfilePageClient] useEffect - current credits state after set:", initialCredits); // Log what it was set to
   }, [initialCredits, initialProfileData]);
 
 
   const refreshCredits = async () => {
     try {
       const res = await fetch("/api/user");
+      console.log("[ProfilePageClient] refreshCredits - fetch response status:", res.status);
       if (res.ok) {
         const data = await res.json();
+        console.log("[ProfilePageClient] refreshCredits - data from /api/user:", data);
         const newCredits = data.user?.credits ?? data.credits;
+        console.log("[ProfilePageClient] refreshCredits - parsed newCredits:", newCredits);
         if (typeof newCredits === 'number') {
           setCredits(newCredits);
+          console.log("[ProfilePageClient] refreshCredits - credits state updated to:", newCredits);
         } else {
-          toast.error("Could not retrieve updated credit count.");
+          toast.error("Could not retrieve updated credit count from API response.");
+          console.error("[ProfilePageClient] refreshCredits - newCredits is not a number:", newCredits);
         }
       } else {
-        toast.error("Failed to refresh credits.");
+        toast.error("Failed to refresh credits. API request failed.");
+        console.error("[ProfilePageClient] refreshCredits - API request failed with status:", res.status);
       }
     } catch (error) {
       toast.error("Error refreshing credits.");
