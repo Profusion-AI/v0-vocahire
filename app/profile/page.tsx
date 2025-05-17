@@ -9,7 +9,13 @@ import SessionLayout from "@/components/SessionLayout";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { redirect } from 'next/navigation';
 
-// This is now the main Server Component for the /profile route
+/****
+ * Server component for the `/profile` route that handles authentication, retrieves user profile data, and renders the profile page layout.
+ *
+ * Redirects unauthenticated users to the login page. Fetches the authenticated user's profile from the database and Clerk, constructs initial profile data, and passes it to the client-side profile page component along with the Stripe publishable key.
+ *
+ * @remark If the Stripe publishable key is missing from environment variables, the page renders but Stripe functionality will be unavailable on the client.
+ */
 export default async function ProfilePage() {
   console.log("[ProfilePage SERVER] Page rendering started.");
   const { userId: currentAuthUserId } = await auth();

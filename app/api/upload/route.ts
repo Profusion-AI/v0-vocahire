@@ -3,6 +3,14 @@ import { uploadToBlob } from "@/lib/blob-storage"
 import { getAuth } from "@clerk/nextjs/server"
 import { NextRequest } from "next/server"
 
+/**
+ * Handles authenticated file uploads via POST requests.
+ *
+ * Authenticates the user using Clerk, processes a file upload from form data, stores the file in blob storage, and returns the file URL and upload timestamp in a JSON response.
+ *
+ * @param request - The incoming Next.js request containing form data with a file and optional folder name.
+ * @returns A JSON response indicating success with the uploaded file's URL and timestamp, or an error message with the appropriate HTTP status code.
+ */
 export async function POST(request: NextRequest) {
   try {
     // Authenticate with Clerk

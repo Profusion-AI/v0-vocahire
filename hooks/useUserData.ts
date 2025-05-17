@@ -29,6 +29,13 @@ export interface UseUserDataReturn {
   refetchUserData: () => Promise<void>;
 }
 
+/**
+ * React hook for fetching and managing the current user's data from the API.
+ *
+ * Fetches user information from the `/api/user` endpoint, maintains loading and error state, and provides a function to manually refetch the data. Automatically refreshes user data when the window regains focus.
+ *
+ * @returns An object containing the user data, credits, premium status, loading state, error message, and a function to refetch user data.
+ */
 export function useUserData(): UseUserDataReturn {
   const [user, setUser] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);

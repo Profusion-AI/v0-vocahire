@@ -54,6 +54,14 @@ interface PurchaseCreditsModalProps {
   // onPurchaseSuccess?: () => void; // Removed as per feedback
 }
 
+/**
+ * Displays a modal dialog for purchasing interview credit packages via Stripe Checkout.
+ *
+ * Allows users to select from predefined credit packages and initiates a Stripe checkout session for the selected package. Handles loading state, error notifications, and redirects users to the Stripe payment page upon successful session creation.
+ *
+ * @param isOpen - Whether the modal is visible.
+ * @param onOpenChange - Callback to update the modal's open state.
+ */
 export function PurchaseCreditsModal({
   isOpen,
   onOpenChange,

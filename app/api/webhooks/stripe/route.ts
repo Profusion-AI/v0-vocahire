@@ -15,6 +15,12 @@ export const config = {
   },
 };
 
+/**
+ * Reads all data from a ReadableStream and returns it as a single Buffer.
+ *
+ * @param readable - The ReadableStream to read from.
+ * @returns A Buffer containing the concatenated data from the stream.
+ */
 async function buffer(readable: ReadableStream<Uint8Array>): Promise<Buffer> {
   const reader = readable.getReader();
   const chunks: Uint8Array[] = [];
@@ -26,6 +32,20 @@ async function buffer(readable: ReadableStream<Uint8Array>): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
+/**
+ * Handles Stripe webhook events and updates user records in the database based on payment and subscription changes.
+ *
+ * Verifies the Stripe webhook signature, parses the event, and processes supported event types:
+ * - `checkout.session.completed`: Updates user credits or activates premium status based on purchased item.
+ * - `invoice.payment_succeeded`: Extends premium subscription expiration for the user.
+ * - `customer.subscription.deleted` and `invoice.payment_failed`: Revokes premium status for the user.
+ * Unhandled event types are logged for visibility.
+ *
+ * @param req - The incoming Next.js request containing the Stripe webhook event.
+ * @returns A NextResponse indicating the result of webhook processing.
+ *
+ * @remark Always returns HTTP 200 for successfully processed or acknowledged events to prevent Stripe retries, even if some data is missing or unrecognized.
+ */
 export async function POST(req: NextRequest) {
   let event: Stripe.Event;
 

@@ -9,6 +9,22 @@ import Stripe from "stripe"; // Import Stripe
 // Get the Clerk webhook secret from environment variables
 const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
+/**
+ * Handles Clerk webhook events for user creation, update, and deletion, synchronizing user data with the database and Stripe.
+ *
+ * Verifies incoming webhook requests using Svix and processes the following event types:
+ * - `user.created`: Creates a new user in the database with default credits, creates a corresponding Stripe customer, and updates the user record with the Stripe customer ID. If the user already exists, ensures a Stripe customer exists and updates the record if necessary.
+ * - `user.updated`: Updates the user's email, name, and image in the database.
+ * - `user.deleted`: Cancels the user's Stripe subscription if present and anonymizes the user in the database by clearing personal fields and the Stripe customer ID, leaving premium subscription fields unchanged.
+ * 
+ * Logs all key operations and errors, returning appropriate HTTP responses. Unhandled event types are logged and ignored with a 200 status.
+ *
+ * @param req - The incoming Next.js request containing the Clerk webhook payload and Svix headers.
+ * @returns A Next.js response indicating the result of the webhook processing.
+ *
+ * @remark
+ * Only the Stripe webhook manages premium subscription fields; this handler manages user records and Stripe customer IDs.
+ */
 export async function POST(req: NextRequest) {
   // Stripe initialization (needed for cancelling subscriptions)
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {

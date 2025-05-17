@@ -3,7 +3,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
-// Mock function - in a real app, you'd fetch this from your database
+/**
+ * Retrieves a list of users with their API usage statistics.
+ *
+ * @returns An array of user objects, each containing an ID, email, usage count, last used date, and status.
+ *
+ * @remark This is a mock implementation returning hardcoded data; in a real application, user data would be fetched from a database.
+ */
 async function getUsersWithUsage() {
   // Simulate a database call
   return [
@@ -25,6 +31,13 @@ async function getUsersWithUsage() {
   ]
 }
 
+/**
+ * Renders the admin dashboard page for monitoring and summarizing user API usage.
+ *
+ * Displays a table of users with their API usage statistics and a summary card with total requests, active users, and estimated monthly cost.
+ *
+ * @remark This component does not implement authentication or authorization; admin checks must be added before deployment.
+ */
 export default async function AdminUsersPage() {
   // TODO: Implement Clerk-based admin authentication and admin check here.
   // Example: Use Clerk's server-side helpers to verify admin status and redirect if unauthorized.

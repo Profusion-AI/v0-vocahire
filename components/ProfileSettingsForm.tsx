@@ -35,6 +35,14 @@ interface ProfileSettingsFormProps {
   onProfileSaveSuccess?: (updatedData: ProfileFormData) => void; // Optional callback
 }
 
+/**
+ * Renders a user profile settings form with validation, allowing users to update their personal information, job search stage, and resume details.
+ *
+ * The form initializes with provided profile data, validates input fields, and submits updates to the server. On successful save, it resets the form state, displays a success message, and optionally invokes a callback with the updated profile data. Field-specific and general errors are displayed inline or as toast notifications.
+ *
+ * @param initialProfileData - The initial values to populate the form fields.
+ * @param onProfileSaveSuccess - Optional callback invoked with updated profile data after a successful save.
+ */
 export function ProfileSettingsForm({ initialProfileData, onProfileSaveSuccess }: ProfileSettingsFormProps) {
   const [isSaving, setIsSaving] = useState(false);
 

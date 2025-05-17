@@ -48,6 +48,11 @@ interface UsageDashboardClientProps {
   initialUsageStats: UsageData[]; // Renamed for clarity
 }
 
+/**
+ * Displays a dashboard with usage statistics and top users by interview sessions.
+ *
+ * Shows total interview sessions, feedback generations, and active users for the current day, along with a table of users with the highest number of interview sessions. Supports data refresh and handles loading and error states.
+ */
 export function UsageDashboardClient({
   topUsersByInterviews,
   initialUsageStats,

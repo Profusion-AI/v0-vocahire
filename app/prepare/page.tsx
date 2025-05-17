@@ -13,6 +13,11 @@ import { ResumeInput, type ResumeData } from "@/components/resume-input" // Impo
 import AuthGuard from "@/components/auth/AuthGuard";
 import SessionLayout from "@/components/SessionLayout";
 
+/**
+ * Renders the main content for the interview preparation page, allowing users to enter job information, upload or manually input resume data, and start a mock interview session.
+ *
+ * @remark Saves the provided job title and resume data to localStorage before navigating to the interview page.
+ */
 function PreparePageContent() {
   const router = useRouter()
   const [jobTitle, setJobTitle] = useState("Software Engineer")
@@ -96,6 +101,11 @@ function PreparePageContent() {
   )
 }
 
+/**
+ * Renders the mock interview preparation page, enforcing authentication before displaying the content.
+ *
+ * Wraps the preparation workflow in an authentication guard to ensure only authenticated users can access the page.
+ */
 export default function PreparePage() {
   return (
     <AuthGuard>

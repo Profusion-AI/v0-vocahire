@@ -12,6 +12,13 @@ import { AlertCircle, Download, RefreshCw } from "lucide-react"
 import AuthGuard from "@/components/auth/AuthGuard";
 import SessionLayout from "@/components/SessionLayout";
 
+/**
+ * Displays the feedback page content for a completed mock interview, including personalized feedback, speech analysis, and access to the interview recording.
+ *
+ * Retrieves interview data from localStorage, generates feedback via an API call, and presents results in a structured layout. Handles loading, error, and regeneration states, and provides options to start a new interview or regenerate feedback.
+ *
+ * @remark If interview data is missing from localStorage, an error message is shown and feedback generation is skipped.
+ */
 function FeedbackPageContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -277,6 +284,11 @@ function FeedbackPageContent() {
   )
 }
 
+/**
+ * Renders the feedback page, enforcing authentication before displaying feedback content.
+ *
+ * Wraps the feedback interface in an authentication guard to ensure only authorized users can access their interview feedback.
+ */
 export default function FeedbackPage() {
   return (
     <AuthGuard>

@@ -1,9 +1,11 @@
 import React from "react";
 
 /**
- * SessionLayout provides a visually consistent, modern wrapper for all interview-related pages.
- * It applies a subtle gradient background, centers content, and ensures consistent padding and max-width.
- * Use this to wrap the main content of /prepare, /interview, and /feedback pages.
+ * Provides a centered layout with a responsive gradient background for interview-related pages.
+ *
+ * Wraps page content in a visually consistent container with maximum width and padding, suitable for use on `/prepare`, `/interview`, and `/feedback` routes.
+ *
+ * @param children - The React nodes to display within the layout.
  */
 export default function SessionLayout({ children }: { children: React.ReactNode }) {
   return (

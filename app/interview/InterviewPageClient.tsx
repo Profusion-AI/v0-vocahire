@@ -34,6 +34,18 @@ export interface InterviewPageClientProps {
   userId: string; // Still needed for some operations or if useUserData doesn't expose it directly
 }
 
+/****
+ * React component for managing a mock interview session and user profile settings, integrating resume data, user credits, and payment flows.
+ *
+ * Renders a tabbed interface for conducting mock interviews and updating profile information. Handles resume data loading from local storage, synchronizes user data and credits, manages Stripe payment flows for purchasing credits or upgrading to premium, and controls interview session state. Displays appropriate UI based on loading states, resume presence, credits, and premium status, and manages modals for purchasing credits and confirming interview start.
+ *
+ * @param initialJobTitle - The initial job title for the interview session.
+ * @param initialSkipResume - Whether to skip the resume input step.
+ * @param initialProfileFormData - Initial data for the profile settings form.
+ * @param stripePublishableKey - Stripe public key for payment processing.
+ *
+ * @returns The rendered interview and profile management UI.
+ */
 export default function InterviewPageClient({
   initialJobTitle,
   initialSkipResume,

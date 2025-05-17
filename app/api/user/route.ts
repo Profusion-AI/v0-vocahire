@@ -14,6 +14,13 @@ const profileUpdateSchema = z.object({
   // Add more fields as needed, matching the Prisma User model
 }).partial();
 
+/**
+ * Retrieves the authenticated user's profile data.
+ *
+ * Returns selected user profile fields as JSON if the user is authenticated and exists in the database.
+ *
+ * @returns A JSON response containing user profile data, or an error message with appropriate HTTP status if unauthorized or not found.
+ */
 export async function GET(request: NextRequest) {
   const auth = getAuth(request);
 
@@ -45,6 +52,13 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(user);
 }
 
+/**
+ * Handles PATCH requests to update the authenticated user's profile with validated fields.
+ *
+ * Validates the request body against the allowed profile fields and updates the user record in the database. Returns the updated user data on success or an error response on failure.
+ *
+ * @returns A JSON response containing the updated user profile or an error message.
+ */
 export async function PATCH(request: NextRequest) {
   const auth = getAuth(request);
 

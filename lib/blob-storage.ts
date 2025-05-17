@@ -37,10 +37,14 @@ export async function uploadToBlob(
 }
 
 /**
- * Uploads an interview recording to Vercel Blob
- * @param audioData The audio data to upload
- * @param sessionId The interview session ID
- * @returns The blob URL
+ * Uploads an interview recording to Vercel Blob storage under a user-specific folder.
+ *
+ * @param audioData - The audio data to upload.
+ * @param sessionId - The interview session ID used in the filename.
+ * @param userId - The user ID to organize recordings by user.
+ * @returns The URL of the uploaded interview recording.
+ *
+ * @throws {Error} If the upload to Vercel Blob storage fails.
  */
 export async function saveInterviewRecording(
   audioData: Blob | ArrayBuffer,
@@ -63,8 +67,12 @@ export async function saveInterviewRecording(
 }
 
 /**
- * Lists all interview recordings for the current user
- * @returns Array of blob URLs and metadata
+ * Retrieves all interview recording blobs for a specified user.
+ *
+ * @param userId - The unique identifier of the user whose recordings are to be listed.
+ * @returns An array of blobs containing URLs and metadata for each interview recording.
+ *
+ * @throws {Error} If the listing operation fails.
  */
 export async function listUserRecordings(userId: string) {
   try {

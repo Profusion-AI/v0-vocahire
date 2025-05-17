@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 /**
- * Registration form logic removed as part of Supabase → Clerk migration.
- * All Supabase auth logic has been deleted.
- * Clerk-based registration will be implemented separately.
+ * Displays a message indicating that user registration is temporarily unavailable during authentication migration.
+ *
+ * @remark No registration functionality is currently provided; the form will be reintroduced after migration to Clerk authentication.
  */
 
 export function RegisterForm() {

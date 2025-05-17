@@ -23,6 +23,18 @@ const SUBSCRIPTION_ITEMS = new Set([
   "PREMIUM_ANNUAL_SUB",
 ]);
 
+/**
+ * Handles POST requests to create a Stripe Checkout session for authenticated users.
+ *
+ * Authenticates the user, validates the requested item and quantity, determines whether the purchase is a subscription or one-time payment, and creates a Stripe Checkout session accordingly. Returns the session ID and URL on success.
+ *
+ * @returns A JSON response containing the Stripe Checkout session ID and URL, or an error message with the appropriate HTTP status code.
+ *
+ * @throws {Error} If the app URL is not configured, the item ID is invalid, the quantity is invalid, or the Stripe Price ID is missing.
+ * @throws {StripeCardError} If a Stripe card error occurs during session creation.
+ *
+ * @remark Returns 401 if the user is not authenticated, 400 for invalid input, 500 for server errors, and 402 for Stripe card errors.
+ */
 export async function POST(request: NextRequest) {
   try {
     // 1. Authenticate user

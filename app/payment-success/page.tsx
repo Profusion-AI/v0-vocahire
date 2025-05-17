@@ -14,6 +14,13 @@ type User = {
   isPremium?: boolean;
 };
 
+/**
+ * Displays a payment success confirmation page with updated user account information.
+ *
+ * Shows a success message, fetches and displays the user's premium status or credits, and provides navigation options to continue to the interview or view the profile.
+ *
+ * @remark Requires authentication; users not logged in will be redirected or blocked by {@link AuthGuard}.
+ */
 export default function PaymentSuccessPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);

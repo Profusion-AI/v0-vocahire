@@ -17,7 +17,13 @@ interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-// This component fetches data using the searchParams passed from the Page
+/**
+ * Fetches authenticated user and profile data, resolves search parameters, and renders the interview preparation client component with preloaded props.
+ *
+ * Redirects to the login page if the user is not authenticated.
+ *
+ * @returns The {@link InterviewPageClient} component with initial user and interview data.
+ */
 async function InterviewPageDataFetcher({ searchParams: searchParamsPromise, params: paramsPromise }: { 
   searchParams: PageProps['searchParams'];
   params: PageProps['params']; // Added params promise here
@@ -63,7 +69,11 @@ async function InterviewPageDataFetcher({ searchParams: searchParamsPromise, par
   return <InterviewPageClient {...clientProps} />;
 }
 
-// The Page component itself receives params and searchParams as promise props from Next.js
+/**
+ * Renders the interview preparation page with authentication and server-side data fetching.
+ *
+ * Displays a navigation bar and enforces authentication using {@link AuthGuard}. While user and profile data are loading, shows skeleton placeholders. Once data is ready, renders the interview preparation client component with preloaded props.
+ */
 export default function InterviewPage({ params, searchParams }: PageProps) {
   return (
     <>

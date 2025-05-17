@@ -31,6 +31,24 @@ interface InterviewRoomProps {
   refetchCredits?: () => Promise<void>
 }
 
+/**
+ * React component for conducting a mock interview session with an AI interviewer using real-time audio (WebRTC) or fallback text mode.
+ *
+ * Manages the full interview lifecycle, including audio streaming, real-time messaging, connection retries, credit checks, microphone permissions, filler word tracking, and resource cleanup. Provides a user interface for interview progress, error handling, and session controls, with support for purchasing credits and confirming interview termination.
+ *
+ * @param onComplete - Optional callback invoked with the interview messages when the session completes.
+ * @param jobTitle - The job title for the interview; defaults to "Software Engineer".
+ * @param resumeData - Optional resume information to provide context for the interview.
+ * @param credits - The user's available interview credits.
+ * @param isCreditsLoading - Indicates if credit information is being loaded.
+ * @param onBuyCredits - Optional callback to trigger the credit purchase flow.
+ * @param refetchCredits - Optional callback to refresh the user's credits.
+ *
+ * @returns The rendered interview room UI, including audio and text-based interview modes, progress indicators, error dialogs, and session controls.
+ *
+ * @remark
+ * If the user has insufficient credits, the interview cannot be started until credits are purchased. If the audio connection fails after multiple retries, the component automatically switches to a text-based fallback mode.
+ */
 export default function InterviewRoom({
   onComplete,
   jobTitle = "Software Engineer",

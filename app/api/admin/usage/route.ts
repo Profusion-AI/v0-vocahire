@@ -5,6 +5,14 @@ import { prisma } from "@/lib/prisma";
 import { UsageData, UsageType } from "@/app/admin/usage/UsageDashboardClient"; // Import from client component path
 import { Prisma } from "@prisma/client";
 
+/**
+ * Determines whether a user is an admin based on their user ID.
+ *
+ * Checks if the given {@link userId} exists in the database and is included in the `ADMIN_USER_IDS` environment variable.
+ *
+ * @param userId - The unique identifier of the user to check.
+ * @returns `true` if the user is an admin; otherwise, `false`.
+ */
 async function getAdminUser(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -18,6 +26,13 @@ async function getAdminUser(userId: string) {
   return isAdmin;
 }
 
+/**
+ * Handles GET requests to retrieve daily usage statistics for all users, accessible only to admin users.
+ *
+ * Authenticates the request, verifies admin privileges, and returns an array of usage data objects for each user, including their ID, display name, and counts of interview sessions and feedback generations created today.
+ *
+ * @returns A JSON response containing an array of user usage data, or an error response with status 401, 403, or 500.
+ */
 export async function GET(request: NextRequest) {
   try {
     const auth = getAuth(request);

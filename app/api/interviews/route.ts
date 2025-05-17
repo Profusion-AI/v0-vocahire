@@ -3,6 +3,11 @@ import { getAuth } from "@clerk/nextjs/server"
 import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma" // Import prisma client
 
+/**
+ * Retrieves a list of interview sessions for the authenticated user.
+ *
+ * Returns interview sessions associated with the current user, including their ID, creation date, duration, status, and feedback ID if available. Responds with 401 if the user is not authenticated, or 500 if a database error occurs.
+ */
 export async function GET(request: NextRequest) {
   const auth = getAuth(request)
   if (!auth.userId) {
@@ -54,6 +59,13 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * Handles creation of a new interview session for the authenticated user.
+ *
+ * Parses the request body for interview details, validates required fields, and creates a new interview session record in the database. Responds with the new interview's ID, creation date, status, and job title.
+ *
+ * @returns A JSON response containing the new interview session's details, or an error message with appropriate HTTP status on failure.
+ */
 export async function POST(request: NextRequest) {
   const auth = getAuth(request)
   if (!auth.userId) {

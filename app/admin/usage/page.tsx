@@ -5,7 +5,14 @@ import { redirect } from "next/navigation";
 // Component imports
 import { UsageDashboardClient, UsageData, UsageType } from "./UsageDashboardClient";
 
-// Helper function to get admin user details and check authorization
+/**
+ * Retrieves a user by ID and determines if they have admin privileges based on environment configuration.
+ *
+ * @param userId - The unique identifier of the user to check.
+ * @returns An object containing the user (if found) and a boolean indicating admin status.
+ *
+ * @remark Admin status is determined by checking if the user's ID is included in the `ADMIN_USER_IDS` environment variable.
+ */
 async function getAdminUserServerSide(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -17,7 +24,13 @@ async function getAdminUserServerSide(userId: string) {
   return { user, isAdmin: isAdminById };
 }
 
-// Helper function to fetch top users by interview session count using groupBy
+/**
+ * Retrieves the top 10 users ranked by the number of interview sessions they have conducted.
+ *
+ * Each user object includes the user ID, a display name derived from their resume job title (or "Unknown" if unavailable), and their total interview session count.
+ *
+ * @returns An array of user objects with their ID, display name, and interview session count, ordered by session count descending.
+ */
 async function getTopUsersByInterviewsServerSide() {
   // Get top user IDs by interview session count
   const topSessions = await prisma.interviewSession.groupBy({
@@ -57,7 +70,13 @@ export type TopUser = {
 };
 
 // Helper function to fetch initial usage statistics for the cards
-// NOTE: You'll need to implement the actual data fetching logic here based on your database schema.
+/**
+ * Retrieves global usage statistics for the current day, including counts of interview sessions and feedback generations.
+ *
+ * @returns An array containing a single {@link UsageData} object with daily counts for interview sessions and feedback generations. Monthly counts are set to zero.
+ *
+ * @remark If an error occurs during data retrieval, returns a stats object with zeroed counts and a distinct error ID.
+ */
 async function getInitialUsageStatsServerSide(): Promise<UsageData[]> {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -114,6 +133,11 @@ async function getInitialUsageStatsServerSide(): Promise<UsageData[]> {
   }
 }
 
+/**
+ * Renders the admin usage dashboard page, displaying top users and usage statistics.
+ *
+ * Redirects to the homepage if the current user is not an admin.
+ */
 export default async function AdminUsagePage() {
   // For demonstration, we'll use a placeholder userId.
   const userId = process.env.ADMIN_USER_ID || "";

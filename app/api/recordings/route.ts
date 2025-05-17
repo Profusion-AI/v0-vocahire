@@ -3,6 +3,13 @@ import { saveInterviewRecording, listUserRecordings, deleteBlob } from "@/lib/bl
 import { getAuth } from "@clerk/nextjs/server"
 import { NextRequest } from "next/server"
 
+/**
+ * Handles POST requests to upload and save an interview audio recording for the authenticated user.
+ *
+ * Expects a multipart form data request containing an audio blob and a session ID. Returns a JSON response with the recording URL, session ID, and timestamp upon success.
+ *
+ * @returns A JSON response indicating success and details of the saved recording, or an error message with the appropriate HTTP status code.
+ */
 export async function POST(request: NextRequest) {
   try {
     // Authenticate with Clerk
@@ -47,6 +54,13 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * Handles GET requests to retrieve all audio recordings for the authenticated user.
+ *
+ * @returns A JSON response containing a list of the user's recordings on success, or an error message on failure.
+ *
+ * @remark Returns a 401 status if the user is not authenticated.
+ */
 export async function GET(request: NextRequest) {
   try {
     // Authenticate with Clerk
@@ -74,6 +88,13 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * Handles HTTP DELETE requests to remove a user's interview audio recording.
+ *
+ * Authenticates the user via Clerk and deletes the recording specified by the provided URL. Returns a JSON response indicating success, the deleted URL, and the deletion timestamp.
+ *
+ * @returns A JSON response with the deletion result or an error message.
+ */
 export async function DELETE(request: NextRequest) {
   try {
     // Authenticate with Clerk

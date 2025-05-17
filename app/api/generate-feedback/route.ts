@@ -14,6 +14,14 @@ import { prisma } from "@/lib/prisma"
 
 import { NextRequest } from "next/server"
 
+/**
+ * Handles POST requests to generate and store feedback for a user's interview session.
+ *
+ * Authenticates the user, enforces rate limiting, validates the request body, verifies interview ownership, and saves generated feedback to the database.
+ *
+ * @param request - The incoming HTTP request containing the interview ID and transcript.
+ * @returns A JSON response indicating success or an error with the appropriate HTTP status code.
+ */
 export async function POST(request: NextRequest) {
   try {
     // Authenticate the user with Clerk

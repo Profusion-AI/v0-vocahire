@@ -18,6 +18,17 @@ interface ProfilePageClientProps {
   stripePublishableKey: string;
 }
 
+/**
+ * React component for managing the user's profile, subscription, and credits.
+ *
+ * Displays account information, allows profile updates, and integrates with Stripe for purchasing credits or upgrading to premium. Handles user data synchronization, payment flow initiation, and provides user feedback for profile and payment actions.
+ *
+ * @param initialProfileData - The initial profile data to populate the form if user data is not yet loaded.
+ * @param stripePublishableKey - The Stripe public key used for payment processing.
+ *
+ * @remark
+ * Requires a valid Stripe publishable key and backend support for creating checkout sessions. Handles payment errors and user data updates with appropriate user notifications.
+ */
 export default function ProfilePageClient({
   initialProfileData,
   stripePublishableKey,

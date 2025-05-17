@@ -9,6 +9,13 @@ const purchaseSchema = z.object({
   transactionId: z.string().min(1),
 });
 
+/**
+ * Handles credit purchase requests for authenticated users.
+ *
+ * Validates the request body for required fields, ensures the user is authenticated, and atomically increments the user's credit balance in the database. Returns appropriate error responses for unauthorized access, invalid input, or database failures.
+ *
+ * @returns A JSON response containing the updated credit balance on success, or an error message with the relevant HTTP status code on failure.
+ */
 export async function POST(request: NextRequest) {
   const auth = getAuth(request);
 

@@ -1,6 +1,11 @@
 "use client";
 import { SignIn } from "@clerk/nextjs";
 
+/**
+ * Renders a full-screen login page with a centered sign-in form.
+ *
+ * Redirects users to the "/interview" page after successful sign-in.
+ */
 export default function LoginPage() {
   return (
     <div className="container flex h-screen w-screen flex-col items-center justify-center">

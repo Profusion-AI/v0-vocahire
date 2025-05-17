@@ -6,6 +6,13 @@ import { prisma } from "@/lib/prisma"
 import { getOpenAIApiKey } from "@/lib/api-utils"
 
 
+/**
+ * Handles POST requests to create a realtime session for an authenticated user.
+ *
+ * Authenticates the user, enforces rate limits, checks for sufficient credits, and processes the session creation request. Returns appropriate error responses for unauthorized access, rate limit violations, or insufficient credits. On success, tracks usage and increments the rate limit counter.
+ *
+ * @returns A JSON response indicating success or the relevant error.
+ */
 export async function POST(request: NextRequest) {
   try {
     // Log start of request with timestamp
