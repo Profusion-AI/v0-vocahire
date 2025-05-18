@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { transactionLogger, TransactionOperations } from "@/lib/transaction-logger";
 
 // Request body schema
 const purchaseSchema = z.object({
@@ -34,6 +35,10 @@ export async function POST(request: NextRequest) {
   const { credits, transactionId } = result.data;
 
   try {
+    transactionLogger.info(auth.userId, TransactionOperations.CREDITS_PURCHASED, {
+      metadata: { transactionId, credits }
+    });
+    
     // Use a transaction to ensure both operations succeed together
     const result = await prisma.$transaction(async (tx) => {
       // 1. Create purchase transaction record for audit trail
@@ -58,11 +63,20 @@ export async function POST(request: NextRequest) {
       return updatedUser;
     });
 
+    transactionLogger.info(auth.userId, TransactionOperations.CREDITS_ADDED, {
+      metadata: { transactionId, creditsAdded: credits, newBalance: result.credits }
+    });
+
     return NextResponse.json({
       message: "Credits successfully added.",
       credits: result.credits,
     });
   } catch (err) {
+    transactionLogger.error(auth.userId, TransactionOperations.CREDITS_PURCHASED, {
+      error: err instanceof Error ? err.message : 'Unknown error',
+      metadata: { transactionId, credits }
+    });
+    
     return NextResponse.json(
       { error: "Failed to update credits", details: err instanceof Error ? err.message : err },
       { status: 500 }

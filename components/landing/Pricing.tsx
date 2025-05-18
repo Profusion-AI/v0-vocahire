@@ -1,5 +1,9 @@
-import React from 'react'
+"use client"
+
+import React, { useState } from 'react'
 import { Check } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 const pricingTiers = [
   {
@@ -8,8 +12,9 @@ const pricingTiers = [
     price: '$0',
     frequency: '/forever',
     buttonText: 'Start Free',
-    buttonHref: '#simulation', // Or actual sign-up link
+    buttonHref: '/register',
     buttonVariant: 'secondary',
+    itemId: null,
     features: [
       '5 AI interviews per month',
       'Basic voice analysis',
@@ -23,8 +28,9 @@ const pricingTiers = [
     price: '$20.00',
     frequency: '/month',
     buttonText: 'Go Premium Monthly',
-    buttonHref: '#', // TODO: Link to checkout for PREMIUM_MONTHLY_SUB
+    buttonHref: '#', 
     buttonVariant: 'primary',
+    itemId: 'PREMIUM_MONTHLY_SUB',
     features: [
       'Unlimited AI interviews',
       'Advanced voice & tone analysis',
@@ -41,8 +47,9 @@ const pricingTiers = [
     price: '$100.00',
     frequency: '/year',
     buttonText: 'Go Premium Annual',
-    buttonHref: '#', // TODO: Link to checkout for PREMIUM_ANNUAL_SUB
+    buttonHref: '#',
     buttonVariant: 'secondary',
+    itemId: 'PREMIUM_ANNUAL_SUB',
     features: [
       'All Premium Monthly features',
       '20% discount compared to monthly',
@@ -55,8 +62,9 @@ const pricingTiers = [
     price: '$5.00',
     frequency: '/credit',
     buttonText: 'Buy One Credit',
-    buttonHref: '#', // TODO: Link to checkout for CREDIT_PACK_1
+    buttonHref: '#',
     buttonVariant: 'secondary',
+    itemId: 'CREDIT_PACK_1',
     features: [
       'One full interview (up to 10 questions)',
       'Advanced voice & tone analysis',
@@ -71,8 +79,9 @@ const pricingTiers = [
     price: '$14.00',
     frequency: '/3 credits',
     buttonText: 'Buy Three Credits',
-    buttonHref: '#', // TODO: Link to checkout for CREDIT_PACK_3
+    buttonHref: '#',
     buttonVariant: 'secondary',
+    itemId: 'CREDIT_PACK_3',
     features: [
       'Three full interviews (up to 10 questions each)',
       'Advanced voice & tone analysis',
@@ -84,6 +93,42 @@ const pricingTiers = [
 ]
 
 const Pricing = () => {
+  const router = useRouter();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleCheckout = async (itemId: string) => {
+    if (!itemId) return;
+    
+    setIsProcessing(true);
+    try {
+      const response = await fetch("/api/payments/create-checkout-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ itemId, quantity: 1 }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create checkout session.");
+      }
+
+      const { url } = await response.json();
+      
+      if (url) {
+        router.push(url); // Redirect to Stripe Checkout
+      } else {
+        toast.error("Could not initiate purchase. Please try again.");
+      }
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      toast.error(error.message || "Failed to initiate checkout");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <section id="pricing" className="section pt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -112,16 +157,30 @@ const Pricing = () => {
                   <span className="text-4xl font-extrabold text-gray-900">{tier.price}</span>
                   <span className="text-base font-medium text-gray-500">{tier.frequency}</span>
                 </p>
-                <a
-                  href={tier.buttonHref}
-                  className={`mt-8 block w-full border rounded-md py-2 text-sm font-semibold text-center ${
-                    tier.buttonVariant === 'primary'
-                      ? 'bg-indigo-600 border-transparent text-white hover:bg-indigo-700'
-                      : 'bg-gray-800 border-gray-800 text-white hover:bg-gray-900' // Original HTML used gray-800 for secondary
-                  }`}
-                >
-                  {tier.buttonText}
-                </a>
+                {tier.itemId ? (
+                  <button
+                    onClick={() => handleCheckout(tier.itemId)}
+                    disabled={isProcessing}
+                    className={`mt-8 block w-full border rounded-md py-2 text-sm font-semibold text-center ${
+                      tier.buttonVariant === 'primary'
+                        ? 'bg-indigo-600 border-transparent text-white hover:bg-indigo-700'
+                        : 'bg-gray-800 border-gray-800 text-white hover:bg-gray-900'
+                    } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {isProcessing ? 'Processing...' : tier.buttonText}
+                  </button>
+                ) : (
+                  <a
+                    href={tier.buttonHref}
+                    className={`mt-8 block w-full border rounded-md py-2 text-sm font-semibold text-center ${
+                      tier.buttonVariant === 'primary'
+                        ? 'bg-indigo-600 border-transparent text-white hover:bg-indigo-700'
+                        : 'bg-gray-800 border-gray-800 text-white hover:bg-gray-900'
+                    }`}
+                  >
+                    {tier.buttonText}
+                  </a>
+                )}
               </div>
               <div className="pt-6 pb-8 px-6">
                 <h4 className="text-sm font-medium text-gray-900">
