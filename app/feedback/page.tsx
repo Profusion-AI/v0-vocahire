@@ -12,6 +12,41 @@ import { AlertCircle, Download, RefreshCw } from "lucide-react"
 import AuthGuard from "@/components/auth/AuthGuard";
 import SessionLayout from "@/components/SessionLayout";
 
+// Helper function to load interview data from localStorage
+function loadInterviewData() {
+  const messagesJson = localStorage.getItem("vocahire_interview_messages")
+  const fillerWordsJson = localStorage.getItem("vocahire_filler_words")
+  const resumeDataJson = localStorage.getItem("vocahire_resume_data")
+  const recordingUrlJson = localStorage.getItem("vocahire_recording_url")
+  
+  if (!messagesJson) {
+    return { error: "No interview data found. Please complete an interview first." }
+  }
+  
+  const messages = JSON.parse(messagesJson)
+  const fillerWordCounts = fillerWordsJson ? JSON.parse(fillerWordsJson) : {}
+  const resumeData = resumeDataJson ? JSON.parse(resumeDataJson) : null
+  
+  // Calculate filler word stats
+  const fillerWordArray = Object.entries(fillerWordCounts)
+    .map(([word, count]) => ({ word, count: count as number }))
+    .sort((a, b) => b.count - a.count)
+  
+  const totalFillerWords = fillerWordArray.reduce((sum, item) => sum + item.count, 0)
+  
+  return {
+    messages,
+    resumeData,
+    interviewType: localStorage.getItem("vocahire_interview_type") || "general",
+    interviewTime: localStorage.getItem("vocahire_interview_time") || Date.now().toString(),
+    recordingUrl: recordingUrlJson ? JSON.parse(recordingUrlJson) : null,
+    fillerWordStats: {
+      total: totalFillerWords,
+      mostCommon: fillerWordArray.slice(0, 5)
+    }
+  }
+}
+
 function FeedbackPageContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -28,311 +63,218 @@ function FeedbackPageContent() {
   const [recordingUrl, setRecordingUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    // Check if we have interview data in localStorage
-    const messagesJson = localStorage.getItem("vocahire_interview_messages")
-    const fillerWordsJson = localStorage.getItem("vocahire_filler_words")
-    const resumeDataJson = localStorage.getItem("vocahire_resume_data")
-    const recordingUrlJson = localStorage.getItem("vocahire_recording_url")
-
-    if (recordingUrlJson) {
-      setRecordingUrl(recordingUrlJson)
-    }
-
-    if (!messagesJson) {
+    const interviewData = loadInterviewData()
+    
+    if ('error' in interviewData) {
+      setError(interviewData.error)
       setIsLoading(false)
-      setError("No interview data found. Please complete an interview first.")
       return
     }
-
-    const messages = JSON.parse(messagesJson)
-    const fillerWordCounts = fillerWordsJson ? JSON.parse(fillerWordsJson) : {}
-    const resumeData = resumeDataJson ? JSON.parse(resumeDataJson) : null
-
-    // Calculate filler word stats
-    if (fillerWordsJson) {
-      const counts: Record<string, number> = JSON.parse(fillerWordsJson)
-      const total = Object.values(counts).reduce((sum, count) => sum + count, 0)
-      const mostCommon = Object.entries(counts)
-        .map(([word, count]) => ({ word, count: count as number }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 3)
-
-      setFillerWordStats({ total, mostCommon })
+    
+    setFillerWordStats(interviewData.fillerWordStats)
+    setRecordingUrl(interviewData.recordingUrl)
+    
+    // Check if feedback already exists in localStorage
+    const existingFeedback = localStorage.getItem("vocahire_interview_feedback")
+    if (existingFeedback) {
+      setFeedback(JSON.parse(existingFeedback))
+      setIsLoading(false)
+    } else {
+      generateFeedback()
     }
-
-    // Generate feedback
-    generateFeedback(messages, fillerWordCounts, resumeData)
   }, [])
 
-  const generateFeedback = async (
-    messages: Array<{ role: string; content: string }>,
-    fillerWordCounts: { [key: string]: number } = {},
-    resumeData: any = null,
-  ) => {
+  const generateFeedback = async () => {
     setIsGenerating(true)
     setError(null)
-
+    
     try {
-      // Get interview ID from localStorage or create one
-      let interviewId = localStorage.getItem("vocahire_interview_id")
+      const interviewData = loadInterviewData()
       
-      if (!interviewId) {
-        // Create a new interview session
-        const createResponse = await fetch("/api/interviews", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            jobTitle: resumeData?.jobTitle || "Software Engineer",
-            company: resumeData?.companyName || null,
-            interviewType: "behavioral",
-            jdContext: resumeData?.jobDescription || null,
-          }),
-        })
-        
-        if (!createResponse.ok) {
-          throw new Error("Failed to create interview session")
-        }
-        
-        const { id } = await createResponse.json()
-        interviewId = id
-        localStorage.setItem("vocahire_interview_id", interviewId)
+      if ('error' in interviewData) {
+        throw new Error(interviewData.error)
       }
       
-      const response = await fetch("/api/generate-feedback", {
-        method: "POST",
+      const response = await fetch('/api/generate-feedback', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          interviewId,
-          transcript: messages,
+          messages: interviewData.messages,
+          resumeData: interviewData.resumeData,
+          interviewType: interviewData.interviewType,
+          interviewTime: interviewData.interviewTime,
         }),
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to generate feedback")
+        throw new Error('Failed to generate feedback')
       }
 
       const data = await response.json()
+      setFeedback(data)
       
-      // Convert the API response to the format expected by the UI
-      if (data.feedback) {
-        const formattedFeedback = [
-          {
-            category: "Overall Summary",
-            rating: "Feedback",
-            feedback: data.feedback.summary
-          },
-          {
-            category: "Strengths",
-            rating: "Good",
-            feedback: data.feedback.strengths || "Review above for your key strengths in this interview."
-          },
-          {
-            category: "Areas for Improvement",
-            rating: "Consider",
-            feedback: data.feedback.areasForImprovement || "Review above for areas where you can improve."
-          },
-          {
-            category: "Communication Score",
-            rating: data.feedback.transcriptScore >= 3 ? "Good" : "Satisfactory",
-            feedback: `Your overall communication score is ${data.feedback.transcriptScore?.toFixed(2) || 'N/A'} out of 4.`
-          }
-        ]
-        setFeedback(formattedFeedback)
-      }
+      // Store feedback in localStorage for persistence
+      localStorage.setItem("vocahire_interview_feedback", JSON.stringify(data))
     } catch (err) {
-      console.error("Error generating feedback:", err)
-      setError(err instanceof Error ? err.message : "An unknown error occurred")
-
-      // Fall back to mock feedback if generation fails
-      setFeedback([
-        {
-          category: "Communication Skills",
-          rating: "Good",
-          feedback:
-            "You articulated your thoughts clearly and provided specific examples to support your points. Your responses were well-structured, though occasionally you could be more concise. Continue practicing active listening and responding directly to the questions asked.",
-        },
-        {
-          category: "Technical Knowledge",
-          rating: "Excellent",
-          feedback:
-            "You demonstrated strong understanding of the technical concepts discussed and explained complex ideas in an accessible way. Your examples of past projects showed both depth and breadth of knowledge. Keep up with current trends to maintain this strength.",
-        },
-        {
-          category: "Problem-Solving Approach",
-          rating: "Good",
-          feedback:
-            "You approached problems methodically, breaking them down into manageable components. You asked clarifying questions when needed and considered multiple solutions. To improve, try to verbalize your thought process more clearly as you work through problems.",
-        },
-        {
-          category: "Areas for Improvement",
-          rating: "Consider",
-          feedback:
-            "Focus on being more concise in your responses while still providing sufficient detail. Practice quantifying your achievements with specific metrics. Work on maintaining consistent eye contact and reducing filler words like 'um' and 'like' in your speech.",
-        },
-      ])
+      setError(err instanceof Error ? err.message : 'Failed to generate feedback')
     } finally {
       setIsLoading(false)
       setIsGenerating(false)
     }
   }
 
-  const handleRegenerateFeedback = () => {
-    const messagesJson = localStorage.getItem("vocahire_interview_messages")
-    const fillerWordsJson = localStorage.getItem("vocahire_filler_words")
-    const resumeDataJson = localStorage.getItem("vocahire_resume_data")
-
-    if (!messagesJson) {
-      setError("No interview data found. Please complete an interview first.")
+  const downloadTranscript = () => {
+    const interviewData = loadInterviewData()
+    
+    if ('error' in interviewData) {
+      setError(interviewData.error)
       return
     }
-
-    const messages = JSON.parse(messagesJson)
-    const fillerWordCounts = fillerWordsJson ? JSON.parse(fillerWordsJson) : {}
-    const resumeData = resumeDataJson ? JSON.parse(resumeDataJson) : null
-
-    generateFeedback(messages, fillerWordCounts, resumeData)
+    
+    const transcript = interviewData.messages
+      .filter((msg: any) => msg.role !== 'system')
+      .map((msg: any) => `${msg.role === 'user' ? 'You' : 'AI Interviewer'}: ${msg.content}`)
+      .join('\n\n')
+    
+    const blob = new Blob([transcript], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'interview-transcript.txt'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
-  if (isLoading) {
-    return (
-      <SessionLayout>
-        <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl text-center">Generating Interview Feedback</h1>
-        <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl text-center">
-          Please wait while we analyze your interview performance...
-        </p>
+  const downloadRecording = () => {
+    if (!recordingUrl) return
+    
+    const a = document.createElement('a')
+    a.href = recordingUrl
+    a.download = 'interview-recording.webm'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
 
-        <div className="grid gap-6 max-w-3xl mx-auto">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="shadow-lg">
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-center">
-                  <Skeleton className="h-6 w-[200px]" />
-                  <Skeleton className="h-6 w-[100px]" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-4 w-full mb-2" />
-                <Skeleton className="h-4 w-full mb-2" />
-                <Skeleton className="h-4 w-[80%]" />
-              </CardContent>
-            </Card>
-          ))}
+  if (isLoading && !isGenerating) {
+    return (
+      <div className="container mx-auto max-w-4xl p-4">
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
         </div>
-      </SessionLayout>
+      </div>
     )
   }
 
-  return (
-    <SessionLayout>
-      <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl text-center">Interview Feedback</h1>
-      <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl text-center mb-8">
-        Here's your personalized feedback from your mock interview
-      </p>
-
-      {error && (
-        <Alert variant="destructive" className="max-w-3xl mx-auto mb-6 shadow-lg">
+  if (error) {
+    return (
+      <div className="container mx-auto max-w-4xl p-4">
+        <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
+        <div className="mt-4">
+          <Link href="/interview">
+            <Button>Start New Interview</Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="container mx-auto max-w-4xl p-4">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Interview Feedback</h1>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={downloadTranscript}>
+            <Download className="mr-2 h-4 w-4" />
+            Transcript
+          </Button>
+          {recordingUrl && (
+            <Button variant="outline" size="sm" onClick={downloadRecording}>
+              <Download className="mr-2 h-4 w-4" />
+              Recording
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={generateFeedback} disabled={isGenerating}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
+            Regenerate
+          </Button>
+        </div>
+      </div>
+
+      {isGenerating && (
+        <Alert className="mb-6">
+          <RefreshCw className="h-4 w-4 animate-spin" />
+          <AlertTitle>Generating Feedback</AlertTitle>
+          <AlertDescription>
+            Analyzing your interview performance. This may take a moment...
+          </AlertDescription>
+        </Alert>
       )}
 
-      <div className="grid gap-6 max-w-3xl mx-auto">
-        {feedback &&
-          feedback.map((item, index) => (
-            <FeedbackCard key={index} category={item.category} rating={item.rating} feedback={item.feedback} />
-          ))}
-
-        {fillerWordStats && fillerWordStats.total > 0 && (
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold">Speech Analysis</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-gray-700">
-              <p>
-                During your interview, you used <strong>{fillerWordStats.total} filler words</strong> in total.
-                {fillerWordStats.total > 15
-                  ? " This is higher than recommended for professional communication."
-                  : fillerWordStats.total > 5
-                    ? " Try to reduce this in future interviews."
-                    : " This is a good level - keep it up!"}
-              </p>
-
-              {fillerWordStats.mostCommon.length > 0 && (
-                <div>
-                  <p className="font-medium mb-2">Most common filler words:</p>
-                  <ul className="list-disc pl-5">
-                    {fillerWordStats.mostCommon.map((item, i) => (
-                      <li key={i}>
-                        "{item.word}" - used {item.count} time{item.count !== 1 ? "s" : ""}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {recordingUrl && (
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold">Interview Recording</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-gray-700">
-              <p>
-                Your interview was recorded and is available for review. Listening to your responses can help you
-                identify areas for improvement.
-              </p>
-              <div className="flex justify-center">
-                <Button variant="outline" asChild className="border-gray-300 hover:bg-gray-50 text-gray-700 rounded-md">
-                  <a href={recordingUrl} target="_blank" rel="noopener noreferrer" download="interview-recording.webm">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Recording
-                  </a>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card className="shadow-lg">
+      {fillerWordStats && fillerWordStats.total > 0 && (
+        <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold">What's Next?</CardTitle>
+            <CardTitle>Filler Words Used</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 text-gray-700">
-            <p>Practice makes perfect! Schedule another mock interview to continue improving your skills.</p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button asChild size="lg" className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md">
-                <Link href="/interview">Start New Interview</Link>
-              </Button>
-              <Button variant="outline" size="lg" onClick={handleRegenerateFeedback} disabled={isGenerating} className="border-gray-300 hover:bg-gray-50 text-gray-700 rounded-md">
-                {isGenerating ? (
-                  <>
-                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    Regenerating...
-                  </>
-                ) : (
-                  "Regenerate Feedback"
-                )}
-              </Button>
-            </div>
+          <CardContent>
+            <p className="mb-2">Total filler words: {fillerWordStats.total}</p>
+            {fillerWordStats.mostCommon.length > 0 && (
+              <div>
+                <p className="mb-2 text-sm text-muted-foreground">Most common:</p>
+                <div className="flex gap-2">
+                  {fillerWordStats.mostCommon.map(({ word, count }) => (
+                    <span key={word} className="rounded bg-muted px-2 py-1 text-sm">
+                      {word} ({count})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
+      )}
+
+      {feedback && (
+        <div className="space-y-6">
+          {feedback.map((item, index) => (
+            <FeedbackCard
+              key={index}
+              category={item.category}
+              rating={item.rating as "excellent" | "good" | "satisfactory" | "needs improvement"}
+              feedback={item.feedback}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="mt-8 flex justify-between">
+        <Link href="/interview">
+          <Button variant="outline">Practice Again</Button>
+        </Link>
+        <Link href="/">
+          <Button>Back to Home</Button>
+        </Link>
       </div>
-    </SessionLayout>
+    </div>
   )
 }
 
 export default function FeedbackPage() {
   return (
     <AuthGuard>
-      <FeedbackPageContent />
+      <SessionLayout variant="feedback">
+        <FeedbackPageContent />
+      </SessionLayout>
     </AuthGuard>
-  );
+  )
 }

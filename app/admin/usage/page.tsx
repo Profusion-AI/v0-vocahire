@@ -1,6 +1,7 @@
 // Server-side imports
 import { prisma } from "@/lib/prisma"; // Assuming path, adjust if necessary
 import { redirect } from "next/navigation";
+import { isAdminUser } from "@/lib/admin-config";
 
 // Component imports
 import { UsageDashboardClient, UsageData, UsageType } from "./UsageDashboardClient";
@@ -11,10 +12,8 @@ async function getAdminUserServerSide(userId: string) {
     where: { id: userId },
     select: { id: true }, // No email field in schema
   });
-  // Prefer environment variables for admin user IDs or a proper role system
-  const adminIdsEnv = process.env.ADMIN_USER_IDS?.split(",") || [];
-  const isAdminById = user ? adminIdsEnv.includes(user.id) : false;
-  return { user, isAdmin: isAdminById };
+  const isAdmin = user ? isAdminUser(user.id) : false;
+  return { user, isAdmin };
 }
 
 // Helper function to fetch top users by interview session count using groupBy
