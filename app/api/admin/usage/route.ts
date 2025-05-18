@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { getAuth } from "@clerk/nextjs/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { UsageData, UsageType } from "@/app/admin/usage/UsageDashboardClient"; // Import from client component path
 import { Prisma } from "@prisma/client";
@@ -8,22 +8,24 @@ import { Prisma } from "@prisma/client";
 async function getAdminUser(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true },
+    // No 'email' field in User model, use 'id' for admin check
+    select: { id: true },
   });
 
-  const adminEmailsEnv = process.env.ADMIN_EMAILS?.split(",") || ["help@vocahire.com"]; // Default to provided admin email
-  const isAdmin = user?.email ? adminEmailsEnv.includes(user.email) : false;
+  // Use ADMIN_USER_IDS for admin check, as in other parts of the codebase
+  const adminIdsEnv = process.env.ADMIN_USER_IDS?.split(",") || [];
+  const isAdmin = user?.id ? adminIdsEnv.includes(user.id) : false;
   return isAdmin;
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const auth = getAuth(request);
+    if (!auth.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const isAdmin = await getAdminUser(session.user.id);
+    const isAdmin = await getAdminUser(auth.userId);
     if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -37,8 +39,9 @@ export async function GET(request: Request) {
     const users = await prisma.user.findMany({
       select: {
         id: true,
-        email: true,
-        // Optionally include name if you want to display it, though UsageData only has email
+        // No email field in User model
+        // Optionally include resumeJobTitle if you want to display it
+        resumeJobTitle: true,
       },
     });
 
@@ -65,7 +68,8 @@ export async function GET(request: Request) {
 
       return {
         userId: user.id,
-        email: user.email,
+        // No email field, optionally use resumeJobTitle as a display name
+        name: user.resumeJobTitle ?? "Unknown",
         usage: {
           [UsageType.INTERVIEW_SESSION]: { daily: dailyInterviews, monthly: 0 }, // Monthly can be added later
           [UsageType.FEEDBACK_GENERATION]: { daily: dailyFeedbackGenerations, monthly: 0 },

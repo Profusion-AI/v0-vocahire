@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server"
 import { saveInterviewRecording, listUserRecordings, deleteBlob } from "@/lib/blob-storage"
-import { getAuthSession } from "@/lib/auth-utils"
+import { getAuth } from "@clerk/nextjs/server"
+import { NextRequest } from "next/server"
+import { prisma } from "@/lib/prisma"
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await getAuthSession()
-    if (!session) {
+    // Authenticate with Clerk
+    const auth = getAuth(request)
+    if (!auth.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -26,7 +28,7 @@ export async function POST(request: Request) {
     }
 
     // Save the recording
-    const url = await saveInterviewRecording(audioBlob, sessionId)
+    const url = await saveInterviewRecording(audioBlob, sessionId, auth.userId)
 
     return NextResponse.json({
       success: true,
@@ -46,16 +48,16 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await getAuthSession()
-    if (!session) {
+    // Authenticate with Clerk
+    const auth = getAuth(request)
+    if (!auth.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     // List user recordings
-    const recordings = await listUserRecordings()
+    const recordings = await listUserRecordings(auth.userId)
 
     return NextResponse.json({
       success: true,
@@ -73,11 +75,11 @@ export async function GET() {
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await getAuthSession()
-    if (!session) {
+    // Authenticate with Clerk
+    const auth = getAuth(request)
+    if (!auth.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -88,8 +90,26 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "No URL provided" }, { status: 400 })
     }
 
+    // Verify ownership by checking if this recording belongs to the authenticated user
+    const session = await prisma.interviewSession.findFirst({
+      where: {
+        audioUrl: url,
+        userId: auth.userId,
+      },
+    })
+
+    if (!session) {
+      return NextResponse.json({ error: "Forbidden - Recording not found or access denied" }, { status: 403 })
+    }
+
     // Delete the blob
     await deleteBlob(url)
+
+    // Update the session to remove the audioUrl
+    await prisma.interviewSession.update({
+      where: { id: session.id },
+      data: { audioUrl: null },
+    })
 
     return NextResponse.json({
       success: true,

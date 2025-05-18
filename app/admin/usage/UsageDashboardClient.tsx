@@ -40,7 +40,6 @@ export interface UserUsage {
 
 export interface UsageData {
   userId: string;
-  email: string | null; // Assuming email can be null
   usage: UserUsage;
 }
 
@@ -180,7 +179,6 @@ export function UsageDashboardClient({
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
                   <TableHead className="text-right">Interviews</TableHead>
                 </TableRow>
               </TableHeader>
@@ -190,7 +188,6 @@ export function UsageDashboardClient({
                     <TableCell className="font-medium">
                       {user.name || "N/A"}
                     </TableCell>
-                    <TableCell>{user.email}</TableCell>
 <TableCell className="text-right">
   {user.interviewSessionCount}
 </TableCell>

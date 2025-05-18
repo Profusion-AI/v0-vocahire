@@ -1,43 +1,62 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
+import { getAuth } from "@clerk/nextjs/server"
+import { NextRequest } from "next/server"
+import { prisma } from "@/lib/prisma" // Import prisma client
 
-export async function GET() {
-  const session = await getServerSession(authOptions)
-
-  if (!session || !session.user) {
+export async function GET(request: NextRequest) {
+  const auth = getAuth(request)
+  if (!auth.userId) {
     return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
     })
   }
 
-  // In a real implementation, you would fetch the user's interviews from your database
-  // For now, we'll return mock data
-  const mockInterviews = [
-    {
-      id: "interview-1",
-      date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-      duration: 583, // seconds
-      status: "completed",
-      feedbackId: "feedback-1",
-    },
-    {
-      id: "interview-2",
-      date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-      duration: 612, // seconds
-      status: "completed",
-      feedbackId: "feedback-2",
-    },
-  ]
+  try {
+    // Fetch the user's interviews from your database using auth.userId
+    const interviews = await prisma.interviewSession.findMany({
+      where: {
+        userId: auth.userId,
+      },
+      orderBy: {
+        createdAt: "desc", // Order by creation date, newest first
+      },
+      select: { // Select only necessary fields
+        id: true,
+        createdAt: true,
+        endedAt: true,
+        durationSeconds: true,
+        feedback: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
 
-  return NextResponse.json(mockInterviews)
+    // Map Prisma results to the desired structure
+    const formattedInterviews = interviews.map(interview => ({
+      id: interview.id,
+      date: interview.createdAt.toISOString(),
+      duration: interview.durationSeconds,
+      status: interview.endedAt ? "completed" : "in_progress", // Determine status based on endedAt
+      feedbackId: interview.feedback?.id || null,
+    }));
+
+
+    return NextResponse.json(formattedInterviews)
+  } catch (error) {
+    console.error("Error fetching interviews:", error);
+    return new NextResponse(JSON.stringify({ error: "Failed to fetch interviews" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
 }
 
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions)
-
-  if (!session || !session.user) {
+export async function POST(request: NextRequest) {
+  const auth = getAuth(request)
+  if (!auth.userId) {
     return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
@@ -46,17 +65,42 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
+    const { jobTitle, company, interviewType, jdContext } = body; // Extract relevant fields from body
 
-    // In a real implementation, you would create a new interview record in your database
-    // For now, we'll just return a mock response
+    if (!jobTitle) {
+       return new NextResponse(JSON.stringify({ error: "Missing jobTitle" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Create a new interview record in your database using auth.userId
+    const newInterview = await prisma.interviewSession.create({
+      data: {
+        userId: auth.userId,
+        jobTitle: jobTitle,
+        company: company || null, // Use null for optional fields if not provided
+        interviewType: interviewType || null,
+        jdContext: jdContext || null,
+        // Other fields like webrtcSessionId, openaiSessionId, etc. will be added later in the session flow
+      },
+      select: { // Select only necessary fields for the response
+        id: true,
+        createdAt: true,
+        jobTitle: true,
+      }
+    });
+
     return NextResponse.json({
-      id: "new-interview-" + Date.now(),
-      date: new Date().toISOString(),
-      status: "scheduled",
+      id: newInterview.id,
+      date: newInterview.createdAt.toISOString(),
+      status: "pending", // Initial status
+      jobTitle: newInterview.jobTitle,
     })
   } catch (error) {
-    return new NextResponse(JSON.stringify({ error: "Invalid request" }), {
-      status: 400,
+    console.error("Error creating interview:", error);
+    return new NextResponse(JSON.stringify({ error: "Failed to create interview" }), {
+      status: 500,
       headers: { "Content-Type": "application/json" },
     })
   }

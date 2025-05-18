@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server"
 import { uploadToBlob } from "@/lib/blob-storage"
-import { getAuthSession } from "@/lib/auth-utils"
+import { getAuth } from "@clerk/nextjs/server"
+import { NextRequest } from "next/server"
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await getAuthSession()
-    if (!session) {
+    // Authenticate with Clerk
+    const auth = getAuth(request)
+    if (!auth.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 

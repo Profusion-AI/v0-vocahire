@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
 import { z } from "zod"
-import { authOptions } from "@/lib/auth"
+import { getAuth } from "@clerk/nextjs/server"
 import { checkRateLimit, incrementRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit"
 import { trackUsage, UsageType } from "@/lib/usage-tracking" // Added UsageType import
 import { prisma } from "@/lib/prisma"
+import { generateInterviewFeedback, parseFeedback } from "@/lib/openai"
 
 // Rate limit configuration is now imported and used directly
 // const limiter = rateLimit({
@@ -13,11 +13,13 @@ import { prisma } from "@/lib/prisma"
 //   limit: 5, // 5 requests per minute
 // })
 
-export async function POST(request: Request) {
+import { NextRequest } from "next/server"
+
+export async function POST(request: NextRequest) {
   try {
-    // Authenticate the user
-    const session = await getServerSession(authOptions)
-    if (!session || !session.user?.email) {
+    // Authenticate the user with Clerk
+    const auth = getAuth(request)
+    if (!auth.userId) {
       return NextResponse.json(
         {
           success: false,
@@ -27,7 +29,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const userId = session.user.email
+    const userId = auth.userId
 
     // Apply rate limiting
     const { isLimited, reset } = await checkRateLimit(userId, RATE_LIMIT_CONFIGS.GENERATE_FEEDBACK)
@@ -60,21 +62,46 @@ export async function POST(request: Request) {
     }
 
     // Generate feedback
-    // ... (your existing code to generate feedback)
+    const rawFeedback = await generateInterviewFeedback(transcript)
+    const parsedFeedback = parseFeedback(rawFeedback)
 
     // Track usage
     await trackUsage(userId, UsageType.FEEDBACK_GENERATION)
 
-    // Save feedback to the database
-await prisma.interviewSession.update({
-  where: { id: interviewId },
-  data: {
-    feedback: {}, // Replace with actual feedback
-  },
-})
+    // Create feedback in the database
+    const feedback = await prisma.feedback.create({
+      data: {
+        sessionId: interviewId,
+        userId: userId,
+        summary: rawFeedback,
+        strengths: parsedFeedback
+          .filter(item => item.rating === "Excellent" || item.rating === "Good")
+          .map(item => `${item.category}: ${item.feedback}`)
+          .join("\n\n"),
+        areasForImprovement: parsedFeedback
+          .filter(item => item.rating === "Satisfactory" || item.rating === "Needs Improvement")
+          .map(item => `${item.category}: ${item.feedback}`)
+          .join("\n\n"),
+        fillerWordCount: 0, // You could implement filler word counting logic here
+        transcriptScore: parsedFeedback.reduce((acc, item) => {
+          const ratings = { "Excellent": 4, "Good": 3, "Satisfactory": 2, "Needs Improvement": 1, "Not Evaluated": 0 };
+          return acc + (ratings[item.rating] || 0);
+        }, 0) / parsedFeedback.length,
+      },
+    })
 
-    // Return the response
-    return NextResponse.json({ success: true })
+    // Return the feedback
+    return NextResponse.json({ 
+      success: true,
+      feedback: {
+        id: feedback.id,
+        summary: feedback.summary,
+        strengths: feedback.strengths,
+        areasForImprovement: feedback.areasForImprovement,
+        fillerWordCount: feedback.fillerWordCount,
+        transcriptScore: feedback.transcriptScore,
+      }
+    })
   } catch (error) {
     console.error("Error in generate-feedback route:", error)
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 })

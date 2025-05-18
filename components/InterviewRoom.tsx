@@ -25,9 +25,21 @@ interface InterviewRoomProps {
   onComplete?: (messages: Array<{ role: string; content: string; timestamp: number }>) => void
   jobTitle?: string
   resumeData?: ResumeData | null
+  credits?: number | null
+  isCreditsLoading?: boolean
+  onBuyCredits?: () => void
+  refetchCredits?: () => Promise<void>
 }
 
-export default function InterviewRoom({ onComplete, jobTitle = "Software Engineer", resumeData }: InterviewRoomProps) {
+export default function InterviewRoom({
+  onComplete,
+  jobTitle = "Software Engineer",
+  resumeData,
+  credits,
+  isCreditsLoading,
+  onBuyCredits,
+  refetchCredits,
+}: InterviewRoomProps) {
   // Debug render count
   renderCount++
   console.log(`InterviewRoom render #${renderCount}`)
@@ -51,14 +63,19 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
   const [isInitializing, setIsInitializing] = useState(true)
   const [isConnecting, setIsConnecting] = useState(false)
   const [isActive, setIsActive] = useState(false)
+  const isActiveRef = useRef(false)
 
   // State for audio indicators
   const [isAudioPlaying, setIsAudioPlaying] = useState(false)
   const [audioLevel, setAudioLevel] = useState(0)
   const [isUserSpeaking, setIsUserSpeaking] = useState(false)
 
-  // State for connection status
-  const [connectionProgress, setConnectionProgress] = useState(0)
+    // State for confirmation dialog
+    const [showStopConfirmation, setShowStopConfirmation] = useState(false)
+    const [isConfirmButtonEnabled, setIsConfirmButtonEnabled] = useState(false)
+  
+    // State for connection status
+    const [connectionProgress, setConnectionProgress] = useState(0)
   const [connectionSteps, setConnectionSteps] = useState<
     Array<{ id: string; name: string; status: string; message?: string }>
   >([
@@ -91,6 +108,7 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
   const dataChannelRef = useRef<RTCDataChannel | null>(null)
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const connectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const confirmationTimerRef = useRef<NodeJS.Timeout | null>(null) // Ref for confirmation timer
   const audioContextRef = useRef<AudioContext | null>(null)
   const audioAnalyserRef = useRef<AnalyserNode | null>(null)
   const audioDataRef = useRef<Uint8Array | null>(null)
@@ -264,6 +282,12 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current)
       retryTimeoutRef.current = null
+    }
+
+    // Clear confirmation timer
+    if (confirmationTimerRef.current) {
+      clearTimeout(confirmationTimerRef.current)
+      confirmationTimerRef.current = null
     }
 
     // Clear audio level interval
@@ -444,6 +468,7 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
 
       // Keep the interview active but in fallback mode
       setIsActive(true)
+      isActiveRef.current = true
       setStatus("active")
       setIsConnecting(false)
 
@@ -528,6 +553,7 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
 
           // Set status to active
           setIsActive(true)
+          isActiveRef.current = true
           setStatus("active")
           setIsConnecting(false)
 
@@ -573,7 +599,7 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
 
         dataChannel.onclose = () => {
           addDebugMessage("Data channel closed")
-          if (isActive) {
+          if (isActiveRef.current) {
             handleConnectionFailure("Data channel closed")
           }
         }
@@ -791,15 +817,23 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
         } catch (err) {
           console.error("Failed to start interview:", err)
           addDebugMessage(`Session creation error: ${err}`)
-
-          // CRITICAL CHANGE: Check if this is an abort error (timeout)
-          if (err instanceof DOMException && err.name === "AbortError") {
+  
+          // Check for specific "Insufficient credits" error (Status 403)
+          if (err instanceof Error && err.message.includes("Status: 403")) {
+            setError("Insufficient credits. Please purchase more credits to continue.")
+            setStatus("error") // Set status to error to stop retries and connecting state
+            setIsConnecting(false)
+            updateConnectionStep("session", "error", "Insufficient credits")
+            cleanup() // Clean up resources as we won't retry
+          } else if (err instanceof DOMException && err.name === "AbortError") {
+            // Handle timeout errors
             updateConnectionStep("session", "error", "Request timeout")
-            handleConnectionFailure("Session creation timed out")
+            handleConnectionFailure("Session creation timed out") // Retry for timeouts
           } else {
+            // Handle other errors
             setError(err instanceof Error ? err.message : "An unknown error occurred")
             updateConnectionStep("session", "error", err instanceof Error ? err.message : "Unknown error")
-            handleConnectionFailure(`Session creation failed: ${err}`)
+            handleConnectionFailure(`Session creation failed: ${err}`) // Retry for other errors
           }
         }
       } catch (err) {
@@ -873,6 +907,7 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
     cleanup()
     setStatus("ended")
     setIsActive(false)
+    isActiveRef.current = false
 
     // Store interview data in localStorage for the feedback page
     localStorage.setItem("vocahire_interview_messages", JSON.stringify(messages))
@@ -942,6 +977,30 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
     }
   }, [status, handleInterviewComplete]) // Only depend on status changes
+
+  // Effect to handle the confirmation timer
+  useEffect(() => {
+    if (showStopConfirmation) {
+      setIsConfirmButtonEnabled(false) // Disable button initially
+      confirmationTimerRef.current = setTimeout(() => {
+        setIsConfirmButtonEnabled(true) // Enable button after 3 seconds
+      }, 3000)
+    } else {
+      // Clear timer if confirmation is hidden
+      if (confirmationTimerRef.current) {
+        clearTimeout(confirmationTimerRef.current)
+        confirmationTimerRef.current = null
+      }
+      setIsConfirmButtonEnabled(false) // Ensure button is disabled when dialog is hidden
+    }
+
+    return () => {
+      // Cleanup timer on effect cleanup
+      if (confirmationTimerRef.current) {
+        clearTimeout(confirmationTimerRef.current)
+      }
+    }
+  }, [showStopConfirmation])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -1051,21 +1110,35 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
             <div className="flex items-start gap-2">
               <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="font-medium">Connection Issue</p>
+                <p className="font-medium">
+                  {error === "Insufficient credits. Please purchase more credits to continue."
+                    ? "Action Required"
+                    : "Connection Issue"}
+                </p>
                 <p>{error}</p>
-                <div className="mt-3 flex gap-2">
-                  {/* CRITICAL CHANGE: Add retry button */}
-                  <Button variant="default" onClick={retryConnection} disabled={retryCount >= maxRetries}>
-                    Retry Connection
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleConnectionFailure("User chose text mode")}
-                    disabled={isFallbackMode}
-                  >
-                    Continue with Text-Based Interview
-                  </Button>
-                </div>
+                {error !== "Insufficient credits. Please purchase more credits to continue." && (
+                  <div className="mt-3 flex gap-2">
+                    {/* CRITICAL CHANGE: Add retry button */}
+                    <Button variant="default" onClick={retryConnection} disabled={retryCount >= maxRetries}>
+                      Retry Connection
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleConnectionFailure("User chose text mode")}
+                      disabled={isFallbackMode}
+                    >
+                      Continue with Text-Based Interview
+                    </Button>
+                  </div>
+                )}
+                {error === "Insufficient credits. Please purchase more credits to continue." && (
+                  <div className="mt-3">
+                    {/* Link to pricing/profile page - assuming /profile is the place to manage credits */}
+                    <Button asChild>
+                      <Link href="/profile">Manage Credits</Link>
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1073,6 +1146,32 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
           <>
             {/* Fallback mode message */}
             {isFallbackMode && renderFallbackMessage()}
+
+            {/* Stop Confirmation Dialog */}
+            {showStopConfirmation && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+                <Card className="w-full max-w-sm">
+                  <CardHeader>
+                    <CardTitle>Confirm Stop Interview</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p>Are you sure you'd like to stop the interview?</p>
+                  </CardContent>
+                  <CardFooter className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setShowStopConfirmation(false)}>
+                      No, continue interview
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleInterviewComplete}
+                      disabled={!isConfirmButtonEnabled}
+                    >
+                      Yes, stop interview
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </div>
+            )}
 
             <div className="min-h-[300px] p-4 rounded-md bg-muted">
               {status === "idle" && (
@@ -1091,10 +1190,65 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
                       <li>The interview will automatically end after 10 minutes</li>
                     </ul>
                   </div>
-                  <div className="mt-6">
-                    <Button onClick={handleStartInterview} size="lg">
-                      Start Interview
+                  {/* Credits CTA */}
+                  <div className="mt-6 flex flex-col items-center gap-2">
+                    {typeof credits !== "undefined" && (
+                      <>
+                        <span className="text-base">
+                          {isCreditsLoading ? (
+                            <span className="text-gray-400">Loading credits...</span>
+                          ) : (
+                            <>
+                              Interview Credits:{" "}
+                              <span className="font-bold">{credits}</span>
+                            </>
+                          )}
+                        </span>
+                        {typeof onBuyCredits === "function" && (
+                          <button
+                            type="button"
+                            className="text-xs text-indigo-700 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded transition px-0 py-0 bg-transparent"
+                            style={{ cursor: "pointer" }}
+                            onClick={onBuyCredits}
+                            disabled={isCreditsLoading}
+                            aria-label="Purchase more credits"
+                          >
+                            Purchase more credits
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <div className="mt-6 flex flex-col items-center gap-2">
+                    <Button
+                      onClick={async () => {
+                        if (typeof refetchCredits === "function") await refetchCredits();
+                        if (typeof credits === "number" && credits === 0) {
+                          if (typeof onBuyCredits === "function") onBuyCredits();
+                          return;
+                        }
+                        handleStartInterview();
+                      }}
+                      size="lg"
+                      disabled={isCreditsLoading || typeof credits === "number" ? credits === 0 : false}
+                    >
+                      {isCreditsLoading
+                        ? "Checking credits..."
+                        : typeof credits === "number" && credits === 0
+                        ? "Purchase Credits to Start"
+                        : "Start Interview"}
                     </Button>
+                    {/* Show Buy Credits button if no credits */}
+                    {typeof credits === "number" && credits === 0 && typeof onBuyCredits === "function" && (
+                      <Button
+                        variant="outline"
+                        onClick={onBuyCredits}
+                        size="sm"
+                        className="mt-2"
+                      >
+                        Buy Credits
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
@@ -1361,8 +1515,8 @@ export default function InterviewRoom({ onComplete, jobTitle = "Software Enginee
 
       <CardFooter className="flex justify-between">
         {status === "active" && (
-          <Button variant="destructive" onClick={handleInterviewComplete}>
-            End Interview Early
+          <Button variant="destructive" onClick={() => setShowStopConfirmation(true)}>
+            Stop Interview
           </Button>
         )}
         {status !== "idle" && status !== "active" && (

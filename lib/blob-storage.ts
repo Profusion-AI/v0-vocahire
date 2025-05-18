@@ -1,5 +1,4 @@
 import { put, list, del, type PutBlobResult } from "@vercel/blob"
-import { getAuthSession } from "./auth-utils"
 
 /**
  * Uploads a file to Vercel Blob storage
@@ -43,14 +42,12 @@ export async function uploadToBlob(
  * @param sessionId The interview session ID
  * @returns The blob URL
  */
-export async function saveInterviewRecording(audioData: Blob | ArrayBuffer, sessionId: string): Promise<string> {
+export async function saveInterviewRecording(
+  audioData: Blob | ArrayBuffer,
+  sessionId: string,
+  userId: string
+): Promise<string> {
   try {
-    const session = await getAuthSession()
-    if (!session) {
-      throw new Error("Unauthorized")
-    }
-
-    const userId = session.user.id
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
     const filename = `interviews/${userId}/${sessionId}-${timestamp}.webm`
 
@@ -69,14 +66,8 @@ export async function saveInterviewRecording(audioData: Blob | ArrayBuffer, sess
  * Lists all interview recordings for the current user
  * @returns Array of blob URLs and metadata
  */
-export async function listUserRecordings() {
+export async function listUserRecordings(userId: string) {
   try {
-    const session = await getAuthSession()
-    if (!session) {
-      throw new Error("Unauthorized")
-    }
-
-    const userId = session.user.id
     const { blobs } = await list({
       prefix: `interviews/${userId}/`,
     })

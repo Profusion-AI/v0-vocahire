@@ -1,6 +1,5 @@
 import { NextResponse, NextRequest } from "next/server"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
+import { getAuth } from "@clerk/nextjs/server"
 import { checkRateLimit, incrementRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit"
 import { trackUsage, UsageType } from "@/lib/usage-tracking" // Assuming UsageType is here
 import { prisma } from "@/lib/prisma"
@@ -14,13 +13,13 @@ export async function POST(request: NextRequest) {
     const apiKey = getOpenAIApiKey()
     console.log("🔑 API key available:", !!apiKey, apiKey ? `(starts with ${apiKey.slice(0, 6)}...)` : "(not found)")
 
-    // Get the session
-    const session = await getServerSession(authOptions)
-    if (!session || !session.user?.id) {
+    // Authenticate the user with Clerk
+    const auth = getAuth(request)
+    if (!auth.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userId = session.user.id
+    const userId = auth.userId
 
     // Apply rate limiting
     const rateLimitResult = await checkRateLimit(userId, RATE_LIMIT_CONFIGS.REALTIME_SESSION)

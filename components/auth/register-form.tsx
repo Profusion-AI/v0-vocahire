@@ -1,19 +1,23 @@
-import React from "react"
+"use client";
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+/**
+ * Registration form logic removed as part of Supabase → Clerk migration.
+ * All Supabase auth logic has been deleted.
+ * Clerk-based registration will be implemented separately.
+ */
 
 export function RegisterForm() {
   return (
-    <form>
-      <div className="mb-4">
-        <label htmlFor="email" className="block text-sm font-medium mb-1">Email</label>
-        <input id="email" type="email" className="w-full border rounded px-2 py-1" disabled placeholder="Email input (placeholder)" />
-      </div>
-      <div className="mb-4">
-        <label htmlFor="password" className="block text-sm font-medium mb-1">Password</label>
-        <input id="password" type="password" className="w-full border rounded px-2 py-1" disabled placeholder="Password input (placeholder)" />
-      </div>
-      <button type="submit" className="w-full bg-primary text-white py-2 rounded" disabled>
-        Register (form not implemented)
-      </button>
-    </form>
-  )
+    <div>
+      {/* Registration functionality will be provided by Clerk. */}
+      <p className="text-center text-gray-500">
+        Registration is temporarily unavailable while authentication is being migrated.
+      </p>
+    </div>
+  );
 }

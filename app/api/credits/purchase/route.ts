@@ -1,0 +1,71 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getAuth } from "@clerk/nextjs/server";
+import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+
+// Request body schema
+const purchaseSchema = z.object({
+  credits: z.number().int().positive(),
+  transactionId: z.string().min(1),
+});
+
+export async function POST(request: NextRequest) {
+  const auth = getAuth(request);
+
+  if (!auth.userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let data;
+  try {
+    data = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const result = purchaseSchema.safeParse(data);
+  if (!result.success) {
+    return NextResponse.json(
+      { error: "Validation failed", issues: result.error.flatten() },
+      { status: 400 }
+    );
+  }
+
+  const { credits, transactionId } = result.data;
+
+  try {
+    // Use a transaction to ensure both operations succeed together
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Create purchase transaction record for audit trail
+      await tx.purchaseTransaction.create({
+        data: {
+          userId: auth.userId,
+          transactionId,
+          credits,
+          status: "completed",
+        },
+      });
+
+      // 2. Increment user's credits atomically
+      const updatedUser = await tx.user.update({
+        where: { id: auth.userId },
+        data: {
+          credits: { increment: credits },
+        },
+        select: { credits: true },
+      });
+
+      return updatedUser;
+    });
+
+    return NextResponse.json({
+      message: "Credits successfully added.",
+      credits: result.credits,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { error: "Failed to update credits", details: err instanceof Error ? err.message : err },
+      { status: 500 }
+    );
+  }
+}
