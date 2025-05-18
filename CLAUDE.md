@@ -75,11 +75,19 @@ The application uses Prisma as an ORM with PostgreSQL (via Supabase). Key models
 - `Transcript`: Text records of interview conversations
 - `Feedback`: AI-generated interview feedback
 
+### Supabase Connection Strategy
+
+**Important**: Supabase provides both pooled and direct connection strings. The build process uses different connections for different purposes:
+
+- **Runtime**: `DATABASE_URL` (pooled connection) - Used by the application during runtime
+- **Migrations**: `MIGRATE_DATABASE_URL` (direct connection) - Used by `prisma migrate deploy` during builds to avoid pgbouncer issues
+
 ## Environment Variables
 
 Important environment variables include:
 
-- `DATABASE_URL`: PostgreSQL connection string
+- `DATABASE_URL`: PostgreSQL connection string (pooled)
+- `MIGRATE_DATABASE_URL`: PostgreSQL direct connection string (non-pooled) for migrations
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Clerk public key
 - `CLERK_SECRET_KEY`: Clerk secret key
 - `STRIPE_SECRET_KEY`: Stripe API key

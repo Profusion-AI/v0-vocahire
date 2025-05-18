@@ -12,6 +12,44 @@ import { AlertCircle, Download, RefreshCw } from "lucide-react"
 import AuthGuard from "@/components/auth/AuthGuard";
 import SessionLayout from "@/components/SessionLayout";
 
+// Helper function to load interview data from localStorage
+function loadInterviewData() {
+  const messagesJson = localStorage.getItem("vocahire_interview_messages")
+  const fillerWordsJson = localStorage.getItem("vocahire_filler_words")
+  const resumeDataJson = localStorage.getItem("vocahire_resume_data")
+  const recordingUrlJson = localStorage.getItem("vocahire_recording_url")
+  
+  if (!messagesJson) {
+    return { error: "No interview data found. Please complete an interview first." }
+  }
+  
+  const messages = JSON.parse(messagesJson)
+  const fillerWordCounts = fillerWordsJson ? JSON.parse(fillerWordsJson) : {}
+  const resumeData = resumeDataJson ? JSON.parse(resumeDataJson) : null
+  
+  // Calculate filler word stats
+  let fillerWordStats = null
+  if (fillerWordsJson) {
+    const counts: Record<string, number> = JSON.parse(fillerWordsJson)
+    const total = Object.values(counts).reduce((sum, count) => sum + count, 0)
+    const mostCommon = Object.entries(counts)
+      .map(([word, count]) => ({ word, count: count as number }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+    
+    fillerWordStats = { total, mostCommon }
+  }
+  
+  return {
+    messages,
+    fillerWordCounts,
+    resumeData,
+    recordingUrl: recordingUrlJson,
+    fillerWordStats,
+    error: null
+  }
+}
+
 function FeedbackPageContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -28,40 +66,24 @@ function FeedbackPageContent() {
   const [recordingUrl, setRecordingUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    // Check if we have interview data in localStorage
-    const messagesJson = localStorage.getItem("vocahire_interview_messages")
-    const fillerWordsJson = localStorage.getItem("vocahire_filler_words")
-    const resumeDataJson = localStorage.getItem("vocahire_resume_data")
-    const recordingUrlJson = localStorage.getItem("vocahire_recording_url")
-
-    if (recordingUrlJson) {
-      setRecordingUrl(recordingUrlJson)
-    }
-
-    if (!messagesJson) {
+    const data = loadInterviewData()
+    
+    if (data.error) {
       setIsLoading(false)
-      setError("No interview data found. Please complete an interview first.")
+      setError(data.error)
       return
     }
-
-    const messages = JSON.parse(messagesJson)
-    const fillerWordCounts = fillerWordsJson ? JSON.parse(fillerWordsJson) : {}
-    const resumeData = resumeDataJson ? JSON.parse(resumeDataJson) : null
-
-    // Calculate filler word stats
-    if (fillerWordsJson) {
-      const counts: Record<string, number> = JSON.parse(fillerWordsJson)
-      const total = Object.values(counts).reduce((sum, count) => sum + count, 0)
-      const mostCommon = Object.entries(counts)
-        .map(([word, count]) => ({ word, count: count as number }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 3)
-
-      setFillerWordStats({ total, mostCommon })
+    
+    if (data.recordingUrl) {
+      setRecordingUrl(data.recordingUrl)
     }
-
+    
+    if (data.fillerWordStats) {
+      setFillerWordStats(data.fillerWordStats)
+    }
+    
     // Generate feedback
-    generateFeedback(messages, fillerWordCounts, resumeData)
+    generateFeedback(data.messages, data.fillerWordCounts, data.resumeData)
   }, [])
 
   const generateFeedback = async (
@@ -182,20 +204,22 @@ function FeedbackPageContent() {
   }
 
   const handleRegenerateFeedback = () => {
-    const messagesJson = localStorage.getItem("vocahire_interview_messages")
-    const fillerWordsJson = localStorage.getItem("vocahire_filler_words")
-    const resumeDataJson = localStorage.getItem("vocahire_resume_data")
-
-    if (!messagesJson) {
-      setError("No interview data found. Please complete an interview first.")
+    const data = loadInterviewData()
+    
+    if (data.error) {
+      setError(data.error)
       return
     }
-
-    const messages = JSON.parse(messagesJson)
-    const fillerWordCounts = fillerWordsJson ? JSON.parse(fillerWordsJson) : {}
-    const resumeData = resumeDataJson ? JSON.parse(resumeDataJson) : null
-
-    generateFeedback(messages, fillerWordCounts, resumeData)
+    
+    if (data.recordingUrl) {
+      setRecordingUrl(data.recordingUrl)
+    }
+    
+    if (data.fillerWordStats) {
+      setFillerWordStats(data.fillerWordStats)
+    }
+    
+    generateFeedback(data.messages, data.fillerWordCounts, data.resumeData)
   }
 
   if (isLoading) {
