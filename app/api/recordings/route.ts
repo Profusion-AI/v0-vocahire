@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { saveInterviewRecording, listUserRecordings, deleteBlob } from "@/lib/blob-storage"
 import { getAuth } from "@clerk/nextjs/server"
 import { NextRequest } from "next/server"
+import { prisma } from "@/lib/prisma"
 
 export async function POST(request: NextRequest) {
   try {
@@ -89,8 +90,26 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "No URL provided" }, { status: 400 })
     }
 
+    // Verify ownership by checking if this recording belongs to the authenticated user
+    const session = await prisma.interviewSession.findFirst({
+      where: {
+        audioUrl: url,
+        userId: auth.userId,
+      },
+    })
+
+    if (!session) {
+      return NextResponse.json({ error: "Forbidden - Recording not found or access denied" }, { status: 403 })
+    }
+
     // Delete the blob
     await deleteBlob(url)
+
+    // Update the session to remove the audioUrl
+    await prisma.interviewSession.update({
+      where: { id: session.id },
+      data: { audioUrl: null },
+    })
 
     return NextResponse.json({
       success: true,

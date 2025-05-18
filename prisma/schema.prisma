@@ -51,6 +51,7 @@ model User {
   interviewSessions InterviewSession[]
   feedbacks         Feedback[]
   usageEvents       UsageEvent[]
+  purchases         PurchaseTransaction[]
 
   // Audit
   createdAt DateTime @default(now())
@@ -162,6 +163,27 @@ model UsageEvent {
 enum UserRole {
   USER
   ADMIN
+}
+
+/// @summary Purchase transactions for credit purchases and audit trail.
+/// @remarks Stores transaction details for accounting and debugging.
+model PurchaseTransaction {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  transactionId  String   @unique // External payment provider transaction ID
+  credits        Int      // Number of credits purchased
+  amount         Decimal? // Optional: amount paid in cents
+  currency       String?  // Optional: currency code (e.g., "USD")
+  source         String?  // Optional: payment source (e.g., "stripe")
+  status         String   @default("completed") // Transaction status
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([transactionId])
 }
 
 /// @summary Interview session status.

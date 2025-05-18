@@ -73,15 +73,41 @@ function FeedbackPageContent() {
     setError(null)
 
     try {
+      // Get interview ID from localStorage or create one
+      let interviewId = localStorage.getItem("vocahire_interview_id")
+      
+      if (!interviewId) {
+        // Create a new interview session
+        const createResponse = await fetch("/api/interviews", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            jobTitle: resumeData?.jobTitle || "Software Engineer",
+            company: resumeData?.companyName || null,
+            interviewType: "behavioral",
+            jdContext: resumeData?.jobDescription || null,
+          }),
+        })
+        
+        if (!createResponse.ok) {
+          throw new Error("Failed to create interview session")
+        }
+        
+        const { id } = await createResponse.json()
+        interviewId = id
+        localStorage.setItem("vocahire_interview_id", interviewId)
+      }
+      
       const response = await fetch("/api/generate-feedback", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messages,
-          fillerWordCounts,
-          resumeData,
+          interviewId,
+          transcript: messages,
         }),
       })
 
@@ -91,7 +117,33 @@ function FeedbackPageContent() {
       }
 
       const data = await response.json()
-      setFeedback(data.feedback)
+      
+      // Convert the API response to the format expected by the UI
+      if (data.feedback) {
+        const formattedFeedback = [
+          {
+            category: "Overall Summary",
+            rating: "Feedback",
+            feedback: data.feedback.summary
+          },
+          {
+            category: "Strengths",
+            rating: "Good",
+            feedback: data.feedback.strengths || "Review above for your key strengths in this interview."
+          },
+          {
+            category: "Areas for Improvement",
+            rating: "Consider",
+            feedback: data.feedback.areasForImprovement || "Review above for areas where you can improve."
+          },
+          {
+            category: "Communication Score",
+            rating: data.feedback.transcriptScore >= 3 ? "Good" : "Satisfactory",
+            feedback: `Your overall communication score is ${data.feedback.transcriptScore?.toFixed(2) || 'N/A'} out of 4.`
+          }
+        ]
+        setFeedback(formattedFeedback)
+      }
     } catch (err) {
       console.error("Error generating feedback:", err)
       setError(err instanceof Error ? err.message : "An unknown error occurred")

@@ -29,9 +29,13 @@ export async function GET(request: NextRequest) {
     where: { id: auth.userId },
     select: {
       id: true,
-      // No name, email, or image fields in User model
+      name: true,
+      email: true,
+      image: true,
       resumeJobTitle: true,
       resumeFileUrl: true,
+      jobSearchStage: true,
+      linkedinUrl: true,
       credits: true,
       isPremium: true,
       // Add more fields as needed
@@ -78,9 +82,13 @@ export async function PATCH(request: NextRequest) {
       data: validatedData,
       select: {
         id: true,
-        // No name, email, or image fields in User model
+        name: true,
+        email: true,
+        image: true,
         resumeJobTitle: true,
         resumeFileUrl: true,
+        jobSearchStage: true,
+        linkedinUrl: true,
         credits: true,
         isPremium: true,
         // Add more fields as needed

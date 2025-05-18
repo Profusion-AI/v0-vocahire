@@ -63,6 +63,7 @@ export default function InterviewRoom({
   const [isInitializing, setIsInitializing] = useState(true)
   const [isConnecting, setIsConnecting] = useState(false)
   const [isActive, setIsActive] = useState(false)
+  const isActiveRef = useRef(false)
 
   // State for audio indicators
   const [isAudioPlaying, setIsAudioPlaying] = useState(false)
@@ -467,6 +468,7 @@ export default function InterviewRoom({
 
       // Keep the interview active but in fallback mode
       setIsActive(true)
+      isActiveRef.current = true
       setStatus("active")
       setIsConnecting(false)
 
@@ -551,6 +553,7 @@ export default function InterviewRoom({
 
           // Set status to active
           setIsActive(true)
+          isActiveRef.current = true
           setStatus("active")
           setIsConnecting(false)
 
@@ -596,7 +599,7 @@ export default function InterviewRoom({
 
         dataChannel.onclose = () => {
           addDebugMessage("Data channel closed")
-          if (isActive) {
+          if (isActiveRef.current) {
             handleConnectionFailure("Data channel closed")
           }
         }
@@ -904,6 +907,7 @@ export default function InterviewRoom({
     cleanup()
     setStatus("ended")
     setIsActive(false)
+    isActiveRef.current = false
 
     // Store interview data in localStorage for the feedback page
     localStorage.setItem("vocahire_interview_messages", JSON.stringify(messages))
