@@ -6,22 +6,24 @@ import { NextRequest } from "next/server";
 import Stripe from "stripe";
 import { getAuth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { ITEM_PRICE_MAP, SUBSCRIPTION_ITEMS } from "@/lib/payment-config";
+import { validateStripeEnv } from "@/lib/env-validation";
+import { transactionLogger, TransactionOperations } from "@/lib/transaction-logger";
+
+// Validate Stripe environment variables
+try {
+  validateStripeEnv();
+} catch (error) {
+  console.error("Stripe environment validation failed:", error);
+  // In production, we should fail fast
+  if (process.env.NODE_ENV === "production") {
+    throw error;
+  }
+}
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-04-30.basil",
 });
-
-const ITEM_PRICE_MAP: Record<string, string> = {
-  CREDIT_PACK_1: "price_1ROmztKk6VyljA3pVmGKszKi",
-  CREDIT_PACK_3: "price_1ROnHpKk6VyljA3pMbcYg4rw",
-  PREMIUM_MONTHLY_SUB: "price_1ROmvcKk6VyljA3pjJ5emu6R",
-  PREMIUM_ANNUAL_SUB: "price_1ROmxEKk6VyljA3pQzqtZgWo",
-};
-
-const SUBSCRIPTION_ITEMS = new Set([
-  "PREMIUM_MONTHLY_SUB",
-  "PREMIUM_ANNUAL_SUB",
-]);
 
 export async function POST(request: NextRequest) {
   try {
@@ -105,6 +107,10 @@ export async function POST(request: NextRequest) {
         : `${appUrl}/pricing`;
 
     // 7. Create Stripe Checkout Session
+    transactionLogger.info(userId, TransactionOperations.CHECKOUT_SESSION_CREATED, {
+      metadata: { itemId, quantity: qty, mode, priceId }
+    });
+    
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
@@ -125,9 +131,18 @@ export async function POST(request: NextRequest) {
       ...(stripeCustomerId ? { customer: stripeCustomerId } : {}),
     });
 
+    transactionLogger.info(userId, TransactionOperations.CHECKOUT_SESSION_CREATED, {
+      metadata: { sessionId: session.id, itemId, quantity: qty, mode }
+    });
+
     return NextResponse.json({ sessionId: session.id, url: session.url });
   } catch (err: any) {
-    console.error("Stripe Checkout error:", err);
+    const userId = getAuth(request).userId || 'anonymous';
+    transactionLogger.error(userId, TransactionOperations.CHECKOUT_SESSION_FAILED, {
+      error: err.message || 'Unknown error',
+      metadata: { errorType: err?.type, errorCode: err?.code }
+    });
+    
     if (err?.type === "StripeCardError") {
       return NextResponse.json(
         { error: err.message },

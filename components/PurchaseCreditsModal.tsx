@@ -13,40 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-
-// Define a type for credit packages
-interface CreditPackage {
-  itemId: string; // Changed from id to itemId
-  name: string;
-  credits: number;
-  price: number; // Price in USD for display
-  description: string;
-  stripePriceId: string; // Keep the actual Stripe Price ID for reference if needed, but itemId is primary for API
-}
-
-// Updated credit packages - ensure these itemIds match keys in your backend's ITEM_PRICE_MAP
-const creditPackages: CreditPackage[] = [
-  {
-    itemId: "CREDIT_PACK_1",
-    name: "Starter Pack",
-    credits: 10, // Example, adjust to actual
-    price: 5,    // Example, adjust to actual
-    description: "Get 10 interview credits.",
-    stripePriceId: "price_1ROmztKk6VyljA3pVmGKszKi", // From your ITEM_PRICE_MAP
-  },
-  {
-    itemId: "CREDIT_PACK_3",
-    name: "Pro Pack",
-    credits: 25, // Example, adjust to actual
-    price: 10,   // Example, adjust to actual
-    description: "Get 25 interview credits.",
-    stripePriceId: "price_1ROnHpKk6VyljA3pMbcYg4rw", // From your ITEM_PRICE_MAP
-  },
-  // If you have more one-time credit packs in ITEM_PRICE_MAP, add them here.
-  // Subscriptions (PREMIUM_MONTHLY_SUB, PREMIUM_ANNUAL_SUB) are handled differently by Stripe (mode: "subscription")
-  // and might need a separate UI or logic if they are not simple one-time credit purchases.
-  // For this modal, we are focusing on one-time credit pack purchases.
-];
+import { CREDIT_PACKAGES, type CreditPackage } from "@/lib/payment-config";
 
 interface PurchaseCreditsModalProps {
   isOpen: boolean;
