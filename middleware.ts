@@ -16,13 +16,9 @@ const isPublicRoute = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, req: NextRequest) => {
   if (!isPublicRoute(req)) {
-    const res = await auth.protect(); // If not public, protect the route. Clerk handles redirection.
-    if (res) {
-      // Forward the redirect/response produced by Clerk
-      return res;
-    }
+    await auth.protect(); // If not public, protect the route. Clerk handles redirection automatically
   }
-  return NextResponse.next(); // Explicitly allow public routes or authenticated access
+  // No need to return anything - clerkMiddleware handles the response automatically
 });
 
 export const config = {
