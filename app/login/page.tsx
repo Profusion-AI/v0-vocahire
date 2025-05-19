@@ -7,6 +7,7 @@ export default function LoginPage() {
   
   useEffect(() => {
     // Redirect to Clerk's custom domain for authentication
+    // Using the correct 'redirect_url' parameter (not 'afterSignInUrl')
     window.location.href = "https://accounts.vocahire.com/sign-in?redirect_url=" + 
       encodeURIComponent(window.location.origin + "/interview");
   }, []);

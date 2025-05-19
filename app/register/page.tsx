@@ -7,6 +7,7 @@ export default function RegisterPage() {
   
   useEffect(() => {
     // Redirect to Clerk's custom domain for registration
+    // Using the correct 'redirect_url' parameter (not 'afterSignUpUrl')
     window.location.href = "https://accounts.vocahire.com/sign-up?redirect_url=" + 
       encodeURIComponent(window.location.origin + "/interview");
   }, []);

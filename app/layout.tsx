@@ -41,8 +41,8 @@ export default function RootLayout({
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
       signInUrl="https://accounts.vocahire.com/sign-in"
       signUpUrl="https://accounts.vocahire.com/sign-up"
-      signInFallbackRedirectUrl="/interview"
-      signUpFallbackRedirectUrl="/interview"
+      redirectUrl="/interview"
+      afterSignOutUrl="/"
     >
       <html lang="en">
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
