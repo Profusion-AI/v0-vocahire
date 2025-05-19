@@ -49,7 +49,8 @@ export async function GET(request: NextRequest) {
   if (!user) {
     try {
       // Get user details from Clerk
-      const clerkUser = auth.user;
+      const { currentUser } = await import("@clerk/nextjs/server");
+      const clerkUser = await currentUser();
       
       // Create new user in our database
       user = await prisma.user.create({
