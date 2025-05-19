@@ -33,7 +33,7 @@ async function getUsersWithUsage() {
     usageCount: user._count.interviewSessions + user._count.feedbacks,
     credits: user.credits,
     role: user.role,
-    status: user.credits > 0 ? "active" : "inactive",
+    status: Number(user.credits) > 0 ? "active" : "inactive",
     // Get last activity from most recent interview or feedback
     lastUsed: new Date(), // TODO: Add last activity tracking to schema
   }));
@@ -69,7 +69,7 @@ export default async function AdminUsersPage() {
                 <TableRow key={user.id}>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{user.usageCount} requests</TableCell>
-                  <TableCell>{user.credits} credits</TableCell>
+                  <TableCell>{Number(user.credits).toFixed(2)} VocahireCredits</TableCell>
                   <TableCell>{user.role}</TableCell>
                   <TableCell>
                     <span
