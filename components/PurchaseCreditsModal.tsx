@@ -78,7 +78,8 @@ export function PurchaseCreditsModal({
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">Purchase VocahireCredits</DialogTitle>
           <DialogDescription>
-            Select a credit package below to continue practicing your interview skills.
+            <p className="mb-2">VocahireCredits are available as top-ups for premium subscribers.</p>
+            <p className="text-amber-600 font-medium">Note: A premium subscription is required to use these credits.</p>
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">

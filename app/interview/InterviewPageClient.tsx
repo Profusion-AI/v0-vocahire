@@ -176,9 +176,9 @@ export default function InterviewPageClient({
   );
   
   const handleStartInterviewAttempt = () => {
-    if (!isPremium && credits !== null && credits > 0) {
+    if (!isPremium && credits !== null && Number(credits) > 0) {
       setIsConfirmStartModalOpen(true);
-    } else if (isPremium || (credits !== null && credits > 0)) {
+    } else if (isPremium || (credits !== null && Number(credits) > 0)) {
       startInterview();
     }
   };
@@ -272,14 +272,16 @@ export default function InterviewPageClient({
             ) : ( // This covers credits === 0 or credits === null (and not premium, not loading)
               <Card className="max-w-lg mx-auto my-8 shadow-xl border-2 border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20">
                 <CardHeader className="text-center">
-                  <CardTitle className="text-2xl font-bold text-red-600 dark:text-red-400">Out of Interview Credits!</CardTitle>
+                  <CardTitle className="text-2xl font-bold text-red-600 dark:text-red-400">Premium Access Required</CardTitle>
                   <CardDescription className="text-red-500 dark:text-red-300 mt-1">
-                    Purchase more credits or upgrade to premium for unlimited access.
+                    Upgrade to a premium subscription for unlimited AI interviews.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col sm:flex-row gap-3 p-6">
-                  <Button onClick={handlePurchaseCreditsClick} className="w-full sm:w-auto flex-1 bg-indigo-600 hover:bg-indigo-700">Buy More Credits</Button>
                   <Button onClick={handleUpgradeToPremium} className="w-full sm:w-auto flex-1 bg-purple-600 hover:bg-purple-700">Upgrade to Premium</Button>
+                  {credits !== null && Number(credits) === 0 && (
+                    <Button onClick={handlePurchaseCreditsClick} className="w-full sm:w-auto flex-1 bg-indigo-600 hover:bg-indigo-700">Top-up Credits (Premium Only)</Button>
+                  )}
                 </CardContent>
                  <CardFooter className="text-xs text-gray-500 dark:text-gray-400 justify-center">
                     <Link href="/pricing" className="underline hover:text-indigo-500">View Pricing & Plans</Link>
@@ -288,7 +290,7 @@ export default function InterviewPageClient({
             )}
 
             {/* Start Interview Button Logic */}
-            { (isPremium || (credits !== null && credits > 0)) ? (
+            { (isPremium || (credits !== null && Number(credits) > 0)) ? (
                 <div className="mt-8">
                      <Button
                         onClick={handleStartInterviewAttempt}
@@ -307,9 +309,10 @@ export default function InterviewPageClient({
                         refetchCredits={refetchUserData} // Pass refetchUserData from hook
                      />
                 </div>
-            ) : !isUserDataLoading && credits === 0 && !isPremium ? (
+            ) : !isUserDataLoading && credits !== null && Number(credits) === 0 && !isPremium ? (
                 <div className="text-center text-gray-600 dark:text-gray-400 mt-6">
-                    Please purchase credits or upgrade to premium to start an interview.
+                    Please upgrade to a premium subscription to access unlimited AI interviews. 
+                    <p className="mt-2 text-sm">VocahireCredits are intended as top-ups for premium subscribers.</p>
                 </div>
             ) : null }
           </SessionLayout>

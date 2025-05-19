@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
       select: { credits: true },
     })
 
-    if (!user || user.credits <= 0) {
-      return NextResponse.json({ error: "Insufficient credits. Please purchase more credits." }, { status: 403 })
+    if (!user || Number(user.credits) <= 0) {
+      return NextResponse.json({ error: "Insufficient VocahireCredits. Please purchase more VocahireCredits." }, { status: 403 })
     }
 
     // Process the request

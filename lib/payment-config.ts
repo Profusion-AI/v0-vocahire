@@ -35,7 +35,7 @@ export const CREDIT_PACKAGES: CreditPackage[] = [
     name: "3.00 VocahireCredits",
     credits: 3,
     price: 15,
-    description: "3.00 VocahireCredits for interview practice sessions.",
+    description: "3.00 VocahireCredits top-up for premium subscribers.",
     stripePriceId: ITEM_PRICE_MAP.CREDIT_PACK_3,
   },
   {
@@ -43,7 +43,7 @@ export const CREDIT_PACKAGES: CreditPackage[] = [
     name: "5.00 VocahireCredits",
     credits: 5,
     price: 20,
-    description: "5.00 VocahireCredits bundled at a discount.",
+    description: "5.00 VocahireCredits bundled top-up at a discount for premium subscribers.",
     stripePriceId: ITEM_PRICE_MAP.CREDIT_PACK_5,
   },
 ];

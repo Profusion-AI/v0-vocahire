@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
             },
           });
           console.log(
-            `[Stripe] User ${user.id} purchased ${itemId}: +${quantity} credits`
+            `[Stripe] User ${user.id} purchased ${itemId}: +${quantity} VocahireCredits`
           );
         } else if (itemId?.startsWith("PREMIUM_")) {
           // Fetch subscription to get expiry
