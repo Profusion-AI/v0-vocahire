@@ -25,6 +25,45 @@ class TransactionLogger {
     return TransactionLogger.instance;
   }
   
+  // Helper method to recursively convert Decimal values to JavaScript numbers
+  private convertDecimalValues(obj: Record<string, any>): Record<string, any> {
+    const result: Record<string, any> = {};
+    
+    for (const key in obj) {
+      const value = obj[key];
+      if (value === null || value === undefined) {
+        result[key] = value;
+      } else if (typeof value === 'object' && !Array.isArray(value)) {
+        // Recursively process nested objects
+        result[key] = this.convertDecimalValues(value);
+      } else if (Array.isArray(value)) {
+        // Process arrays
+        result[key] = value.map(item => 
+          typeof item === 'object' && item !== null 
+            ? this.convertDecimalValues(item) 
+            : (typeof item === 'number' || this.looksLikeDecimal(item) ? Number(item) : item)
+        );
+      } else if (this.looksLikeDecimal(value)) {
+        // Convert Decimal-like values to numbers
+        result[key] = Number(value);
+      } else {
+        result[key] = value;
+      }
+    }
+    
+    return result;
+  }
+  
+  // Helper to determine if a value might be a Decimal type
+  private looksLikeDecimal(value: any): boolean {
+    // Check if it has a toString method and can be parsed as a number
+    return value !== null && 
+           value !== undefined && 
+           typeof value.toString === 'function' && 
+           !isNaN(Number(value)) &&
+           typeof value !== 'number'; // It's not already a JavaScript number
+  }
+  
   private formatLog(log: TransactionLog): string {
     const { timestamp, level, userId, operation, amount, currency, metadata, error } = log;
     const baseLog = `[${timestamp.toISOString()}] [${level.toUpperCase()}] [USER:${userId}] ${operation}`;
@@ -49,12 +88,22 @@ class TransactionLogger {
     metadata?: Record<string, any>;
     error?: string;
   }) {
+    // Ensure numeric values are converted from potential Decimal types to JavaScript numbers
+    let safeOptions = options;
+    if (options) {
+      safeOptions = {
+        ...options,
+        amount: options.amount !== undefined ? Number(options.amount) : undefined,
+        metadata: options.metadata ? this.convertDecimalValues(options.metadata) : undefined
+      };
+    }
+    
     const log: TransactionLog = {
       timestamp: new Date(),
       level,
       userId,
       operation,
-      ...options
+      ...safeOptions
     };
     
     const formattedLog = this.formatLog(log);

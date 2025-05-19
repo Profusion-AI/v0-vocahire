@@ -63,13 +63,16 @@ export async function POST(request: NextRequest) {
       return updatedUser;
     });
 
+    // Convert Decimal to Number for consistent handling
+    const creditsBalance = Number(result.credits);
+    
     transactionLogger.info(auth.userId, TransactionOperations.CREDITS_ADDED, {
-      metadata: { transactionId, creditsAdded: credits, newBalance: result.credits }
+      metadata: { transactionId, creditsAdded: credits, newBalance: creditsBalance }
     });
 
     return NextResponse.json({
       message: "Credits successfully added.",
-      credits: result.credits,
+      credits: creditsBalance,
     });
   } catch (err) {
     transactionLogger.error(auth.userId, TransactionOperations.CREDITS_PURCHASED, {
