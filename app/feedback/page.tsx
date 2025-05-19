@@ -119,7 +119,9 @@ function FeedbackPageContent() {
         
         const { id } = await createResponse.json()
         interviewId = id
-        localStorage.setItem("vocahire_interview_id", interviewId)
+        if (interviewId) {
+          localStorage.setItem("vocahire_interview_id", interviewId)
+        }
       }
       
       const response = await fetch("/api/generate-feedback", {
