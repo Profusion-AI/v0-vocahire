@@ -98,6 +98,38 @@ Important environment variables include:
 - Clerk webhooks for user data synchronization
 - Stripe webhooks for payment event handling
 
+## Authentication with Clerk
+
+VocaHire uses Clerk.com for user authentication with a custom domain setup:
+
+### Authentication URLs
+- Sign In: https://accounts.vocahire.com/sign-in
+- Sign Up: https://accounts.vocahire.com/sign-up
+- User Profile: https://accounts.vocahire.com/user
+
+### Clerk Configuration
+Key props used in the ClerkProvider:
+```jsx
+<ClerkProvider
+  publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+  signInUrl="https://accounts.vocahire.com/sign-in"
+  signUpUrl="https://accounts.vocahire.com/sign-up"
+  signInFallbackRedirectUrl="/interview"
+  signUpFallbackRedirectUrl="/interview"
+>
+```
+
+### Environment Variables
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Public key for client-side Clerk interactions
+- `CLERK_SECRET_KEY`: Secret key for server-side Clerk operations
+- `CLERK_WEBHOOK_SECRET`: Secret for verifying webhook events from Clerk
+
+### User Record Creation
+When a user authenticates via Clerk, a corresponding user record is created in the database with:
+- Default of 3 credits for new users
+- Basic profile information synced from Clerk (name, email)
+- A Stripe Customer ID for future payments
+
 ## Deployment
 
 The application is deployed on Vercel with automatic CI/CD from GitHub.
@@ -110,6 +142,40 @@ The application is deployed on Vercel with automatic CI/CD from GitHub.
 - Stripe for payments
 - Shadcn/ui and Tailwind for UI
 - OpenAI for AI capabilities
+
+## Payment System
+
+VocaHire uses Stripe for payment processing with various product offerings:
+
+### Credit Packages
+- Three Credits (prod_SJPpjWE9zhJnEh): 3 top-up credits for existing users
+- Five Credits (prod_SJQ8EwiLxPh62L): 5 bundled credits
+
+### Subscription Plans
+- Monthly Coach (prod_SLHl7Tl1LX1NMH): Monthly subscription with unlimited AI interviews
+- Quarterly Coach (prod_SLHvbICsIUy3oZ): Quarterly subscription with 16% discount
+- Annual Coach (prod_SJPmP9GnMNDso0): Annual subscription with 25% discount
+
+### Environment Variables
+
+For Stripe integration, the following environment variables are needed:
+- `STRIPE_SECRET_KEY`: Secret API key for Stripe operations
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`: Public key for client-side Stripe interactions
+- `STRIPE_WEBHOOK_SECRET`: Secret for verifying webhook events from Stripe
+
+When setting up product IDs in Vercel, use comma separation for multiple values:
+```
+STRIPE_PRICE_ID=prod_SJPpjWE9zhJnEh,prod_SJQ8EwiLxPh62L,prod_SLHl7Tl1LX1NMH,prod_SLHvbICsIUy3oZ,prod_SJPmP9GnMNDso0
+```
+
+Or use separate environment variables for each product:
+```
+STRIPE_PRICE_ID_3_CREDITS=prod_SJPpjWE9zhJnEh
+STRIPE_PRICE_ID_5_CREDITS=prod_SJQ8EwiLxPh62L
+STRIPE_PRICE_ID_MONTHLY=prod_SLHl7Tl1LX1NMH
+STRIPE_PRICE_ID_QUARTERLY=prod_SLHvbICsIUy3oZ
+STRIPE_PRICE_ID_ANNUAL=prod_SJPmP9GnMNDso0
+```
 
 ## Production Readiness
 
