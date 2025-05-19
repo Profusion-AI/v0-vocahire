@@ -6,26 +6,37 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 // Force dynamic rendering to avoid prerendering issues
 export const dynamic = 'force-dynamic';
 
-// Mock function - in a real app, you'd fetch this from your database
+// Fetch real user data with usage statistics
 async function getUsersWithUsage() {
-  // Simulate a database call
-  return [
-    { id: "user1", email: "user1@example.com", usageCount: 15, lastUsed: new Date(), status: "active" },
-    {
-      id: "user2",
-      email: "user2@example.com",
-      usageCount: 32,
-      lastUsed: new Date(Date.now() - 86400000),
-      status: "active",
+  const { prisma } = await import("@/lib/prisma");
+  
+  // Get all users with their interview session counts
+  const users = await prisma.user.findMany({
+    select: {
+      id: true,
+      email: true,
+      credits: true,
+      role: true,
+      _count: {
+        select: {
+          interviewSessions: true,
+          feedback: true,
+        },
+      },
     },
-    {
-      id: "user3",
-      email: "user3@example.com",
-      usageCount: 5,
-      lastUsed: new Date(Date.now() - 259200000),
-      status: "active",
-    },
-  ]
+  });
+
+  // Transform the data for the UI
+  return users.map((user) => ({
+    id: user.id,
+    email: user.email || "No email",
+    usageCount: user._count.interviewSessions + user._count.feedback,
+    credits: user.credits,
+    role: user.role,
+    status: user.credits > 0 ? "active" : "inactive",
+    // Get last activity from most recent interview or feedback
+    lastUsed: new Date(), // TODO: Add last activity tracking to schema
+  }));
 }
 
 export default async function AdminUsersPage() {
@@ -48,7 +59,8 @@ export default async function AdminUsersPage() {
               <TableRow>
                 <TableHead>User</TableHead>
                 <TableHead>Total Usage</TableHead>
-                <TableHead>Last Used</TableHead>
+                <TableHead>Credits</TableHead>
+                <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -57,7 +69,8 @@ export default async function AdminUsersPage() {
                 <TableRow key={user.id}>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{user.usageCount} requests</TableCell>
-                  <TableCell>{user.lastUsed.toLocaleString()}</TableCell>
+                  <TableCell>{user.credits} credits</TableCell>
+                  <TableCell>{user.role}</TableCell>
                   <TableCell>
                     <span
                       className={`px-2 py-1 rounded text-xs ${

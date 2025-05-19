@@ -110,3 +110,46 @@ The application is deployed on Vercel with automatic CI/CD from GitHub.
 - Stripe for payments
 - Shadcn/ui and Tailwind for UI
 - OpenAI for AI capabilities
+
+## Production Readiness
+
+**IMPORTANT**: VocaHire is being deployed to production with real, paying customers. All code MUST be production-ready.
+
+### Code Standards
+
+- **NO MOCK FUNCTIONALITY**: All features must connect to real databases, APIs, and services
+- **Exception**: The only "mock" aspect should be clearly communicated to users - they are participating in a mock interview with an AI agent, not a real human interviewer
+- **All data operations must be real**: User management, payments, analytics, and monitoring must use actual production data
+- **Error handling**: Implement proper error handling and logging for all operations
+- **Security**: Follow best practices for authentication, authorization, and data protection
+
+### Payment Integration
+
+- All Stripe integrations must handle real credit card transactions
+- Implement proper webhook handling for payment events
+- Ensure credit system is accurately tracked and debited
+- Handle subscription management and one-time purchases
+
+### User Experience
+
+- Users should clearly understand they are:
+  - Paying for AI-powered mock interview practice
+  - Receiving AI-generated feedback
+  - Interacting with an AI interviewer, not a human
+- The service value proposition is practice and improvement, not actual job interviews
+
+### Code Review Guidelines
+
+When reviewing PRs or implementing features:
+1. Remove any placeholder or mock data
+2. Ensure all database queries are optimized for production load
+3. Verify payment flows are tested with real Stripe test keys
+4. Confirm error messages are user-friendly and don't expose sensitive data
+5. Check that all admin features work with real production data
+
+### Monitoring and Analytics
+
+- Admin dashboards must show real user activity
+- Usage metrics must accurately reflect API calls and resource consumption
+- Payment tracking must align with Stripe dashboard
+- Error tracking should capture and alert on production issues
