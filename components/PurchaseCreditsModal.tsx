@@ -82,7 +82,7 @@ export function PurchaseCreditsModal({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          {creditPackages.map((pkg) => (
+          {CREDIT_PACKAGES.map((pkg) => (
             <Card
               key={pkg.itemId}
               className={`cursor-pointer transition-all ${
