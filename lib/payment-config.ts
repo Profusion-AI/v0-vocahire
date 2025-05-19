@@ -32,18 +32,18 @@ export interface CreditPackage {
 export const CREDIT_PACKAGES: CreditPackage[] = [
   {
     itemId: "CREDIT_PACK_3",
-    name: "Three Credits",
+    name: "3.00 VocahireCredits",
     credits: 3,
     price: 15,
-    description: "3 Vocahire Credits intended to top-up a premium subscription.",
+    description: "3.00 VocahireCredits for interview practice sessions.",
     stripePriceId: ITEM_PRICE_MAP.CREDIT_PACK_3,
   },
   {
     itemId: "CREDIT_PACK_5",
-    name: "Five Credits",
+    name: "5.00 VocahireCredits",
     credits: 5,
     price: 20,
-    description: "5 Vocahire Credits bundled, premium subscription required.",
+    description: "5.00 VocahireCredits bundled at a discount.",
     stripePriceId: ITEM_PRICE_MAP.CREDIT_PACK_5,
   },
 ];
@@ -108,7 +108,7 @@ export const PREMIUM_SUBSCRIPTIONS: Subscription[] = [
 ];
 
 // Default credits for new users
-export const DEFAULT_CREDITS = 3;
+export const DEFAULT_CREDITS = 3.00;
 
 // Helper function to get package details by itemId
 export function getPackageDetails(itemId: string): CreditPackage | Subscription | null {

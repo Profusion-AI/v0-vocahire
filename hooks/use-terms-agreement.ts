@@ -14,15 +14,19 @@ export function useTermsAgreement(userId: string | undefined) {
       setShowTermsModal(false)
       return
     }
-    // Use Clerk userId for per-user agreement tracking
-    const key = `agreedToTerms_${userId}`
-    const agreedToTerms = localStorage.getItem(key)
-    setHasAgreedToTerms(agreedToTerms === "true")
+    
+    // Protect localStorage access for SSR
+    if (typeof window !== 'undefined') {
+      // Use Clerk userId for per-user agreement tracking
+      const key = `agreedToTerms_${userId}`
+      const agreedToTerms = localStorage.getItem(key)
+      setHasAgreedToTerms(agreedToTerms === "true")
 
-    // Only show the modal after we've checked localStorage
-    // This prevents flashing on page load
-    if (agreedToTerms !== "true") {
-      setShowTermsModal(true)
+      // Only show the modal after we've checked localStorage
+      // This prevents flashing on page load
+      if (agreedToTerms !== "true") {
+        setShowTermsModal(true)
+      }
     }
 
     setIsLoaded(true)
@@ -31,7 +35,9 @@ export function useTermsAgreement(userId: string | undefined) {
   const agreeToTerms = () => {
     if (!userId) return
     const key = `agreedToTerms_${userId}`
-    localStorage.setItem(key, "true")
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, "true")
+    }
     setHasAgreedToTerms(true)
     setShowTermsModal(false)
   }

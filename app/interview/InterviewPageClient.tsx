@@ -70,17 +70,20 @@ export default function InterviewPageClient({
   useEffect(() => {
     setIsLoadingResume(true);
     try {
-      const storedResumeData = localStorage.getItem("vocahire_resume_data");
-      if (storedResumeData) {
-        const parsedData = JSON.parse(storedResumeData) as ResumeData;
-        setResumeData(parsedData);
-        setHasResumeData(true);
-        // Only set jobTitle from resume if initialJobTitle was the default placeholder
-        if (initialJobTitle === "Software Engineer" && parsedData.jobTitle) {
-             setJobTitle(parsedData.jobTitle);
+      // Protect localStorage access for SSR
+      if (typeof window !== 'undefined') {
+        const storedResumeData = localStorage.getItem("vocahire_resume_data");
+        if (storedResumeData) {
+          const parsedData = JSON.parse(storedResumeData) as ResumeData;
+          setResumeData(parsedData);
+          setHasResumeData(true);
+          // Only set jobTitle from resume if initialJobTitle was the default placeholder
+          if (initialJobTitle === "Software Engineer" && parsedData.jobTitle) {
+               setJobTitle(parsedData.jobTitle);
+          }
+        } else {
+          setHasResumeData(false);
         }
-      } else {
-        setHasResumeData(false);
       }
     } catch (err) {
       console.error("Error loading resume data from localStorage:", err);
@@ -164,7 +167,9 @@ export default function InterviewPageClient({
 
   const handleInterviewComplete = useCallback(
     (messages: any[]) => {
-      localStorage.setItem("vocahire_interview_messages", JSON.stringify(messages));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem("vocahire_interview_messages", JSON.stringify(messages));
+      }
       router.push("/feedback");
     },
     [router]
@@ -258,10 +263,10 @@ export default function InterviewPageClient({
             ) : credits !== null && credits > 0 ? (
               <div className="text-center my-6">
                 <p className="text-lg">
-                  You have <span className="font-bold text-indigo-600 dark:text-indigo-400">{credits}</span> Interview Credit{credits === 1 ? "" : "s"} remaining.
+                  You have <span className="font-bold text-indigo-600 dark:text-indigo-400">{typeof credits === 'number' ? credits.toFixed(2) : Number(credits).toFixed(2)}</span> VocahireCredits remaining.
                 </p>
                 <Button onClick={handlePurchaseCreditsClick} variant="link" className="text-indigo-600 dark:text-indigo-400 p-0 h-auto">
-                  Buy More Credits
+                  Buy More VocahireCredits
                 </Button>
               </div>
             ) : ( // This covers credits === 0 or credits === null (and not premium, not loading)
@@ -335,7 +340,7 @@ export default function InterviewPageClient({
             <DialogHeader>
               <DialogTitle>Confirm Start Interview</DialogTitle>
               <DialogDescription>
-                Starting this interview will use 1 credit. You will have {credits !== null && credits > 0 ? credits - 1 : 0} credit(s) remaining. Do you want to proceed?
+                Starting this interview will use 1.00 VocahireCredits. You will have {credits !== null && credits > 0 ? (Number(credits) - 1).toFixed(2) : '0.00'} VocahireCredits remaining. Do you want to proceed?
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

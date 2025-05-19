@@ -14,6 +14,11 @@ import SessionLayout from "@/components/SessionLayout";
 
 // Helper function to load interview data from localStorage
 function loadInterviewData() {
+  // Server-side rendering check
+  if (typeof window === 'undefined') {
+    return { error: "Loading interview data...", isSSR: true }
+  }
+  
   const messagesJson = localStorage.getItem("vocahire_interview_messages")
   const fillerWordsJson = localStorage.getItem("vocahire_filler_words")
   const resumeDataJson = localStorage.getItem("vocahire_resume_data")
@@ -66,12 +71,22 @@ function FeedbackPageContent() {
   const [recordingUrl, setRecordingUrl] = useState<string | null>(null)
 
   useEffect(() => {
+    // Skip during server-side rendering
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     const data = loadInterviewData()
     
     if (data.error) {
       setIsLoading(false)
       setError(data.error)
-      return
+      
+      // If it's a server-side rendering error, don't return yet
+      if (data.isSSR) {
+        return;
+      }
+      return;
     }
     
     if (data.recordingUrl) {
@@ -96,7 +111,7 @@ function FeedbackPageContent() {
 
     try {
       // Get interview ID from localStorage or create one
-      let interviewId = localStorage.getItem("vocahire_interview_id")
+      let interviewId = typeof window !== 'undefined' ? localStorage.getItem("vocahire_interview_id") : null
       
       if (!interviewId) {
         // Create a new interview session
@@ -119,7 +134,7 @@ function FeedbackPageContent() {
         
         const { id } = await createResponse.json()
         interviewId = id
-        if (interviewId) {
+        if (interviewId && typeof window !== 'undefined') {
           localStorage.setItem("vocahire_interview_id", interviewId)
         }
       }
@@ -206,10 +221,19 @@ function FeedbackPageContent() {
   }
 
   const handleRegenerateFeedback = () => {
+    // Skip during server-side rendering
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     const data = loadInterviewData()
     
     if (data.error) {
       setError(data.error)
+      // If it's a server-side rendering error, don't return
+      if (data.isSSR) {
+        return;
+      }
       return
     }
     

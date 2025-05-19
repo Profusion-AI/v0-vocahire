@@ -76,7 +76,7 @@ export function PurchaseCreditsModal({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[625px]">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Purchase Credits</DialogTitle>
+          <DialogTitle className="text-2xl font-bold">Purchase VocahireCredits</DialogTitle>
           <DialogDescription>
             Select a credit package below to continue practicing your interview skills.
           </DialogDescription>
@@ -96,7 +96,7 @@ export function PurchaseCreditsModal({
                 <CardTitle className="text-lg">{pkg.name}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-semibold">{pkg.credits} Credits</p>
+                <p className="text-2xl font-semibold">{pkg.credits.toFixed(2)} VocahireCredits</p>
                 <p className="text-sm text-gray-600">${pkg.price.toFixed(2)}</p>
                 <p className="text-xs text-gray-500 mt-1">{pkg.description}</p>
               </CardContent>

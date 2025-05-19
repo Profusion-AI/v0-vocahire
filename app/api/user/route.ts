@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch user profile from DB
-  const user = await prisma.user.findUnique({
+  let user = await prisma.user.findUnique({
     where: { id: auth.userId },
     select: {
       id: true,
@@ -38,12 +38,57 @@ export async function GET(request: NextRequest) {
       linkedinUrl: true,
       credits: true,
       isPremium: true,
+      premiumExpiresAt: true,
+      premiumSubscriptionId: true,
+      role: true,
       // Add more fields as needed
     },
   });
 
+  // If user doesn't exist but is authenticated with Clerk, create a new user record
   if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    try {
+      // Get user details from Clerk
+      const clerkUser = auth.user;
+      
+      // Create new user in our database
+      user = await prisma.user.create({
+        data: {
+          id: auth.userId,
+          name: clerkUser?.firstName && clerkUser?.lastName ? 
+                `${clerkUser.firstName} ${clerkUser.lastName}` : 
+                clerkUser?.firstName || clerkUser?.lastName || null,
+          email: clerkUser?.emailAddresses[0]?.emailAddress || null,
+          image: clerkUser?.imageUrl || null,
+          credits: 3.00, // Default 3.00 VocahireCredits for new users
+          isPremium: false,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          resumeJobTitle: true,
+          resumeFileUrl: true,
+          jobSearchStage: true,
+          linkedinUrl: true,
+          credits: true,
+          isPremium: true,
+          premiumExpiresAt: true,
+          premiumSubscriptionId: true,
+          role: true,
+        },
+      });
+    } catch (error) {
+      console.error("Error creating user:", error);
+      return NextResponse.json({ 
+        error: "Failed to create user profile. Please try again or contact support." 
+      }, { status: 500 });
+    }
+  }
+
+  if (!user) {
+    return NextResponse.json({ error: "User not found and could not be created" }, { status: 404 });
   }
 
   return NextResponse.json(user);
