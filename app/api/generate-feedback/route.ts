@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
           .join("\n\n"),
         fillerWordCount: 0, // You could implement filler word counting logic here
         transcriptScore: parsedFeedback.reduce((acc, item) => {
-          const ratings = { "Excellent": 4, "Good": 3, "Satisfactory": 2, "Needs Improvement": 1, "Not Evaluated": 0 };
+          const ratings: Record<string, number> = { "Excellent": 4, "Good": 3, "Satisfactory": 2, "Needs Improvement": 1, "Not Evaluated": 0 };
           return acc + (ratings[item.rating] || 0);
         }, 0) / parsedFeedback.length,
       },
