@@ -89,7 +89,26 @@ export async function GET(request: NextRequest) {
   }
 
   if (!user) {
-    return NextResponse.json({ error: "User not found and could not be created" }, { status: 404 });
+    // Instead of returning a 404, return a default user structure
+    // This prevents the client from failing completely
+    console.error("User not found and could not be created, returning default user structure");
+    
+    return NextResponse.json({
+      id: auth.userId,
+      name: null,
+      email: null,
+      image: null,
+      resumeJobTitle: null,
+      resumeFileUrl: null,
+      jobSearchStage: null,
+      linkedinUrl: null,
+      credits: 0.00,
+      isPremium: false,
+      premiumExpiresAt: null,
+      premiumSubscriptionId: null,
+      role: "USER",
+      error: "User not found and could not be created"
+    }, { status: 200 }); // Return 200 status with default data
   }
 
   return NextResponse.json(user);
@@ -123,6 +142,42 @@ export async function PATCH(request: NextRequest) {
   const validatedData = result.data;
 
   try {
+    // First check if the user exists
+    const existingUser = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { id: true }
+    });
+
+    // If the user doesn't exist, create it first with default values
+    if (!existingUser) {
+      console.log("User doesn't exist when trying to update; creating new user");
+      try {
+        // Get user details from Clerk
+        const { currentUser } = await import("@clerk/nextjs/server");
+        const clerkUser = await currentUser();
+        
+        // Create basic user first
+        await prisma.user.create({
+          data: {
+            id: auth.userId,
+            name: clerkUser?.firstName && clerkUser?.lastName ? 
+                  `${clerkUser.firstName} ${clerkUser.lastName}` : 
+                  clerkUser?.firstName || clerkUser?.lastName || null,
+            email: clerkUser?.emailAddresses[0]?.emailAddress || null,
+            image: clerkUser?.imageUrl || null,
+            credits: 3.00,
+            isPremium: false,
+          }
+        });
+      } catch (createError) {
+        console.error("Error creating user during update:", createError);
+        return NextResponse.json({ 
+          error: "Failed to create user profile before update. Please try again." 
+        }, { status: 500 });
+      }
+    }
+
+    // Now perform the update
     const updatedUser = await prisma.user.update({
       where: { id: auth.userId },
       data: validatedData,
@@ -137,11 +192,15 @@ export async function PATCH(request: NextRequest) {
         linkedinUrl: true,
         credits: true,
         isPremium: true,
+        premiumExpiresAt: true,
+        premiumSubscriptionId: true,
+        role: true,
         // Add more fields as needed
       },
     });
     return NextResponse.json(updatedUser);
   } catch (err) {
+    console.error("Error updating user:", err);
     return NextResponse.json(
       { error: "Failed to update user", details: err instanceof Error ? err.message : err },
       { status: 500 }

@@ -52,7 +52,7 @@ export default async function ProfilePage() {
                   ? `${clerkUser.firstName} ${clerkUser.lastName}` 
                   : clerkUser.firstName)
                 : null,
-              credits: 3, // Default for new users
+              credits: 3.00, // Default for new users (as Decimal)
             },
           });
           console.log("[ProfilePage SERVER] Created new user record:", initialDbUser);
