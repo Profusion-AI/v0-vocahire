@@ -20,7 +20,7 @@ async function getUsersWithUsage() {
       _count: {
         select: {
           interviewSessions: true,
-          feedback: true,
+          feedbacks: true,
         },
       },
     },
@@ -30,7 +30,7 @@ async function getUsersWithUsage() {
   return users.map((user) => ({
     id: user.id,
     email: user.email || "No email",
-    usageCount: user._count.interviewSessions + user._count.feedback,
+    usageCount: user._count.interviewSessions + user._count.feedbacks,
     credits: user.credits,
     role: user.role,
     status: user.credits > 0 ? "active" : "inactive",
