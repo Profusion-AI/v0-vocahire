@@ -24,6 +24,80 @@ function sanitizeUrl(url) {
   return url.replace(/\/\/[^@]*@/, "//****:****@");
 }
 
+// Test a database connection
+async function testDatabaseConnection(url) {
+  if (!url) return { success: false, error: "No URL provided" };
+  
+  try {
+    // Parse the URL to get components
+    const urlObj = new URL(url);
+    
+    logWithTime(`Testing connection to ${urlObj.hostname}:${urlObj.port || '5432'}...`);
+    
+    // We'll attempt to ping the database server
+    const { execSync } = require('child_process');
+    
+    try {
+      // Try to use telnet to check basic connectivity (port is open)
+      execSync(`nc -zv -w 5 ${urlObj.hostname} ${urlObj.port || 5432} 2>/dev/null`);
+      logWithTime(`✅ Port connectivity test passed: Port ${urlObj.port || 5432} is open on ${urlObj.hostname}`);
+      return { success: true };
+    } catch (error) {
+      logWithTime(`❌ Port connectivity test failed: Cannot connect to ${urlObj.hostname}:${urlObj.port || 5432}`);
+      
+      // Try ping to see if basic network connectivity exists
+      try {
+        execSync(`ping -c 1 ${urlObj.hostname} 2>/dev/null`);
+        logWithTime(`✅ Host reachable via ping, but database port is closed or blocked`);
+        return { success: false, error: "Host reachable but database port is closed" };
+      } catch (pingError) {
+        logWithTime(`❌ Host unreachable via ping: ${urlObj.hostname}`);
+        return { success: false, error: "Host unreachable (DNS or network issue)" };
+      }
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Encode database password safely
+function encodeSpecialChars(password) {
+  if (!password) return "";
+  
+  // Characters that need encoding in database passwords
+  const specialChars = {
+    '@': '%40',
+    ':': '%3A',
+    '/': '%2F',
+    '?': '%3F',
+    '#': '%23',
+    '[': '%5B',
+    ']': '%5D',
+    '!': '%21',
+    '$': '%24',
+    '&': '%26',
+    "'": '%27',
+    '(': '%28',
+    ')': '%29',
+    '*': '%2A',
+    '+': '%2B',
+    ',': '%2C',
+    ';': '%3B',
+    '=': '%3D',
+    '%': '%25',
+    ' ': '%20'
+  };
+  
+  // Replace special characters with their encoded versions
+  let encodedPassword = '';
+  for (let i = 0; i < password.length; i++) {
+    const char = password[i];
+    encodedPassword += specialChars[char] || char;
+  }
+  
+  return encodedPassword;
+}
+
 // Main function
 async function main() {
   logWithTime("DATABASE_URL Validation Tool");
@@ -35,6 +109,23 @@ async function main() {
   
   logWithTime(`Original DATABASE_URL: ${sanitizeUrl(databaseUrl)}`);
   logWithTime(`MIGRATE_DATABASE_URL: ${sanitizeUrl(migrateUrl)}`);
+  
+  // Test connections if URLs are provided
+  if (databaseUrl) {
+    logWithTime("\nTesting DATABASE_URL connectivity...");
+    const result = await testDatabaseConnection(databaseUrl);
+    if (!result.success) {
+      logWithTime(`Connection test failed: ${result.error}`);
+    }
+  }
+  
+  if (migrateUrl) {
+    logWithTime("\nTesting MIGRATE_DATABASE_URL connectivity...");
+    const result = await testDatabaseConnection(migrateUrl);
+    if (!result.success) {
+      logWithTime(`Connection test failed: ${result.error}`);
+    }
+  }
   
   // Check for common problems and provide recommendations
   

@@ -62,10 +62,73 @@ function getValidatedPrismaClient() {
       process.env.DATABASE_URL = migrateUrl;
     }
     
-    // Create Prisma client with error logging
+    // Log connection details for troubleshooting
+    try {
+      const urlObj = new URL(databaseUrl || '');
+      console.log(`Attempting database connection to: ${urlObj.hostname}:${urlObj.port || '5432'}`);
+      
+      // Check for known limitations with Supabase
+      if (urlObj.hostname.includes('supabase.co')) {
+        console.log('IMPORTANT: For Supabase connections, please verify:');
+        console.log('1. IP allow list includes Vercel deployment IPs');
+        console.log('2. Database is active and not in maintenance mode');
+        console.log('3. Connection credentials are correct and URL-encoded');
+        
+        // Check for direct vs pooled connection for migrations
+        if (urlObj.hostname.includes('db.') && process.env.NODE_ENV === 'production') {
+          console.log('WARNING: Using direct connection (db.*) in production.');
+          console.log('For normal operations, use pooled connection: aws-0-[region].pooler.supabase.com');
+        }
+        
+        // Check for special characters in password that need encoding
+        if (urlObj.password && (
+          urlObj.password.includes('&') || 
+          urlObj.password.includes('%') || 
+          urlObj.password.includes('@') ||
+          urlObj.password.includes('+') ||
+          urlObj.password.includes('!') ||
+          urlObj.password.includes('*')
+        )) {
+          console.log('WARNING: Password contains special characters that may need URL encoding');
+          
+          // Check if the password is properly encoded
+          const decodedPassword = decodeURIComponent(urlObj.password);
+          const reEncodedPassword = encodeURIComponent(decodedPassword);
+          
+          // If re-encoding changed the password, it might not be properly encoded
+          if (reEncodedPassword !== urlObj.password) {
+            console.log('Detected unencoded special characters in database password');
+            
+            // Attempt to re-encode the password in the URL
+            try {
+              // Reconstruct URL with properly encoded password
+              const user = urlObj.username;
+              const auth = user ? `${user}:${reEncodedPassword}` : '';
+              const authPrefix = auth ? `${auth}@` : '';
+              const newUrl = `${urlObj.protocol}//${authPrefix}${urlObj.host}${urlObj.pathname}${urlObj.search}`;
+              
+              console.log('Automatically re-encoding special characters in database password');
+              process.env.DATABASE_URL = newUrl;
+              databaseUrl = newUrl;
+            } catch (encodeError) {
+              console.error('Error encoding URL:', encodeError);
+            }
+          }
+        }
+      }
+    } catch (urlError) {
+      console.error('Error parsing DATABASE_URL:', urlError.message);
+    }
+    
+    // Create Prisma client with error logging and connection timeout
     return new PrismaClient({
       errorFormat: 'colorless',
-      log: ['error', 'warn', 'info', 'query'],
+      log: ['error', 'warn', 'info'],
+      datasources: {
+        db: {
+          url: databaseUrl,
+        },
+      },
     });
   } catch (error) {
     console.error('Failed to initialize Prisma client:', error);
