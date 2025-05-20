@@ -1,6 +1,6 @@
 // No "use client"; directive - this is a Server Component by default
 import { Suspense } from "react"; 
-import { prisma } from "@/lib/prisma";
+import { prisma, withDatabaseFallback, isUsingFallbackDb } from "@/lib/prisma";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { Navbar } from "@/components/navbar";
 import AuthGuard from "@/components/auth/AuthGuard";
@@ -31,7 +31,10 @@ async function InterviewPageDataFetcher({ searchParams: searchParamsPromise, par
   }
 
   const clerkServerUser = await currentUser();
-  const dbUser = await prisma.user.findUnique({ where: { id: userId } });
+  const dbUser = await withDatabaseFallback(
+    async () => await prisma.user.findUnique({ where: { id: userId } }),
+    async () => null // Fallback to null if there's a database error
+  );
 
   let initialName = "";
   if (clerkServerUser) {
@@ -60,7 +63,14 @@ async function InterviewPageDataFetcher({ searchParams: searchParamsPromise, par
     userId: userId, // userId might still be useful for specific actions not covered by the hook immediately
   };
 
-  return <InterviewPageClient {...clientProps} />;
+  // Add database fallback warning if needed
+  const databaseStatusProps = {
+    ...clientProps,
+    // Pass a flag to the client component to show appropriate messages
+    isUsingFallbackDb
+  };
+  
+  return <InterviewPageClient {...databaseStatusProps} />;
 }
 
 // The Page component itself receives params and searchParams as promise props from Next.js

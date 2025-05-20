@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
 import { NextRequest } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { prisma, withDatabaseFallback, isUsingFallbackDb } from "@/lib/prisma"
 import { z } from "zod"
 
 // Define which fields are editable via PATCH
@@ -33,10 +33,9 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching Clerk user data:", error);
   }
 
-  // Fetch user profile from DB with error handling
-  let user = null;
-  try {
-    user = await prisma.user.findUnique({
+  // Fetch user profile from DB with error handling using withDatabaseFallback
+  const user = await withDatabaseFallback(
+    async () => await prisma.user.findUnique({
       where: { id: auth.userId },
       select: {
         id: true,
@@ -54,44 +53,53 @@ export async function GET(request: NextRequest) {
         role: true,
         // Add more fields as needed
       },
-    });
-  } catch (dbError) {
-    console.error("Database error when fetching user:", dbError);
-    
-    // Create a fallback user from Clerk data if available
-    if (clerkUser) {
-      console.log("Using Clerk data as fallback for database error");
-      return NextResponse.json({
-        id: auth.userId,
-        name: clerkUser?.firstName && clerkUser?.lastName ? 
-              `${clerkUser.firstName} ${clerkUser.lastName}` : 
-              clerkUser?.firstName || clerkUser?.lastName || null,
-        email: clerkUser?.emailAddresses[0]?.emailAddress || null,
-        image: clerkUser?.imageUrl || null,
-        resumeJobTitle: null,
-        resumeFileUrl: null,
-        jobSearchStage: null,
-        linkedinUrl: null,
-        credits: 3.00, // Default credits
-        isPremium: false,
-        premiumExpiresAt: null,
-        premiumSubscriptionId: null,
-        role: "USER",
-        _isTemporaryUser: true, // Flag to indicate this is a temporary fallback user
-        _dbError: true // Flag to indicate database error
-      });
+    }),
+    async () => {
+      console.error("Database error when fetching user, using fallback");
+      
+      // Create a fallback user from Clerk data if available
+      if (clerkUser) {
+        console.log("Using Clerk data as fallback for database error");
+        return {
+          id: auth.userId,
+          name: clerkUser?.firstName && clerkUser?.lastName ? 
+                `${clerkUser.firstName} ${clerkUser.lastName}` : 
+                clerkUser?.firstName || clerkUser?.lastName || null,
+          email: clerkUser?.emailAddresses[0]?.emailAddress || null,
+          image: clerkUser?.imageUrl || null,
+          resumeJobTitle: null,
+          resumeFileUrl: null,
+          jobSearchStage: null,
+          linkedinUrl: null,
+          credits: 3.00, // Default credits
+          isPremium: false,
+          premiumExpiresAt: null,
+          premiumSubscriptionId: null,
+          role: "USER",
+          _isTemporaryUser: true, // Flag to indicate this is a temporary fallback user
+          _dbError: true, // Flag to indicate database error
+          _usingFallbackDb: isUsingFallbackDb // Include flag indicating fallback db is in use
+        };
+      }
+      return null;
     }
-  }
+  );
 
   // If user doesn't exist but is authenticated with Clerk, create a new user record
   if (!user) {
-    try {
-      // Get user details from Clerk
-      const { currentUser } = await import("@clerk/nextjs/server");
-      const clerkUser = await currentUser();
-      
-      // Create new user in our database
-      user = await prisma.user.create({
+    // Get user details from Clerk if not already fetched
+    if (!clerkUser) {
+      try {
+        const { currentUser } = await import("@clerk/nextjs/server");
+        clerkUser = await currentUser();
+      } catch (error) {
+        console.error("Error fetching Clerk user data for new user:", error);
+      }
+    }
+    
+    // Create new user using withDatabaseFallback
+    user = await withDatabaseFallback(
+      async () => await prisma.user.create({
         data: {
           id: auth.userId,
           name: clerkUser?.firstName && clerkUser?.lastName ? 
@@ -117,13 +125,36 @@ export async function GET(request: NextRequest) {
           premiumSubscriptionId: true,
           role: true,
         },
-      });
-    } catch (error) {
-      console.error("Error creating user:", error);
-      return NextResponse.json({ 
-        error: "Failed to create user profile. Please try again or contact support." 
-      }, { status: 500 });
-    }
+      }),
+      async () => {
+        console.error("Database error when creating user, using fallback");
+        
+        // Return a fallback user with clerk data if available
+        if (clerkUser) {
+          return {
+            id: auth.userId,
+            name: clerkUser?.firstName && clerkUser?.lastName ? 
+                  `${clerkUser.firstName} ${clerkUser.lastName}` : 
+                  clerkUser?.firstName || clerkUser?.lastName || null,
+            email: clerkUser?.emailAddresses[0]?.emailAddress || null,
+            image: clerkUser?.imageUrl || null,
+            resumeJobTitle: null,
+            resumeFileUrl: null,
+            jobSearchStage: null,
+            linkedinUrl: null,
+            credits: 3.00, // Default credits
+            isPremium: false,
+            premiumExpiresAt: null,
+            premiumSubscriptionId: null,
+            role: "USER",
+            _isTemporaryUser: true,
+            _dbCreateError: true,
+            _usingFallbackDb: isUsingFallbackDb
+          };
+        }
+        return null;
+      }
+    );
   }
 
   if (!user) {
@@ -145,8 +176,18 @@ export async function GET(request: NextRequest) {
       premiumExpiresAt: null,
       premiumSubscriptionId: null,
       role: "USER",
-      error: "User not found and could not be created"
+      error: "User not found and could not be created",
+      _isTemporaryUser: true,
+      _usingFallbackDb: isUsingFallbackDb
     }, { status: 200 }); // Return 200 status with default data
+  }
+  
+  // If we're using fallback database, add a flag to the response
+  if (isUsingFallbackDb && user && typeof user === 'object') {
+    user = {
+      ...user,
+      _usingFallbackDb: true
+    };
   }
 
   return NextResponse.json(user);
@@ -189,60 +230,37 @@ export async function PATCH(request: NextRequest) {
       console.error("Error fetching Clerk user data for update:", error);
     }
     
-    // First check if the user exists with error handling
-    let existingUser = null;
-    try {
-      existingUser = await prisma.user.findUnique({
+    // First check if the user exists with error handling using withDatabaseFallback
+    const existingUser = await withDatabaseFallback(
+      async () => await prisma.user.findUnique({
         where: { id: auth.userId },
         select: { id: true }
-      });
-    } catch (dbError) {
-      console.error("Database error when checking user existence:", dbError);
-      
-      // Return a success response with clerk data if available
-      if (clerkUser) {
-        const clerkDataUser = {
-          id: auth.userId,
-          name: clerkUser?.firstName && clerkUser?.lastName ? 
-                `${clerkUser.firstName} ${clerkUser.lastName}` : 
-                clerkUser?.firstName || clerkUser?.lastName || null,
-          email: clerkUser?.emailAddresses[0]?.emailAddress || null,
-          image: clerkUser?.imageUrl || null,
-          ...validatedData, // Include the update data
-          resumeJobTitle: validatedData.resumeJobTitle || null,
-          resumeFileUrl: validatedData.resumeFileUrl || null,
-          jobSearchStage: validatedData.jobSearchStage || null,
-          linkedinUrl: validatedData.linkedinUrl || null,
-          credits: 3.00,
-          isPremium: false,
-          premiumExpiresAt: null,
-          premiumSubscriptionId: null,
-          role: "USER",
-          _isTemporaryUser: true,
-          _dbError: true
-        };
+      }),
+      async () => {
+        console.error("Database error when checking user existence, using fallback");
         
-        return NextResponse.json(clerkDataUser);
+        // Return null to indicate the user doesn't exist and should be created
+        return null;
       }
-      
-      // If no clerk data, return an error
-      return NextResponse.json({ 
-        error: "Database connection error. Please try again later." 
-      }, { status: 200 }); // Use 200 instead of 500 to prevent client crashes
-    }
+    );
 
     // If the user doesn't exist, create it first with default values
     if (!existingUser) {
       console.log("User doesn't exist when trying to update; creating new user");
-      try {
-        // Get user details from Clerk if not already fetched
-        if (!clerkUser) {
+      
+      // Get user details from Clerk if not already fetched
+      if (!clerkUser) {
+        try {
           const { currentUser } = await import("@clerk/nextjs/server");
           clerkUser = await currentUser();
+        } catch (error) {
+          console.error("Error fetching Clerk user data for new user during update:", error);
         }
-        
-        // Create basic user first
-        await prisma.user.create({
+      }
+      
+      // Create basic user first using withDatabaseFallback
+      const createdUser = await withDatabaseFallback(
+        async () => await prisma.user.create({
           data: {
             id: auth.userId,
             name: clerkUser?.firstName && clerkUser?.lastName ? 
@@ -253,38 +271,47 @@ export async function PATCH(request: NextRequest) {
             credits: 3.00,
             isPremium: false,
           }
-        });
-      } catch (createError) {
-        console.error("Error creating user during update:", createError);
-        
-        // If creation fails, still return a valid response with data from the request
-        if (clerkUser) {
-          const fallbackUser = {
-            id: auth.userId,
-            name: clerkUser?.firstName && clerkUser?.lastName ? 
-                  `${clerkUser.firstName} ${clerkUser.lastName}` : 
-                  clerkUser?.firstName || clerkUser?.lastName || null,
-            email: clerkUser?.emailAddresses[0]?.emailAddress || null,
-            image: clerkUser?.imageUrl || null,
-            ...validatedData,
-            credits: 3.00,
-            isPremium: false,
-            _isTemporaryUser: true
-          };
+        }),
+        async () => {
+          console.error("Error creating user during update, using fallback");
           
-          return NextResponse.json(fallbackUser);
+          // Return a fallback object so that the code continues
+          return {
+            id: auth.userId,
+            _isFallbackCreation: true
+          };
         }
+      );
+      
+      // If user creation failed and we're using a fallback, return early with appropriate data
+      if (createdUser?._isFallbackCreation && clerkUser) {
+        const fallbackUser = {
+          id: auth.userId,
+          name: clerkUser?.firstName && clerkUser?.lastName ? 
+                `${clerkUser.firstName} ${clerkUser.lastName}` : 
+                clerkUser?.firstName || clerkUser?.lastName || null,
+          email: clerkUser?.emailAddresses[0]?.emailAddress || null,
+          image: clerkUser?.imageUrl || null,
+          ...validatedData,
+          credits: 3.00,
+          isPremium: false,
+          _isTemporaryUser: true,
+          _usingFallbackDb: isUsingFallbackDb
+        };
         
+        return NextResponse.json(fallbackUser);
+      } else if (createdUser?._isFallbackCreation) {
         return NextResponse.json({ 
           error: "Failed to create user profile before update.",
-          _errorDetails: createError instanceof Error ? createError.message : String(createError)
+          id: auth.userId,
+          _usingFallbackDb: isUsingFallbackDb
         }, { status: 200 }); // Use 200 to prevent client crashes
       }
     }
 
-    // Now perform the update with error handling
-    try {
-      const updatedUser = await prisma.user.update({
+    // Now perform the update with error handling using withDatabaseFallback
+    const updatedUser = await withDatabaseFallback(
+      async () => await prisma.user.update({
         where: { id: auth.userId },
         data: validatedData,
         select: {
@@ -303,45 +330,51 @@ export async function PATCH(request: NextRequest) {
           role: true,
           // Add more fields as needed
         },
-      });
-      return NextResponse.json(updatedUser);
-    } catch (updateError) {
-      console.error("Error updating user:", updateError);
-      
-      // If update fails but we have clerk data, return that with updated fields
-      if (clerkUser) {
-        const fallbackUpdatedUser = {
-          id: auth.userId,
-          name: validatedData.name || clerkUser?.firstName && clerkUser?.lastName ? 
-                `${clerkUser.firstName} ${clerkUser.lastName}` : 
-                clerkUser?.firstName || clerkUser?.lastName || null,
-          email: clerkUser?.emailAddresses[0]?.emailAddress || null,
-          image: clerkUser?.imageUrl || null,
-          ...validatedData,
-          resumeJobTitle: validatedData.resumeJobTitle || null,
-          resumeFileUrl: validatedData.resumeFileUrl || null,
-          jobSearchStage: validatedData.jobSearchStage || null,
-          linkedinUrl: validatedData.linkedinUrl || null,
-          credits: 3.00,
-          isPremium: false,
-          premiumExpiresAt: null,
-          premiumSubscriptionId: null,
-          role: "USER",
-          _isTemporaryUser: true,
-          _dbUpdateError: true
-        };
+      }),
+      async () => {
+        console.error("Error updating user, using fallback");
         
-        return NextResponse.json(fallbackUpdatedUser);
+        // If fallback and we have clerk data, return that with updated fields
+        if (clerkUser) {
+          return {
+            id: auth.userId,
+            name: validatedData.name || (clerkUser?.firstName && clerkUser?.lastName ? 
+                  `${clerkUser.firstName} ${clerkUser.lastName}` : 
+                  clerkUser?.firstName || clerkUser?.lastName || null),
+            email: clerkUser?.emailAddresses[0]?.emailAddress || null,
+            image: clerkUser?.imageUrl || null,
+            ...validatedData,
+            resumeJobTitle: validatedData.resumeJobTitle || null,
+            resumeFileUrl: validatedData.resumeFileUrl || null,
+            jobSearchStage: validatedData.jobSearchStage || null,
+            linkedinUrl: validatedData.linkedinUrl || null,
+            credits: 3.00,
+            isPremium: false,
+            premiumExpiresAt: null,
+            premiumSubscriptionId: null,
+            role: "USER",
+            _isTemporaryUser: true,
+            _dbUpdateError: true,
+            _usingFallbackDb: isUsingFallbackDb
+          };
+        }
+        
+        // Return an object with user ID and validated data
+        return {
+          error: "Database error during update. Your changes have been saved locally.",
+          id: auth.userId,
+          ...validatedData,
+          _usingFallbackDb: isUsingFallbackDb
+        };
       }
-      
-      // Return an error message with 200 status to prevent client crashes
-      return NextResponse.json({
-        error: "Database error during update. Your changes have been saved locally.",
-        _errorDetails: updateError instanceof Error ? updateError.message : String(updateError),
-        id: auth.userId,
-        ...validatedData
-      }, { status: 200 });
+    );
+    
+    // If we're using fallback database, add a flag to the response
+    if (isUsingFallbackDb && updatedUser && typeof updatedUser === 'object' && !updatedUser._usingFallbackDb) {
+      updatedUser._usingFallbackDb = true;
     }
+    
+    return NextResponse.json(updatedUser);
   } catch (err) {
     console.error("Error in overall update process:", err);
     

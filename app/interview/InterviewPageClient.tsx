@@ -32,6 +32,7 @@ export interface InterviewPageClientProps {
   initialProfileFormData: ProfileFormData;
   stripePublishableKey: string;
   userId: string; // Still needed for some operations or if useUserData doesn't expose it directly
+  isUsingFallbackDb?: boolean; // Flag to indicate if we're using fallback database
 }
 
 export default function InterviewPageClient({
@@ -40,6 +41,7 @@ export default function InterviewPageClient({
   initialProfileFormData,
   stripePublishableKey,
   // userId, // userId can be sourced from useUserData if available there
+  isUsingFallbackDb = false,
 }: InterviewPageClientProps) {
   const router = useRouter();
   // const searchParams = useSearchParams(); // Not used currently
@@ -112,6 +114,18 @@ export default function InterviewPageClient({
     }
 
   }, [user, initialProfileFormData, initialSkipResume, initialJobTitle, jobTitle, resumeData?.jobTitle]);
+  
+  // Display a notification when fallback database is being used
+  useEffect(() => {
+    if (isUsingFallbackDb) {
+      toast({
+        title: "Limited Functionality",
+        description: "Database connection is currently unavailable. Some features may be limited.",
+        variant: "destructive",
+        duration: 10000, // 10 seconds
+      });
+    }
+  }, [isUsingFallbackDb, toast]);
 
 
   const handleProfileSaveSuccess = (updatedFormData: ProfileFormData) => {
@@ -249,6 +263,11 @@ export default function InterviewPageClient({
             <h1 className="text-3xl md:text-4xl tracking-tight font-extrabold text-gray-900 dark:text-white text-center mb-6">Interview Session</h1>
             <div className="mb-6 text-center text-gray-700 dark:text-gray-300">
               <p>Position: <strong>{jobTitle}</strong> {hasResumeData && " • Resume data loaded"}</p>
+              {isUsingFallbackDb && (
+                <div className="mt-2 px-4 py-2 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded-md inline-block">
+                  <span className="font-medium">Limited Mode:</span> Database connection unavailable
+                </div>
+              )}
             </div>
 
             {isPremium ? (
