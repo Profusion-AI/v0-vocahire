@@ -1,7 +1,37 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { toast } from 'sonner'; // Assuming sonner is used for toasts
+
+// Import sonner only on client side
+let sonnerModule: any = null;
+if (typeof window !== 'undefined') {
+  // This must be wrapped in try-catch to avoid build errors
+  try {
+    // Dynamic import using require to avoid SSR issues
+    sonnerModule = require('sonner');
+  } catch (e) {
+    // Silently fail during SSR or if module not found
+  }
+}
+
+// Default toast implementation that's safe for both server and client
+const toast = {
+  error: (message: string) => {
+    if (typeof window !== 'undefined') {
+      console.error('Toast error:', message);
+      
+      // Use sonner if available in browser
+      if (sonnerModule && typeof sonnerModule.toast?.error === 'function') {
+        try {
+          sonnerModule.toast.error(message);
+        } catch (e) {
+          // Fallback if toast function fails
+          console.error('Toast library error:', e);
+        }
+      }
+    }
+  }
+};
 
 export interface UserData {
   id: string;
@@ -35,6 +65,11 @@ export function useUserData(): UseUserDataReturn {
   const [error, setError] = useState<string | null>(null);
 
   const fetchUserData = useCallback(async () => {
+    // Skip during server-side rendering
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     try {
@@ -68,19 +103,45 @@ export function useUserData(): UseUserDataReturn {
     } catch (e: any) {
       console.error("useUserData fetch error:", e);
       setError(e.message || "An unknown error occurred while fetching user data.");
-      toast.error(e.message || "Could not load user details.");
-      setUser(null); // Clear user data on error
+      // Only show toast error on client side
+      if (typeof window !== 'undefined') {
+        toast.error(e.message || "Could not load user details.");
+      }
+      // Provide a default user object with null values instead of clearing completely
+      setUser({
+        id: "",
+        email: null,
+        name: null,
+        image: null,
+        role: "USER",
+        credits: 0,
+        isPremium: false,
+        premiumSubscriptionId: null,
+        premiumExpiresAt: null,
+        resumeJobTitle: null,
+        resumeFileUrl: null,
+        jobSearchStage: null,
+        linkedinUrl: null,
+      });
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchUserData();
+    // Skip during server-side rendering
+    if (typeof window !== 'undefined') {
+      fetchUserData();
+    }
   }, [fetchUserData]);
 
-  // Re-fetch on window focus
+  // Re-fetch on window focus - only on client side
   useEffect(() => {
+    // Skip during server-side rendering
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     const handleFocus = () => {
       console.log("Window focused, refetching user data via useUserData hook.");
       fetchUserData();
