@@ -146,11 +146,13 @@ export default function ProfilePageClient({
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Enjoy your premium benefits!</p>
             </div>
-          ) : credits !== null && credits > 0 ? (
+          ) : credits !== null && Number(credits) > 0 ? (
             <div>
               <p className="text-lg">
-                Available Interview Credits:{" "}
-                <span className="font-bold text-indigo-600 dark:text-indigo-400">{credits}</span>
+                Available VocahireCredits:{" "}
+                <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                  {credits !== null ? Number(credits).toFixed(2) : "0.00"}
+                </span>
               </p>
               <Button onClick={handlePurchaseCreditsClick} variant="link" className="text-indigo-600 dark:text-indigo-400 p-0 h-auto mt-1">
                 Buy More Credits

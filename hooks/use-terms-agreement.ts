@@ -2,24 +2,59 @@
 
 import { useState, useEffect } from "react"
 
+// Safe localStorage access wrapped in try/catch
+const safeLocalStorageGet = (key: string): string | null => {
+  try {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(key)
+    }
+  } catch (err) {
+    console.error("Error accessing localStorage (get):", err)
+  }
+  return null
+}
+
+const safeLocalStorageSet = (key: string, value: string): boolean => {
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, value)
+      return true
+    }
+  } catch (err) {
+    console.error("Error accessing localStorage (set):", err)
+  }
+  return false
+}
+
 export function useTermsAgreement(userId: string | undefined) {
   const [hasAgreedToTerms, setHasAgreedToTerms] = useState<boolean | null>(null)
   const [showTermsModal, setShowTermsModal] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
 
+  // Add a safeguard to prevent rendering logic before component is mounted
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Handle mounting state
   useEffect(() => {
-    if (!userId) {
+    setIsMounted(true)
+    return () => setIsMounted(false)
+  }, [])
+
+  useEffect(() => {
+    // Don't run any localStorage logic if not mounted or no userId
+    if (!isMounted || !userId) {
       setIsLoaded(true)
       setHasAgreedToTerms(null)
       setShowTermsModal(false)
       return
     }
     
-    // Protect localStorage access for SSR
-    if (typeof window !== 'undefined') {
+    // Delay localStorage check slightly to ensure client hydration is complete
+    const timer = setTimeout(() => {
       // Use Clerk userId for per-user agreement tracking
       const key = `agreedToTerms_${userId}`
-      const agreedToTerms = localStorage.getItem(key)
+      const agreedToTerms = safeLocalStorageGet(key)
+      
       setHasAgreedToTerms(agreedToTerms === "true")
 
       // Only show the modal after we've checked localStorage
@@ -27,17 +62,19 @@ export function useTermsAgreement(userId: string | undefined) {
       if (agreedToTerms !== "true") {
         setShowTermsModal(true)
       }
-    }
+      
+      setIsLoaded(true)
+    }, 0)
 
-    setIsLoaded(true)
-  }, [userId])
+    return () => clearTimeout(timer)
+  }, [userId, isMounted])
 
   const agreeToTerms = () => {
-    if (!userId) return
+    if (!userId || !isMounted) return
+    
     const key = `agreedToTerms_${userId}`
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(key, "true")
-    }
+    safeLocalStorageSet(key, "true")
+    
     setHasAgreedToTerms(true)
     setShowTermsModal(false)
   }
