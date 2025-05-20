@@ -1,8 +1,12 @@
 import { PrismaClient } from "@prisma/client"
+import { fallbackDb } from "./fallback-db" 
 
 declare global {
   var prisma: PrismaClient | undefined
 }
+
+// Global flag to track if we're using the fallback database
+export let isUsingFallbackDb = false;
 
 // Check if DATABASE_URL is properly formatted and fix if possible
 function getValidatedPrismaClient() {
@@ -166,8 +170,15 @@ function getValidatedPrismaClient() {
     });
   } catch (error) {
     console.error('Failed to initialize Prisma client:', error instanceof Error ? error.message : String(error));
-    // Return a basic PrismaClient as fallback
-    return new PrismaClient();
+    console.warn('Using fallback database functionality (limited capabilities)');
+    
+    // Set the global flag to indicate we're using the fallback database
+    isUsingFallbackDb = true;
+    
+    // Return the fallback database instead of a real PrismaClient
+    // This allows the application to run with limited functionality
+    // even when the database is unavailable
+    return fallbackDb as unknown as PrismaClient;
   }
 }
 
@@ -175,4 +186,37 @@ export const prisma = globalThis.prisma || getValidatedPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalThis.prisma = prisma;
+}
+
+/**
+ * Check if the database is available for connections
+ * @returns Promise<boolean> True if the database is available, false otherwise
+ */
+export async function isDatabaseAvailable(): Promise<boolean> {
+  try {
+    // Try to execute a simple query to check database connectivity
+    await prisma.$queryRaw`SELECT 1 as connection_test`;
+    return true;
+  } catch (error) {
+    console.warn('Database connectivity check failed:', error instanceof Error ? error.message : String(error));
+    return false;
+  }
+}
+
+/**
+ * Wrapper for Prisma operations that handles database errors gracefully
+ * @param operation Function that performs a database operation
+ * @param fallback Function to call if the database operation fails
+ * @returns Result of the operation or fallback
+ */
+export async function withDatabaseFallback<T>(
+  operation: () => Promise<T>,
+  fallback: () => Promise<T> | T
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    console.error('Database operation failed:', error instanceof Error ? error.message : String(error));
+    return await fallback();
+  }
 }
