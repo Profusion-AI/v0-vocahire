@@ -2,25 +2,36 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-// Import toast conditionally to prevent server-side issues
-let toast: { error: (message: string) => void } = {
+// Import sonner only on client side
+let sonnerModule: any = null;
+if (typeof window !== 'undefined') {
+  // This must be wrapped in try-catch to avoid build errors
+  try {
+    // Dynamic import using require to avoid SSR issues
+    sonnerModule = require('sonner');
+  } catch (e) {
+    // Silently fail during SSR or if module not found
+  }
+}
+
+// Default toast implementation that's safe for both server and client
+const toast = {
   error: (message: string) => {
-    // No-op for server-side
     if (typeof window !== 'undefined') {
-      console.error(message);
+      console.error('Toast error:', message);
+      
+      // Use sonner if available in browser
+      if (sonnerModule && typeof sonnerModule.toast?.error === 'function') {
+        try {
+          sonnerModule.toast.error(message);
+        } catch (e) {
+          // Fallback if toast function fails
+          console.error('Toast library error:', e);
+        }
+      }
     }
   }
 };
-
-// Only import sonner on the client side
-if (typeof window !== 'undefined') {
-  // Dynamic import to avoid SSR issues
-  import('sonner').then((sonner) => {
-    toast = sonner;
-  }).catch(() => {
-    console.error('Failed to load sonner toast library');
-  });
-}
 
 export interface UserData {
   id: string;
