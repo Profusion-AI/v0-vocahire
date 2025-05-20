@@ -1,7 +1,26 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { toast } from 'sonner'; // Assuming sonner is used for toasts
+
+// Import toast conditionally to prevent server-side issues
+let toast: { error: (message: string) => void } = {
+  error: (message: string) => {
+    // No-op for server-side
+    if (typeof window !== 'undefined') {
+      console.error(message);
+    }
+  }
+};
+
+// Only import sonner on the client side
+if (typeof window !== 'undefined') {
+  // Dynamic import to avoid SSR issues
+  import('sonner').then((sonner) => {
+    toast = sonner;
+  }).catch(() => {
+    console.error('Failed to load sonner toast library');
+  });
+}
 
 export interface UserData {
   id: string;
@@ -35,6 +54,11 @@ export function useUserData(): UseUserDataReturn {
   const [error, setError] = useState<string | null>(null);
 
   const fetchUserData = useCallback(async () => {
+    // Skip during server-side rendering
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     try {
@@ -68,19 +92,45 @@ export function useUserData(): UseUserDataReturn {
     } catch (e: any) {
       console.error("useUserData fetch error:", e);
       setError(e.message || "An unknown error occurred while fetching user data.");
-      toast.error(e.message || "Could not load user details.");
-      setUser(null); // Clear user data on error
+      // Only show toast error on client side
+      if (typeof window !== 'undefined') {
+        toast.error(e.message || "Could not load user details.");
+      }
+      // Provide a default user object with null values instead of clearing completely
+      setUser({
+        id: "",
+        email: null,
+        name: null,
+        image: null,
+        role: "USER",
+        credits: 0,
+        isPremium: false,
+        premiumSubscriptionId: null,
+        premiumExpiresAt: null,
+        resumeJobTitle: null,
+        resumeFileUrl: null,
+        jobSearchStage: null,
+        linkedinUrl: null,
+      });
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchUserData();
+    // Skip during server-side rendering
+    if (typeof window !== 'undefined') {
+      fetchUserData();
+    }
   }, [fetchUserData]);
 
-  // Re-fetch on window focus
+  // Re-fetch on window focus - only on client side
   useEffect(() => {
+    // Skip during server-side rendering
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     const handleFocus = () => {
       console.log("Window focused, refetching user data via useUserData hook.");
       fetchUserData();

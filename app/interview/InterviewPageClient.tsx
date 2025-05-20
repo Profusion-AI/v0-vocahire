@@ -260,7 +260,7 @@ export default function InterviewPageClient({
               </div>
             ) : isUserDataLoading ? ( // Use isUserDataLoading from the hook
                 <div className="text-center my-6"><Skeleton className="h-8 w-48 inline-block" /></div>
-            ) : credits !== null && credits > 0 ? (
+            ) : credits !== null && Number(credits) > 0 ? (
               <div className="text-center my-6">
                 <p className="text-lg">
                   You have <span className="font-bold text-indigo-600 dark:text-indigo-400">{typeof credits === 'number' ? credits.toFixed(2) : Number(credits).toFixed(2)}</span> VocahireCredits remaining.
@@ -309,7 +309,7 @@ export default function InterviewPageClient({
                         refetchCredits={refetchUserData} // Pass refetchUserData from hook
                      />
                 </div>
-            ) : !isUserDataLoading && credits !== null && Number(credits) === 0 && !isPremium ? (
+            ) : !isUserDataLoading && credits !== null && Number(credits) <= 0 && !isPremium ? (
                 <div className="text-center text-gray-600 dark:text-gray-400 mt-6">
                     Please upgrade to a premium subscription to access unlimited AI interviews. 
                     <p className="mt-2 text-sm">VocahireCredits are intended as top-ups for premium subscribers.</p>
