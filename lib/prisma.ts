@@ -123,12 +123,12 @@ function getValidatedPrismaClient() {
                   process.env.DATABASE_URL = newUrl;
                   databaseUrl = newUrl;
                 } catch (encodeError) {
-                  console.error('Error encoding URL:', encodeError);
+                  console.error('Error encoding URL:', encodeError instanceof Error ? encodeError.message : String(encodeError));
                 }
               }
             }
           } catch (decodeError) {
-            console.error('Error decoding password - might have unencoded % characters:', decodeError.message);
+            console.error('Error decoding password - might have unencoded % characters:', decodeError instanceof Error ? decodeError.message : String(decodeError));
             
             // Try to handle the case where there are unencoded % characters
             try {
@@ -145,13 +145,13 @@ function getValidatedPrismaClient() {
               process.env.DATABASE_URL = newUrl;
               databaseUrl = newUrl;
             } catch (fixError) {
-              console.error('Error fixing unencoded % characters:', fixError);
+              console.error('Error fixing unencoded % characters:', fixError instanceof Error ? fixError.message : String(fixError));
             }
           }
         }
       }
     } catch (urlError) {
-      console.error('Error parsing DATABASE_URL:', urlError.message);
+      console.error('Error parsing DATABASE_URL:', urlError instanceof Error ? urlError.message : String(urlError));
     }
     
     // Create Prisma client with error logging and connection timeout
@@ -165,7 +165,7 @@ function getValidatedPrismaClient() {
       },
     });
   } catch (error) {
-    console.error('Failed to initialize Prisma client:', error);
+    console.error('Failed to initialize Prisma client:', error instanceof Error ? error.message : String(error));
     // Return a basic PrismaClient as fallback
     return new PrismaClient();
   }
