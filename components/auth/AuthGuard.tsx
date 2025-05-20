@@ -1,8 +1,14 @@
 "use client";
-import React, { Suspense } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { TermsAgreement } from "@/components/terms-agreement";
+import dynamic from 'next/dynamic';
+
+// Dynamically import the TermsAgreement component to avoid hydration issues
+const TermsAgreement = dynamic(
+  () => import('@/components/terms-agreement').then((mod) => mod.TermsAgreement),
+  { ssr: false, loading: () => null }
+);
 
 // Loading component
 const LoadingSpinner = () => (
@@ -14,13 +20,27 @@ const LoadingSpinner = () => (
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
 
-  if (!isLoaded) {
+  // Track component mounting for client-side only code
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
+
+  // Show loading state while Clerk is initializing
+  if (!isLoaded || !isMounted) {
     return <LoadingSpinner />;
   }
   
+  // Redirect to login if user isn't signed in
   if (!isSignedIn) {
-    router.replace("/login");
+    // Only redirect on the client side
+    if (isMounted) {
+      // Use a more graceful approach - push rather than replace to avoid history issues
+      router.push("/login");
+    }
+    
     return (
       <div className="flex items-center justify-center min-h-screen">
         <p className="text-gray-600">Redirecting to sign in...</p>
@@ -28,12 +48,14 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
   
-  // Wrap the TermsAgreement in Suspense to handle any client-side rendering issues
+  // Render the children with TermsAgreement once authenticated
   return (
     <>
-      <Suspense fallback={<LoadingSpinner />}>
-        <TermsAgreement />
-      </Suspense>
+      {/* 
+        Dynamic import with ssr: false to avoid hydration mismatches.
+        This also prevents localStorage access during SSR.
+      */}
+      <TermsAgreement />
       {children}
     </>
   );
