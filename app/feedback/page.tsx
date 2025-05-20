@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, Suspense } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FeedbackCard } from "@/components/feedback-card"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,18 @@ import { AlertCircle, Download, RefreshCw } from "lucide-react"
 import AuthGuard from "@/components/auth/AuthGuard";
 import SessionLayout from "@/components/SessionLayout";
 
+// Safe localStorage access wrapped in try/catch
+const safeLocalStorageGet = (key: string): string | null => {
+  try {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(key)
+    }
+  } catch (err) {
+    console.error(`Error accessing localStorage (${key}):`, err)
+  }
+  return null
+}
+
 // Helper function to load interview data from localStorage
 function loadInterviewData() {
   // Server-side rendering check
@@ -19,39 +31,45 @@ function loadInterviewData() {
     return { error: "Loading interview data...", isSSR: true }
   }
   
-  const messagesJson = localStorage.getItem("vocahire_interview_messages")
-  const fillerWordsJson = localStorage.getItem("vocahire_filler_words")
-  const resumeDataJson = localStorage.getItem("vocahire_resume_data")
-  const recordingUrlJson = localStorage.getItem("vocahire_recording_url")
+  // Use safe localStorage accessors
+  const messagesJson = safeLocalStorageGet("vocahire_interview_messages")
+  const fillerWordsJson = safeLocalStorageGet("vocahire_filler_words")
+  const resumeDataJson = safeLocalStorageGet("vocahire_resume_data")
+  const recordingUrlJson = safeLocalStorageGet("vocahire_recording_url")
   
   if (!messagesJson) {
     return { error: "No interview data found. Please complete an interview first." }
   }
   
-  const messages = JSON.parse(messagesJson)
-  const fillerWordCounts = fillerWordsJson ? JSON.parse(fillerWordsJson) : {}
-  const resumeData = resumeDataJson ? JSON.parse(resumeDataJson) : null
-  
-  // Calculate filler word stats
-  let fillerWordStats = null
-  if (fillerWordsJson) {
-    const counts: Record<string, number> = JSON.parse(fillerWordsJson)
-    const total = Object.values(counts).reduce((sum, count) => sum + count, 0)
-    const mostCommon = Object.entries(counts)
-      .map(([word, count]) => ({ word, count: count as number }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 3)
+  try {
+    const messages = JSON.parse(messagesJson)
+    const fillerWordCounts = fillerWordsJson ? JSON.parse(fillerWordsJson) : {}
+    const resumeData = resumeDataJson ? JSON.parse(resumeDataJson) : null
     
-    fillerWordStats = { total, mostCommon }
-  }
-  
-  return {
-    messages,
-    fillerWordCounts,
-    resumeData,
-    recordingUrl: recordingUrlJson,
-    fillerWordStats,
-    error: null
+    // Calculate filler word stats
+    let fillerWordStats = null
+    if (fillerWordsJson) {
+      const counts: Record<string, number> = JSON.parse(fillerWordsJson)
+      const total = Object.values(counts).reduce((sum, count) => sum + count, 0)
+      const mostCommon = Object.entries(counts)
+        .map(([word, count]) => ({ word, count: count as number }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3)
+      
+      fillerWordStats = { total, mostCommon }
+    }
+    
+    return {
+      messages,
+      fillerWordCounts,
+      resumeData,
+      recordingUrl: recordingUrlJson,
+      fillerWordStats,
+      error: null
+    }
+  } catch (error) {
+    console.error("Error parsing interview data:", error)
+    return { error: "Error loading interview data. Please try again." }
   }
 }
 
@@ -70,9 +88,18 @@ function FeedbackPageContent() {
   } | null>(null)
   const [recordingUrl, setRecordingUrl] = useState<string | null>(null)
 
+  // Add a mounting check for client-side only code
+  const [isMounted, setIsMounted] = useState(false)
+  
+  // Handle mounting state
   useEffect(() => {
-    // Skip during server-side rendering
-    if (typeof window === 'undefined') {
+    setIsMounted(true)
+    return () => setIsMounted(false)
+  }, [])
+  
+  useEffect(() => {
+    // Skip during server-side rendering or if component is not mounted
+    if (!isMounted) {
       return;
     }
     
@@ -99,7 +126,7 @@ function FeedbackPageContent() {
     
     // Generate feedback
     generateFeedback(data.messages, data.fillerWordCounts, data.resumeData)
-  }, [])
+  }, [isMounted])
 
   const generateFeedback = async (
     messages: Array<{ role: string; content: string }>,
@@ -111,7 +138,7 @@ function FeedbackPageContent() {
 
     try {
       // Get interview ID from localStorage or create one
-      let interviewId = typeof window !== 'undefined' ? localStorage.getItem("vocahire_interview_id") : null
+      let interviewId = safeLocalStorageGet("vocahire_interview_id")
       
       if (!interviewId) {
         // Create a new interview session
@@ -134,8 +161,14 @@ function FeedbackPageContent() {
         
         const { id } = await createResponse.json()
         interviewId = id
-        if (interviewId && typeof window !== 'undefined') {
-          localStorage.setItem("vocahire_interview_id", interviewId)
+        
+        // Safe localStorage write
+        try {
+          if (interviewId && typeof window !== 'undefined') {
+            localStorage.setItem("vocahire_interview_id", interviewId)
+          }
+        } catch (err) {
+          console.error("Error storing interview ID in localStorage:", err)
         }
       }
       
@@ -221,8 +254,8 @@ function FeedbackPageContent() {
   }
 
   const handleRegenerateFeedback = () => {
-    // Skip during server-side rendering
-    if (typeof window === 'undefined') {
+    // Skip during server-side rendering or if component is not mounted
+    if (typeof window === 'undefined' || !isMounted) {
       return;
     }
     
@@ -382,7 +415,14 @@ function FeedbackPageContent() {
 export default function FeedbackPage() {
   return (
     <AuthGuard>
-      <FeedbackPageContent />
+      {/* Wrap in React Suspense for better error handling during hydration */}
+      <React.Suspense fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        </div>
+      }>
+        <FeedbackPageContent />
+      </React.Suspense>
     </AuthGuard>
   );
 }
