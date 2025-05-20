@@ -6,6 +6,9 @@ import { isAdminUser } from "@/lib/admin-config";
 // Component imports
 import { UsageDashboardClient, UsageData, UsageType } from "./UsageDashboardClient";
 
+// Force dynamic rendering to avoid prerendering database queries
+export const dynamic = 'force-dynamic';
+
 // Helper function to get admin user details and check authorization
 async function getAdminUserServerSide(userId: string) {
   const user = await prisma.user.findUnique({

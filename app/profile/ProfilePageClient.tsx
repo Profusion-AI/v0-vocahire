@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
+import { SubscriptionSelectionModal } from "@/components/SubscriptionSelectionModal";
 import { useRouter } from "next/navigation";
 import { ProfileSettingsForm, type ProfileFormData } from "@/components/ProfileSettingsForm";
 import Link from "next/link";
@@ -95,10 +96,19 @@ export default function ProfilePageClient({
     setIsPurchaseModalOpen(true);
   };
 
+  // State for subscription selection modal
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+  const [selectedSubscription, setSelectedSubscription] = useState<string>("PREMIUM_MONTHLY_SUB");
+
   const handleUpgradeToPremium = () => {
-    // Ensure you have a Stripe Price ID for premium mapped in your backend
-    // For example, "PREMIUM_MONTHLY_SUB" or "PREMIUM_ANNUAL_SUB"
-    handleStripeAction("PREMIUM_MONTHLY_SUB"); // Or allow selection
+    // Open subscription selection modal instead of directly starting checkout
+    setIsSubscriptionModalOpen(true);
+  };
+  
+  const handleSubscriptionSelect = (subscriptionId: string) => {
+    setSelectedSubscription(subscriptionId);
+    handleStripeAction(subscriptionId);
+    setIsSubscriptionModalOpen(false);
   };
 
 
@@ -136,11 +146,13 @@ export default function ProfilePageClient({
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Enjoy your premium benefits!</p>
             </div>
-          ) : credits !== null && credits > 0 ? (
+          ) : credits !== null && Number(credits) > 0 ? (
             <div>
               <p className="text-lg">
-                Available Interview Credits:{" "}
-                <span className="font-bold text-indigo-600 dark:text-indigo-400">{credits}</span>
+                Available VocahireCredits:{" "}
+                <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                  {credits !== null ? Number(credits).toFixed(2) : "0.00"}
+                </span>
               </p>
               <Button onClick={handlePurchaseCreditsClick} variant="link" className="text-indigo-600 dark:text-indigo-400 p-0 h-auto mt-1">
                 Buy More Credits
@@ -177,6 +189,12 @@ export default function ProfilePageClient({
         isOpen={isPurchaseModalOpen}
         onOpenChange={setIsPurchaseModalOpen}
         // onPurchaseSuccess is removed as per feedback
+      />
+      
+      <SubscriptionSelectionModal
+        isOpen={isSubscriptionModalOpen}
+        onOpenChange={setIsSubscriptionModalOpen}
+        onSubscriptionSelect={handleSubscriptionSelect}
       />
     </div>
   );

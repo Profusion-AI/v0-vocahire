@@ -53,7 +53,7 @@ export function useUserData(): UseUserDataReturn {
             name: userDataFromApi.name,
             image: userDataFromApi.image,
             role: userDataFromApi.role,
-            credits: typeof userDataFromApi.credits === 'number' ? userDataFromApi.credits : null,
+            credits: userDataFromApi.credits !== null && userDataFromApi.credits !== undefined ? Number(userDataFromApi.credits) : null,
             isPremium: !!userDataFromApi.isPremium,
             premiumSubscriptionId: userDataFromApi.premiumSubscriptionId,
             premiumExpiresAt: userDataFromApi.premiumExpiresAt,

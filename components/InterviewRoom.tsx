@@ -1199,8 +1199,8 @@ export default function InterviewRoom({
                             <span className="text-gray-400">Loading credits...</span>
                           ) : (
                             <>
-                              Interview Credits:{" "}
-                              <span className="font-bold">{credits}</span>
+                              VocahireCredits:{" "}
+                              <span className="font-bold">{typeof credits === 'number' ? credits.toFixed(2) : Number(credits).toFixed(2)}</span>
                             </>
                           )}
                         </span>
@@ -1211,9 +1211,9 @@ export default function InterviewRoom({
                             style={{ cursor: "pointer" }}
                             onClick={onBuyCredits}
                             disabled={isCreditsLoading}
-                            aria-label="Purchase more credits"
+                            aria-label="Purchase more VocahireCredits"
                           >
-                            Purchase more credits
+                            Premium subscribers: Top-up credits
                           </button>
                         )}
                       </>
@@ -1223,30 +1223,30 @@ export default function InterviewRoom({
                     <Button
                       onClick={async () => {
                         if (typeof refetchCredits === "function") await refetchCredits();
-                        if (typeof credits === "number" && credits === 0) {
+                        if (credits !== null && Number(credits) === 0) {
                           if (typeof onBuyCredits === "function") onBuyCredits();
                           return;
                         }
                         handleStartInterview();
                       }}
                       size="lg"
-                      disabled={isCreditsLoading || typeof credits === "number" ? credits === 0 : false}
+                      disabled={isCreditsLoading || (credits !== null ? Number(credits) === 0 : false)}
                     >
                       {isCreditsLoading
                         ? "Checking credits..."
-                        : typeof credits === "number" && credits === 0
-                        ? "Purchase Credits to Start"
+                        : credits !== null && Number(credits) === 0
+                        ? "Upgrade to Premium"
                         : "Start Interview"}
                     </Button>
-                    {/* Show Buy Credits button if no credits */}
-                    {typeof credits === "number" && credits === 0 && typeof onBuyCredits === "function" && (
+                    {/* Show Buy VocahireCredits button if no credits */}
+                    {credits !== null && Number(credits) === 0 && typeof onBuyCredits === "function" && (
                       <Button
                         variant="outline"
                         onClick={onBuyCredits}
                         size="sm"
                         className="mt-2"
                       >
-                        Buy Credits
+                        Upgrade to Premium
                       </Button>
                     )}
                   </div>

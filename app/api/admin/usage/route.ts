@@ -6,7 +6,6 @@ import { UsageData, UsageType } from "@/app/admin/usage/UsageDashboardClient"; /
 import { Prisma } from "@prisma/client";
 import { isAdminUser } from "@/lib/admin-config";
 
-
 export async function GET(request: NextRequest) {
   try {
     const auth = getAuth(request);

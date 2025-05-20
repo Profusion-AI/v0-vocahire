@@ -22,7 +22,7 @@ model User {
 
   // Role & credits
   role           UserRole  @default(USER)
-  credits        Int       @default(3)
+  credits        Decimal   @default(3.00) @db.Decimal(10,2)
 
   // Resume details snapshot (user profile default)
   resumeJobTitle     String?
@@ -173,7 +173,7 @@ model PurchaseTransaction {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   transactionId  String   @unique // External payment provider transaction ID
-  credits        Int      // Number of credits purchased
+  credits        Decimal  @db.Decimal(10,2) // Number of VocahireCredits purchased
   amount         Decimal? // Optional: amount paid in cents
   currency       String?  // Optional: currency code (e.g., "USD")
   source         String?  // Optional: payment source (e.g., "stripe")

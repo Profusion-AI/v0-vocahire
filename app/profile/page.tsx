@@ -13,27 +13,58 @@ import { redirect } from 'next/navigation';
 export default async function ProfilePage() {
   console.log("[ProfilePage SERVER] Page rendering started.");
   const { userId: currentAuthUserId } = await auth();
-  const clerkUser = await currentUser();
+  // Wrap in try/catch to handle potential errors from Clerk
+  let clerkUser = null;
+  try {
+    clerkUser = await currentUser();
+    console.log("[ProfilePage SERVER] currentAuthUserId from Clerk auth():", currentAuthUserId);
+    console.log("[ProfilePage SERVER] clerkUser object from currentUser():", clerkUser ? 'Exists' : 'null');
+  } catch (error) {
+    console.error("[ProfilePage SERVER] Error fetching Clerk user:", error);
+    // Continue with null clerkUser - we'll handle this case gracefully
+  }
 
-  console.log("[ProfilePage SERVER] currentAuthUserId from Clerk auth():", currentAuthUserId);
-  console.log("[ProfilePage SERVER] clerkUser object from currentUser():", clerkUser ? 'Exists' : 'null');
-
+  // For server components, add more defensive coding
   if (!currentAuthUserId) {
-    // If AuthGuard is meant to handle client-side redirection,
-    // this server-side check might be redundant or could redirect earlier.
-    // For robust protection, Clerk's middleware is often preferred.
-    // If AuthGuard handles it, this redirect might not be strictly necessary here.
-    // However, for direct server rendering, this ensures no unauth access.
-    redirect('/login'); // Or your Clerk sign-in path
+    console.log("[ProfilePage SERVER] No authenticated user found, redirecting to login");
+    return redirect('/login');
   }
 
   let initialDbUser: PrismaUser | null = null;
   if (currentAuthUserId) {
     console.log(`[ProfilePage SERVER] Fetching user from DB with id: ${currentAuthUserId}`);
-    initialDbUser = await prisma.user.findUnique({
-      where: { id: currentAuthUserId },
-    });
-    console.log("[ProfilePage SERVER] initialDbUser fetched from DB:", initialDbUser);
+    try {
+      initialDbUser = await prisma.user.findUnique({
+        where: { id: currentAuthUserId },
+      });
+      console.log("[ProfilePage SERVER] initialDbUser fetched from DB:", initialDbUser);
+      
+      // If user doesn't exist in our DB but is authenticated via Clerk, create a basic record
+      if (!initialDbUser) {
+        console.log("[ProfilePage SERVER] User not found in DB, creating basic record");
+        try {
+          initialDbUser = await prisma.user.create({
+            data: {
+              id: currentAuthUserId,
+              email: clerkUser?.emailAddresses?.[0]?.emailAddress || null,
+              name: clerkUser?.firstName 
+                ? (clerkUser.lastName 
+                  ? `${clerkUser.firstName} ${clerkUser.lastName}` 
+                  : clerkUser.firstName)
+                : null,
+              credits: 3.00, // Default for new users (as Decimal)
+            },
+          });
+          console.log("[ProfilePage SERVER] Created new user record:", initialDbUser);
+        } catch (createError) {
+          console.error("[ProfilePage SERVER] Error creating user record:", createError);
+          // Continue with null initialDbUser
+        }
+      }
+    } catch (dbError) {
+      console.error("[ProfilePage SERVER] Error fetching user from DB:", dbError);
+      // Continue with null initialDbUser and handle gracefully in UI
+    }
   } else {
     console.log("[ProfilePage SERVER] No currentAuthUserId, skipping DB fetch for initialDbUser.");
   }

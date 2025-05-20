@@ -76,13 +76,14 @@ export function PurchaseCreditsModal({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[625px]">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Purchase Credits</DialogTitle>
+          <DialogTitle className="text-2xl font-bold">Purchase VocahireCredits</DialogTitle>
           <DialogDescription>
-            Select a credit package below to continue practicing your interview skills.
+            <p className="mb-2">VocahireCredits are available as top-ups for premium subscribers.</p>
+            <p className="text-amber-600 font-medium">Note: A premium subscription is required to use these credits.</p>
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          {creditPackages.map((pkg) => (
+          {CREDIT_PACKAGES.map((pkg) => (
             <Card
               key={pkg.itemId}
               className={`cursor-pointer transition-all ${
@@ -96,7 +97,7 @@ export function PurchaseCreditsModal({
                 <CardTitle className="text-lg">{pkg.name}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-semibold">{pkg.credits} Credits</p>
+                <p className="text-2xl font-semibold">{pkg.credits.toFixed(2)} VocahireCredits</p>
                 <p className="text-sm text-gray-600">${pkg.price.toFixed(2)}</p>
                 <p className="text-xs text-gray-500 mt-1">{pkg.description}</p>
               </CardContent>
