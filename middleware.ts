@@ -7,11 +7,14 @@ const isPublicRoute = createRouteMatcher([
   '/login/sso-callback(.*)', // Add SSO callback for login
   '/register',
   '/register/sso-callback(.*)', // Add SSO callback for register
+  '/sso-callback(.*)', // Added generic SSO callback
   '/api/webhooks/clerk',
   '/api/webhooks/stripe',
   '/forgot-password(.*)', // Added forgot-password as public
   '/terms(.*)', // Added terms as public
   '/privacy(.*)', // Added privacy as public
+  '/api/oauth_callback', // Added OAuth callback
+  '/oauth_callback' // Added OAuth callback without API prefix
 ]);
 
 export default clerkMiddleware(async (auth, req: NextRequest) => {
