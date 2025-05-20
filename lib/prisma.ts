@@ -24,9 +24,16 @@ function getValidatedPrismaClient() {
         if (urlMatch) {
           const [_, host, database = 'postgres'] = urlMatch;
           
+          // For Supabase, correct the host format
+          let correctedHost = host;
+          if (host.includes('supabase.co') && !host.startsWith('db.')) {
+            correctedHost = `db.${host}`;
+            console.log(`Corrected Supabase host to use db. prefix: ${correctedHost}`);
+          }
+          
           // Use default credentials if none provided (these will likely be overridden by env vars)
-          const fixedUrl = `postgresql://postgres:postgres@${host}:5432/${database}`;
-          console.log(`Fixed DATABASE_URL format: postgresql://****:****@${host}:5432/${database}`);
+          const fixedUrl = `postgresql://postgres:postgres@${correctedHost}:5432/${database}`;
+          console.log(`Fixed DATABASE_URL format: postgresql://****:****@${correctedHost}:5432/${database}`);
           
           // Set the environment variable directly
           process.env.DATABASE_URL = fixedUrl;
@@ -81,37 +88,64 @@ function getValidatedPrismaClient() {
         }
         
         // Check for special characters in password that need encoding
-        if (urlObj.password && (
-          urlObj.password.includes('&') || 
-          urlObj.password.includes('%') || 
-          urlObj.password.includes('@') ||
-          urlObj.password.includes('+') ||
-          urlObj.password.includes('!') ||
-          urlObj.password.includes('*')
-        )) {
-          console.log('WARNING: Password contains special characters that may need URL encoding');
+        if (urlObj.password) {
+          console.log('Checking database password for special characters...');
           
           // Check if the password is properly encoded
-          const decodedPassword = decodeURIComponent(urlObj.password);
-          const reEncodedPassword = encodeURIComponent(decodedPassword);
-          
-          // If re-encoding changed the password, it might not be properly encoded
-          if (reEncodedPassword !== urlObj.password) {
-            console.log('Detected unencoded special characters in database password');
+          try {
+            // First try to decode it - if it throws an error, it might have
+            // unencoded % characters
+            const decodedPassword = decodeURIComponent(urlObj.password);
             
-            // Attempt to re-encode the password in the URL
+            // Special characters that should be encoded in URLs
+            const specialChars = ['&', '%', '@', '+', '!', '*', '#', '$', '=', ':', '/', '?', ' '];
+            const hasSpecialChars = specialChars.some(char => decodedPassword.includes(char));
+            
+            if (hasSpecialChars) {
+              console.log('WARNING: Password contains special characters that may need URL encoding');
+              
+              // Re-encode the password properly
+              const reEncodedPassword = encodeURIComponent(decodedPassword);
+              
+              // If re-encoding changed the password, it's not properly encoded
+              if (reEncodedPassword !== urlObj.password) {
+                console.log('Detected unencoded special characters in database password');
+                
+                // Attempt to re-encode the password in the URL
+                try {
+                  // Reconstruct URL with properly encoded password
+                  const user = urlObj.username;
+                  const auth = user ? `${user}:${reEncodedPassword}` : '';
+                  const authPrefix = auth ? `${auth}@` : '';
+                  const newUrl = `${urlObj.protocol}//${authPrefix}${urlObj.host}${urlObj.pathname}${urlObj.search}`;
+                  
+                  console.log('Automatically re-encoding special characters in database password');
+                  process.env.DATABASE_URL = newUrl;
+                  databaseUrl = newUrl;
+                } catch (encodeError) {
+                  console.error('Error encoding URL:', encodeError);
+                }
+              }
+            }
+          } catch (decodeError) {
+            console.error('Error decoding password - might have unencoded % characters:', decodeError.message);
+            
+            // Try to handle the case where there are unencoded % characters
             try {
-              // Reconstruct URL with properly encoded password
+              // Replace unencoded % with %25
+              let fixedPassword = urlObj.password.replace(/%(?![0-9A-Fa-f]{2})/g, '%25');
+              
+              // Reconstruct URL with fixed password
               const user = urlObj.username;
-              const auth = user ? `${user}:${reEncodedPassword}` : '';
+              const auth = user ? `${user}:${fixedPassword}` : '';
               const authPrefix = auth ? `${auth}@` : '';
               const newUrl = `${urlObj.protocol}//${authPrefix}${urlObj.host}${urlObj.pathname}${urlObj.search}`;
               
-              console.log('Automatically re-encoding special characters in database password');
+              console.log('Fixed unencoded % characters in database password');
               process.env.DATABASE_URL = newUrl;
               databaseUrl = newUrl;
-            } catch (encodeError) {
-              console.error('Error encoding URL:', encodeError);
+            } catch (fixError) {
+              console.error('Error fixing unencoded % characters:', fixError);
             }
           }
         }
