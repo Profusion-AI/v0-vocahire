@@ -4,19 +4,20 @@
  * with limited capabilities when the database is unavailable.
  */
 
+import { Prisma } from '@prisma/client';
 import type { User, UserRole } from '@prisma/client';
 
 // Basic in-memory storage for users created during the session
 const users = new Map<string, any>();
 
 // Default user object when no stored user is found
-const getDefaultUser = (id: string, name?: string | null, email?: string | null): User => ({
+const getDefaultUser = (id: string, name: string | null = null, email: string | null = null): User => ({
   id,
   name,
   email,
   image: null,
   role: 'USER' as UserRole,
-  credits: 3.00,
+  credits: new Prisma.Decimal(3.00),
   resumeJobTitle: null,
   resumeSkills: null,
   resumeExperience: null,
