@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Get Clerk user data as fallback
-  let clerkUser = null;
+  let clerkUser: any = null;
   try {
     const { currentUser } = await import("@clerk/nextjs/server");
     clerkUser = await currentUser();
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch user profile from DB with error handling using withDatabaseFallback
-  const user = await withDatabaseFallback(
+  let user: any = await withDatabaseFallback(
     async () => await prisma.user.findUnique({
       where: { id: auth.userId },
       select: {
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Create new user using withDatabaseFallback
-    user = await withDatabaseFallback(
+    let newUser = await withDatabaseFallback(
       async () => await prisma.user.create({
         data: {
           id: auth.userId,
@@ -155,6 +155,9 @@ export async function GET(request: NextRequest) {
         return null;
       }
     );
+    
+    // Use the new user as our user variable
+    user = newUser;
   }
 
   if (!user) {
@@ -187,7 +190,7 @@ export async function GET(request: NextRequest) {
     user = {
       ...user,
       _usingFallbackDb: true
-    };
+    } as typeof user;
   }
 
   return NextResponse.json(user);
@@ -222,7 +225,7 @@ export async function PATCH(request: NextRequest) {
 
   try {
     // Get Clerk user data as fallback
-    let clerkUser = null;
+    let clerkUser: any = null;
     try {
       const { currentUser } = await import("@clerk/nextjs/server");
       clerkUser = await currentUser();
@@ -371,7 +374,7 @@ export async function PATCH(request: NextRequest) {
     
     // If we're using fallback database, add a flag to the response
     if (isUsingFallbackDb && updatedUser && typeof updatedUser === 'object' && !updatedUser._usingFallbackDb) {
-      updatedUser._usingFallbackDb = true;
+      (updatedUser as any)._usingFallbackDb = true;
     }
     
     return NextResponse.json(updatedUser);
