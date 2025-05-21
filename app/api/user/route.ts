@@ -286,16 +286,42 @@ export async function PATCH(request: NextRequest) {
         async () => {
           console.error("Error creating user during update, using fallback");
           
-          // Return a fallback object so that the code continues
-          return {
+          // Return a fallback object with all required User fields
+          const fallbackCreationUser = {
             id: auth.userId,
+            name: clerkUser?.firstName && clerkUser?.lastName ? 
+                  `${clerkUser.firstName} ${clerkUser.lastName}` : 
+                  clerkUser?.firstName || clerkUser?.lastName || null,
+            email: clerkUser?.emailAddresses[0]?.emailAddress || null,
+            image: clerkUser?.imageUrl || null,
+            role: UserRole.USER,
+            credits: new Prisma.Decimal(3.00),
+            resumeJobTitle: null,
+            resumeSkills: null,
+            resumeExperience: null,
+            resumeEducation: null,
+            resumeAchievements: null,
+            resumeFileUrl: null,
+            jobSearchStage: null,
+            linkedinUrl: null,
+            stripeCustomerId: null,
+            premiumSubscriptionId: null,
+            premiumExpiresAt: null,
+            isPremium: false,
+            acceptedTermsAt: null,
+            acceptedPrivacyAt: null,
+            dataRetentionOverride: false,
+            createdAt: new Date(),
+            updatedAt: new Date(),
             _isFallbackCreation: true
           };
+          
+          return fallbackCreationUser as any;
         }
       );
       
       // If user creation failed and we're using a fallback, return early with appropriate data
-      if (createdUser?._isFallbackCreation && clerkUser) {
+      if ((createdUser as any)?._isFallbackCreation && clerkUser) {
         const fallbackUser = {
           id: auth.userId,
           name: clerkUser?.firstName && clerkUser?.lastName ? 
