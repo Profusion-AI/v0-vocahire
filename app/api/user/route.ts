@@ -177,14 +177,15 @@ export async function GET(request: NextRequest) {
   }
 
   // Convert credits to consistent format for JSON response
+  let responseUser = user;
   if (user && typeof user === 'object' && user.credits) {
-    user = {
+    responseUser = {
       ...user,
       credits: getConsistentCreditValue(user.credits)
     };
   }
 
-  return NextResponse.json(user);
+  return NextResponse.json(responseUser);
 }
 
 export async function PATCH(request: NextRequest) {
@@ -392,14 +393,15 @@ export async function PATCH(request: NextRequest) {
     }
     
     // Convert credits to consistent format for JSON response
+    let responseUser = updatedUser;
     if (updatedUser && typeof updatedUser === 'object' && updatedUser.credits) {
-      updatedUser = {
+      responseUser = {
         ...updatedUser,
         credits: getConsistentCreditValue(updatedUser.credits)
       };
     }
     
-    return NextResponse.json(updatedUser);
+    return NextResponse.json(responseUser);
   } catch (err) {
     console.error("Error in overall update process:", err);
     
