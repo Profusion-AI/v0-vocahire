@@ -19,7 +19,7 @@ function createFallbackUser(userId: string, clerkUser: any, extraProps: Record<s
     resumeFileUrl: null,
     jobSearchStage: null,
     linkedinUrl: null,
-    credits: 3, // Default credits as number - consistent format
+    credits: createPrismaDecimal(3), // Use Prisma Decimal to match database response type
     isPremium: false,
     premiumExpiresAt: null,
     premiumSubscriptionId: null,
@@ -27,7 +27,7 @@ function createFallbackUser(userId: string, clerkUser: any, extraProps: Record<s
     _isTemporaryUser: true,
     _usingFallbackDb: isUsingFallbackDb,
     ...extraProps
-  };
+  } as any; // Type assertion to handle the extra properties
 }
 
 // Define which fields are editable via PATCH
@@ -156,9 +156,14 @@ export async function GET(request: NextRequest) {
     
     // Use null for clerkUser but include an error message
     const defaultUser = createFallbackUser(auth.userId, null, {
-      credits: 0, // Override credits to 0 for this error case
+      credits: createPrismaDecimal(0), // Override credits to 0 for this error case
       error: "User not found and could not be created"
     });
+    
+    // Convert credits to consistent format for JSON response
+    if (defaultUser.credits) {
+      defaultUser.credits = getConsistentCreditValue(defaultUser.credits);
+    }
     
     return NextResponse.json(defaultUser, { status: 200 }); // Return 200 status with default data
   }
@@ -169,6 +174,14 @@ export async function GET(request: NextRequest) {
       ...user,
       _usingFallbackDb: true
     } as typeof user;
+  }
+
+  // Convert credits to consistent format for JSON response
+  if (user && typeof user === 'object' && user.credits) {
+    user = {
+      ...user,
+      credits: getConsistentCreditValue(user.credits)
+    };
   }
 
   return NextResponse.json(user);
@@ -297,6 +310,10 @@ export async function PATCH(request: NextRequest) {
           ...validatedData,
         });
         
+        // Convert credits to consistent format for JSON response
+        if (fallbackUser.credits) {
+          fallbackUser.credits = getConsistentCreditValue(fallbackUser.credits);
+        }
         return NextResponse.json(fallbackUser);
       } else if (createdUser?._isFallbackCreation) {
         return NextResponse.json({ 
@@ -372,6 +389,14 @@ export async function PATCH(request: NextRequest) {
     // If we're using fallback database, add a flag to the response
     if (isUsingFallbackDb && updatedUser && typeof updatedUser === 'object' && !updatedUser._usingFallbackDb) {
       (updatedUser as any)._usingFallbackDb = true;
+    }
+    
+    // Convert credits to consistent format for JSON response
+    if (updatedUser && typeof updatedUser === 'object' && updatedUser.credits) {
+      updatedUser = {
+        ...updatedUser,
+        credits: getConsistentCreditValue(updatedUser.credits)
+      };
     }
     
     return NextResponse.json(updatedUser);
