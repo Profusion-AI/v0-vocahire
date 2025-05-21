@@ -76,7 +76,7 @@ fi
 # Build Next.js application
 echo ""
 echo "📦 Building Next.js application..."
-next build
+npx next build
 
 if [ $? -eq 0 ]; then
   echo ""
