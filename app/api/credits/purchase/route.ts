@@ -41,17 +41,17 @@ export async function POST(request: NextRequest) {
     
     // Use a transaction to ensure both operations succeed together
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Create purchase transaction record for audit trail
-      await tx.purchaseTransaction.create({
-        data: {
-          userId: auth.userId,
-          transactionId,
-          credits,
-          status: "completed",
-        },
-      });
+      // TODO: Add purchase transaction record for audit trail when model is created
+      // await tx.purchaseTransaction.create({
+      //   data: {
+      //     userId: auth.userId,
+      //     transactionId,
+      //     credits,
+      //     status: "completed",
+      //   },
+      // });
 
-      // 2. Increment user's credits atomically
+      // Increment user's credits atomically
       const updatedUser = await tx.user.update({
         where: { id: auth.userId },
         data: {

@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 export const dynamic = "force-dynamic";
 
 // Test API route for Sentry integration
-export function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     // Capture some context
     Sentry.setTag("test_endpoint", "sentry_verification");
@@ -37,28 +37,23 @@ export function GET(request: NextRequest) {
       
       case "transaction":
         // Start a transaction for performance monitoring
-        const transaction = Sentry.startTransaction({
+        return await Sentry.startSpan({
           name: "test_api_transaction",
           op: "http.server",
-        });
-        
-        Sentry.getCurrentHub().configureScope((scope) => scope.setSpan(transaction));
-        
-        // Simulate some work
-        const span = transaction.startChild({
-          op: "test.processing",
-          description: "Simulated processing work",
-        });
-        
-        // Simulate async work
-        setTimeout(() => {
-          span.finish();
-          transaction.finish();
-        }, 100);
-        
-        return NextResponse.json({ 
-          message: "Transaction test completed", 
-          timestamp: new Date().toISOString() 
+        }, async (span) => {
+          // Simulate some work with a child span
+          return await Sentry.startSpan({
+            name: "test.processing",
+            parentSpan: span,
+          }, async () => {
+            // Simulate async work
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            return NextResponse.json({ 
+              message: "Transaction test completed", 
+              timestamp: new Date().toISOString() 
+            });
+          });
         });
       
       default:

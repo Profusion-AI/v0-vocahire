@@ -77,6 +77,7 @@ export async function POST(request: NextRequest) {
     // Create a new interview record in your database using auth.userId
     const newInterview = await prisma.interviewSession.create({
       data: {
+        id: crypto.randomUUID(),
         userId: auth.userId,
         jobTitle: jobTitle,
         company: company || null, // Use null for optional fields if not provided

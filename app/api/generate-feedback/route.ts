@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
     // Create feedback in the database
     const feedback = await prisma.feedback.create({
       data: {
+        id: crypto.randomUUID(),
         sessionId: interviewId,
         userId: userId,
         summary: rawFeedback,

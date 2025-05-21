@@ -8,6 +8,134 @@ datasource db {
   directUrl = env("MIGRATE_DATABASE_URL")
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum InterviewStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  FAILED
+  FEEDBACK_GENERATED
+}
+
+model User {
+  id                      String    @id
+  email                   String?   @unique
+  name                    String?
+  image                   String?
+  role                    UserRole  @default(USER)
+  credits                 Decimal   @default(3.00) @db.Decimal(10, 2)
+  isPremium               Boolean   @default(false)
+  resumeJobTitle          String?
+  resumeSkills            String?
+  resumeExperience        String?
+  resumeEducation         String?
+  resumeAchievements      String?
+  resumeFileUrl           String?
+  jobSearchStage          String?
+  linkedinUrl             String?
+  acceptedTermsAt         DateTime?
+  acceptedPrivacyAt       DateTime?
+  dataRetentionOverride   Boolean?  @default(false)
+  stripeCustomerId        String?   @unique
+  premiumSubscriptionId   String?   @unique
+  premiumExpiresAt        DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  // Relations
+  interviewSessions       InterviewSession[]
+  feedbacks               Feedback[]
+  usageEvents             UsageEvent[]
+
+  @@index([email])
+}
+
+model InterviewSession {
+  id                String    @id
+  userId            String
+  jobTitle          String
+  resumeSnapshot    Json?
+  company           String?
+  interviewType     String?
+  jdContext         String?
+  webrtcSessionId   String?   @unique
+  openaiSessionId   String?   @unique
+  fallbackMode      Boolean   @default(false)
+  startedAt         DateTime  @default(now())
+  endedAt           DateTime?
+  durationSeconds   Int?
+  audioUrl          String?
+  expiresAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transcripts       Transcript[]
+  feedback          Feedback?
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Transcript {
+  id         String   @id
+  sessionId  String
+  role       String
+  content    String
+  confidence Float?
+  timestamp  DateTime
+  expiresAt  DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  session    InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([timestamp])
+}
+
+model Feedback {
+  id                    String   @id
+  sessionId             String   @unique
+  userId                String
+  summary               String
+  strengths             String?
+  areasForImprovement   String?
+  fillerWordCount       Int?
+  transcriptScore       Float?
+  expiresAt             DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  session               InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user                  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model UsageEvent {
+  id         String   @id
+  userId     String?
+  eventType  String
+  details    Json?
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([eventType])
+}
+
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model interviews {
   id         BigInt    @id @default(autoincrement())
