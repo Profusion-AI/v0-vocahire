@@ -5,6 +5,7 @@ import { prisma, withDatabaseFallback, isUsingFallbackDb } from "@/lib/prisma"
 import { Prisma, UserRole } from "@prisma/client"
 import { z } from "zod"
 import { getConsistentCreditValue, createPrismaDecimal } from "@/lib/prisma-types"
+import * as Sentry from "@sentry/nextjs"
 
 // Helper function to create consistent fallback user objects
 function createFallbackUser(userId: string, clerkUser: any, extraProps: Record<string, any> = {}) {
@@ -57,6 +58,12 @@ export async function GET(request: NextRequest) {
     clerkUser = await currentUser();
   } catch (error) {
     console.error("Error fetching Clerk user data:", error);
+    Sentry.captureException(error, {
+      tags: { 
+        operation: "clerk_user_fetch",
+        userId: auth.userId 
+      }
+    });
   }
 
   // Fetch user profile from DB with error handling using withDatabaseFallback

@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import SessionLayout from "@/components/SessionLayout";
 import { loadStripe } from "@stripe/stripe-js";
 import { useToast } from "@/hooks/use-toast";
+import * as Sentry from "@sentry/nextjs";
 import { ProfileSettingsForm, type ProfileFormData } from "@/components/ProfileSettingsForm";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
 import { useUserData } from "@/hooks/useUserData"; // Import the new hook
