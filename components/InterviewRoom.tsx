@@ -1073,8 +1073,9 @@ export default function InterviewRoom({
     )
   }
 
-  // Use the hook to manage the real-time interview session
-  const { liveTranscript, aiCaptions } = useInterviewSession()
+  // Always use the hook, regardless of component state - React Rules of Hooks
+  const interviewSession = useInterviewSession()
+  const { liveTranscript, aiCaptions } = interviewSession
 
   return (
     <Card className="w-full max-w-3xl mx-auto">

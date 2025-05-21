@@ -23,16 +23,18 @@ type InterviewStatus =
   | "error"
 
 export function useInterviewSession() {
-  // State
-  const [status, setStatus] = useState<InterviewStatus>("idle")
-  const [messages, setMessages] = useState<InterviewMessage[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [debug, setDebug] = useState<string | null>(null)
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [isActive, setIsActive] = useState(false)
-  const [isUserSpeaking, setIsUserSpeaking] = useState(false)
-  const [aiCaptions, setAiCaptions] = useState<string>("")
-  const [liveTranscript, setLiveTranscript] = useState<{ role: "user" | "assistant"; content: string } | null>(null)
+  // Create an initial fixed state object to ensure consistent hook calls
+  const [sessionState] = useState({
+    status: "idle" as InterviewStatus,
+    messages: [] as InterviewMessage[],
+    error: null as string | null,
+    debug: null as string | null,
+    isConnecting: false,
+    isActive: false,
+    isUserSpeaking: false,
+    aiCaptions: "",
+    liveTranscript: null as { role: "user" | "assistant"; content: string } | null
+  })
 
   // Refs
   const localStreamRef = useRef<MediaStream | null>(null)
@@ -58,15 +60,15 @@ export function useInterviewSession() {
   }, [])
 
   return {
-    status,
-    messages,
-    error,
-    debug,
-    isConnecting,
-    isActive,
-    isUserSpeaking,
-    aiCaptions,
-    liveTranscript,
+    status: sessionState.status,
+    messages: sessionState.messages,
+    error: sessionState.error,
+    debug: sessionState.debug,
+    isConnecting: sessionState.isConnecting,
+    isActive: sessionState.isActive,
+    isUserSpeaking: sessionState.isUserSpeaking,
+    aiCaptions: sessionState.aiCaptions,
+    liveTranscript: sessionState.liveTranscript,
     addDebugMessage,
     localStreamRef,
     aiAudioElementRef,
