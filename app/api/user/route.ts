@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
 import { NextRequest } from "next/server"
 import { prisma, withDatabaseFallback, isUsingFallbackDb } from "@/lib/prisma"
-import { Prisma } from "@prisma/client"
+import { Prisma, UserRole } from "@prisma/client"
 import { z } from "zod"
 
 // Define which fields are editable via PATCH
@@ -61,7 +61,8 @@ export async function GET(request: NextRequest) {
       // Create a fallback user from Clerk data if available
       if (clerkUser) {
         console.log("Using Clerk data as fallback for database error");
-        return {
+        // Create a fallback user object with proper type cast
+        const fallbackUser = {
           id: auth.userId,
           name: clerkUser?.firstName && clerkUser?.lastName ? 
                 `${clerkUser.firstName} ${clerkUser.lastName}` : 
@@ -76,11 +77,14 @@ export async function GET(request: NextRequest) {
           isPremium: false,
           premiumExpiresAt: null,
           premiumSubscriptionId: null,
-          role: "USER",
-          _isTemporaryUser: true, // Flag to indicate this is a temporary fallback user
-          _dbError: true, // Flag to indicate database error
-          _usingFallbackDb: isUsingFallbackDb // Include flag indicating fallback db is in use
+          role: UserRole.USER,
+          // Additional properties for internal tracking
+          _isTemporaryUser: true,
+          _dbError: true,
+          _usingFallbackDb: isUsingFallbackDb
         };
+        // Return the user object with any type
+        return fallbackUser as any;
       }
       return null;
     }
@@ -132,7 +136,7 @@ export async function GET(request: NextRequest) {
         
         // Return a fallback user with clerk data if available
         if (clerkUser) {
-          return {
+          const fallbackUser = {
             id: auth.userId,
             name: clerkUser?.firstName && clerkUser?.lastName ? 
                   `${clerkUser.firstName} ${clerkUser.lastName}` : 
@@ -147,11 +151,12 @@ export async function GET(request: NextRequest) {
             isPremium: false,
             premiumExpiresAt: null,
             premiumSubscriptionId: null,
-            role: "USER",
+            role: UserRole.USER,
             _isTemporaryUser: true,
             _dbCreateError: true,
             _usingFallbackDb: isUsingFallbackDb
           };
+          return fallbackUser as any;
         }
         return null;
       }
@@ -166,7 +171,7 @@ export async function GET(request: NextRequest) {
     // This prevents the client from failing completely
     console.error("User not found and could not be created, returning default user structure");
     
-    return NextResponse.json({
+    const defaultUser = {
       id: auth.userId,
       name: null,
       email: null,
@@ -179,11 +184,13 @@ export async function GET(request: NextRequest) {
       isPremium: false,
       premiumExpiresAt: null,
       premiumSubscriptionId: null,
-      role: "USER",
+      role: UserRole.USER,
       error: "User not found and could not be created",
       _isTemporaryUser: true,
       _usingFallbackDb: isUsingFallbackDb
-    }, { status: 200 }); // Return 200 status with default data
+    };
+    
+    return NextResponse.json(defaultUser, { status: 200 }); // Return 200 status with default data
   }
   
   // If we're using fallback database, add a flag to the response
@@ -340,7 +347,7 @@ export async function PATCH(request: NextRequest) {
         
         // If fallback and we have clerk data, return that with updated fields
         if (clerkUser) {
-          return {
+          const fallbackUser = {
             id: auth.userId,
             name: validatedData.name || (clerkUser?.firstName && clerkUser?.lastName ? 
                   `${clerkUser.firstName} ${clerkUser.lastName}` : 
@@ -356,20 +363,22 @@ export async function PATCH(request: NextRequest) {
             isPremium: false,
             premiumExpiresAt: null,
             premiumSubscriptionId: null,
-            role: "USER",
+            role: UserRole.USER,
             _isTemporaryUser: true,
             _dbUpdateError: true,
             _usingFallbackDb: isUsingFallbackDb
           };
+          return fallbackUser as any;
         }
         
         // Return an object with user ID and validated data
-        return {
+        const errorObject = {
           error: "Database error during update. Your changes have been saved locally.",
           id: auth.userId,
           ...validatedData,
           _usingFallbackDb: isUsingFallbackDb
         };
+        return errorObject as any;
       }
     );
     
