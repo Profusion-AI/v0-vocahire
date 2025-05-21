@@ -4,6 +4,31 @@ import { NextRequest } from "next/server"
 import { prisma, withDatabaseFallback, isUsingFallbackDb } from "@/lib/prisma"
 import { Prisma, UserRole } from "@prisma/client"
 import { z } from "zod"
+import { getConsistentCreditValue, createPrismaDecimal } from "@/lib/prisma-types"
+
+// Helper function to create consistent fallback user objects
+function createFallbackUser(userId: string, clerkUser: any, extraProps: Record<string, any> = {}) {
+  return {
+    id: userId,
+    name: clerkUser?.firstName && clerkUser?.lastName ? 
+          `${clerkUser.firstName} ${clerkUser.lastName}` : 
+          clerkUser?.firstName || clerkUser?.lastName || null,
+    email: clerkUser?.emailAddresses[0]?.emailAddress || null,
+    image: clerkUser?.imageUrl || null,
+    resumeJobTitle: null,
+    resumeFileUrl: null,
+    jobSearchStage: null,
+    linkedinUrl: null,
+    credits: 3, // Default credits as number - consistent format
+    isPremium: false,
+    premiumExpiresAt: null,
+    premiumSubscriptionId: null,
+    role: UserRole.USER,
+    _isTemporaryUser: true,
+    _usingFallbackDb: isUsingFallbackDb,
+    ...extraProps
+  };
+}
 
 // Define which fields are editable via PATCH
 const profileUpdateSchema = z.object({
@@ -61,30 +86,8 @@ export async function GET(request: NextRequest) {
       // Create a fallback user from Clerk data if available
       if (clerkUser) {
         console.log("Using Clerk data as fallback for database error");
-        // Create a fallback user object with proper type cast
-        const fallbackUser = {
-          id: auth.userId,
-          name: clerkUser?.firstName && clerkUser?.lastName ? 
-                `${clerkUser.firstName} ${clerkUser.lastName}` : 
-                clerkUser?.firstName || clerkUser?.lastName || null,
-          email: clerkUser?.emailAddresses[0]?.emailAddress || null,
-          image: clerkUser?.imageUrl || null,
-          resumeJobTitle: null,
-          resumeFileUrl: null,
-          jobSearchStage: null,
-          linkedinUrl: null,
-          credits: new Prisma.Decimal(3.00), // Default credits as Decimal
-          isPremium: false,
-          premiumExpiresAt: null,
-          premiumSubscriptionId: null,
-          role: UserRole.USER,
-          // Additional properties for internal tracking
-          _isTemporaryUser: true,
-          _dbError: true,
-          _usingFallbackDb: isUsingFallbackDb
-        };
-        // Return the user object with any type
-        return fallbackUser as any;
+        // Use helper function to create a consistent fallback user
+        return createFallbackUser(auth.userId, clerkUser, { _dbError: true });
       }
       return null;
     }
@@ -112,7 +115,7 @@ export async function GET(request: NextRequest) {
                 clerkUser?.firstName || clerkUser?.lastName || null,
           email: clerkUser?.emailAddresses[0]?.emailAddress || null,
           image: clerkUser?.imageUrl || null,
-          credits: new Prisma.Decimal(3.00), // Default 3.00 VocahireCredits for new users
+          credits: createPrismaDecimal(3), // Default 3.00 VocahireCredits for new users - use Prisma.Decimal for database operations
           isPremium: false,
         },
         select: {
@@ -136,27 +139,7 @@ export async function GET(request: NextRequest) {
         
         // Return a fallback user with clerk data if available
         if (clerkUser) {
-          const fallbackUser = {
-            id: auth.userId,
-            name: clerkUser?.firstName && clerkUser?.lastName ? 
-                  `${clerkUser.firstName} ${clerkUser.lastName}` : 
-                  clerkUser?.firstName || clerkUser?.lastName || null,
-            email: clerkUser?.emailAddresses[0]?.emailAddress || null,
-            image: clerkUser?.imageUrl || null,
-            resumeJobTitle: null,
-            resumeFileUrl: null,
-            jobSearchStage: null,
-            linkedinUrl: null,
-            credits: new Prisma.Decimal(3.00), // Default credits
-            isPremium: false,
-            premiumExpiresAt: null,
-            premiumSubscriptionId: null,
-            role: UserRole.USER,
-            _isTemporaryUser: true,
-            _dbCreateError: true,
-            _usingFallbackDb: isUsingFallbackDb
-          };
-          return fallbackUser as any;
+          return createFallbackUser(auth.userId, clerkUser, { _dbCreateError: true });
         }
         return null;
       }
@@ -171,24 +154,11 @@ export async function GET(request: NextRequest) {
     // This prevents the client from failing completely
     console.error("User not found and could not be created, returning default user structure");
     
-    const defaultUser = {
-      id: auth.userId,
-      name: null,
-      email: null,
-      image: null,
-      resumeJobTitle: null,
-      resumeFileUrl: null,
-      jobSearchStage: null,
-      linkedinUrl: null,
-      credits: new Prisma.Decimal(0.00),
-      isPremium: false,
-      premiumExpiresAt: null,
-      premiumSubscriptionId: null,
-      role: UserRole.USER,
-      error: "User not found and could not be created",
-      _isTemporaryUser: true,
-      _usingFallbackDb: isUsingFallbackDb
-    };
+    // Use null for clerkUser but include an error message
+    const defaultUser = createFallbackUser(auth.userId, null, {
+      credits: 0, // Override credits to 0 for this error case
+      error: "User not found and could not be created"
+    });
     
     return NextResponse.json(defaultUser, { status: 200 }); // Return 200 status with default data
   }
@@ -322,19 +292,10 @@ export async function PATCH(request: NextRequest) {
       
       // If user creation failed and we're using a fallback, return early with appropriate data
       if ((createdUser as any)?._isFallbackCreation && clerkUser) {
-        const fallbackUser = {
-          id: auth.userId,
-          name: clerkUser?.firstName && clerkUser?.lastName ? 
-                `${clerkUser.firstName} ${clerkUser.lastName}` : 
-                clerkUser?.firstName || clerkUser?.lastName || null,
-          email: clerkUser?.emailAddresses[0]?.emailAddress || null,
-          image: clerkUser?.imageUrl || null,
+        // Create fallback user with the validated data and extra flags
+        const fallbackUser = createFallbackUser(auth.userId, clerkUser, {
           ...validatedData,
-          credits: new Prisma.Decimal(3.00),
-          isPremium: false,
-          _isTemporaryUser: true,
-          _usingFallbackDb: isUsingFallbackDb
-        };
+        });
         
         return NextResponse.json(fallbackUser);
       } else if (createdUser?._isFallbackCreation) {
