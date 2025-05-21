@@ -10,15 +10,11 @@ const safeToast = {
     // Only run on client
     if (typeof window !== 'undefined') {
       console.error('Toast error:', message);
-      
-      // Use toast.error if it exists, otherwise do nothing
-      if (typeof toast?.error === 'function') {
-        try {
-          toast.error(message);
-        } catch (e) {
-          // Fallback if toast function fails
-          console.error('Toast library error:', e);
-        }
+      try {
+        toast.error(message);
+      } catch (e) {
+        // Fallback if toast function fails
+        console.error('Toast library error:', e);
       }
     }
   }

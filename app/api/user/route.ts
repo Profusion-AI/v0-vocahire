@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
 import { NextRequest } from "next/server"
 import { prisma, withDatabaseFallback, isUsingFallbackDb } from "@/lib/prisma"
+import { Prisma } from "@prisma/client"
 import { z } from "zod"
 
 // Define which fields are editable via PATCH
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
           resumeFileUrl: null,
           jobSearchStage: null,
           linkedinUrl: null,
-          credits: 3.00, // Default credits
+          credits: new Prisma.Decimal(3.00), // Default credits as Decimal
           isPremium: false,
           premiumExpiresAt: null,
           premiumSubscriptionId: null,
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest) {
                 clerkUser?.firstName || clerkUser?.lastName || null,
           email: clerkUser?.emailAddresses[0]?.emailAddress || null,
           image: clerkUser?.imageUrl || null,
-          credits: 3.00, // Default 3.00 VocahireCredits for new users
+          credits: new Prisma.Decimal(3.00), // Default 3.00 VocahireCredits for new users
           isPremium: false,
         },
         select: {
@@ -142,7 +143,7 @@ export async function GET(request: NextRequest) {
             resumeFileUrl: null,
             jobSearchStage: null,
             linkedinUrl: null,
-            credits: 3.00, // Default credits
+            credits: new Prisma.Decimal(3.00), // Default credits
             isPremium: false,
             premiumExpiresAt: null,
             premiumSubscriptionId: null,
@@ -174,7 +175,7 @@ export async function GET(request: NextRequest) {
       resumeFileUrl: null,
       jobSearchStage: null,
       linkedinUrl: null,
-      credits: 0.00,
+      credits: new Prisma.Decimal(0.00),
       isPremium: false,
       premiumExpiresAt: null,
       premiumSubscriptionId: null,
@@ -271,7 +272,7 @@ export async function PATCH(request: NextRequest) {
                   clerkUser?.firstName || clerkUser?.lastName || null,
             email: clerkUser?.emailAddresses[0]?.emailAddress || null,
             image: clerkUser?.imageUrl || null,
-            credits: 3.00,
+            credits: new Prisma.Decimal(3.00),
             isPremium: false,
           }
         }),
@@ -296,7 +297,7 @@ export async function PATCH(request: NextRequest) {
           email: clerkUser?.emailAddresses[0]?.emailAddress || null,
           image: clerkUser?.imageUrl || null,
           ...validatedData,
-          credits: 3.00,
+          credits: new Prisma.Decimal(3.00),
           isPremium: false,
           _isTemporaryUser: true,
           _usingFallbackDb: isUsingFallbackDb
@@ -351,7 +352,7 @@ export async function PATCH(request: NextRequest) {
             resumeFileUrl: validatedData.resumeFileUrl || null,
             jobSearchStage: validatedData.jobSearchStage || null,
             linkedinUrl: validatedData.linkedinUrl || null,
-            credits: 3.00,
+            credits: new Prisma.Decimal(3.00),
             isPremium: false,
             premiumExpiresAt: null,
             premiumSubscriptionId: null,
