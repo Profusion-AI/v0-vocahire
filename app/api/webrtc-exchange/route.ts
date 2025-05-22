@@ -25,11 +25,11 @@ export async function POST(request: Request) {
     console.log(`SDP offer length: ${sdp.length} chars`)
     console.log(`Using model: ${model || "default"}`)
 
-    // Create the URL for the OpenAI Realtime API
-    // The correct URL format is just /v1/realtime with the token as the Bearer token
-    const url = "https://api.openai.com/v1/realtime"
+    // Create the URL for the OpenAI WebRTC Realtime API
+    // For WebRTC, we need to use the correct endpoint with model parameter
+    const url = `https://api.openai.com/v1/realtime?model=${model || "gpt-4o-realtime-preview"}`
 
-    console.log(`DEBUG: Using SDP exchange URL: ${url}`)
+    console.log(`DEBUG: Using WebRTC SDP exchange URL: ${url}`)
     console.log(`DEBUG: Using ephemeral token (client_secret) for Authorization: Bearer ${token.substring(0, 10)}...`)
 
     // Send the SDP offer to OpenAI using the ephemeral token as the Bearer token

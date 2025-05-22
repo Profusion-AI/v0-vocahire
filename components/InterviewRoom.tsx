@@ -674,29 +674,31 @@ export default function InterviewRoom({
           }
         })
 
-        // Send offer to OpenAI WebRTC endpoint
-        // Use the ephemeral token from session creation
-        const sdpUrl = `https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview`
+        // Send offer to OpenAI WebRTC endpoint via our backend proxy
+        // This ensures proper CORS handling and authentication
+        addDebugMessage(`Sending SDP offer via backend proxy...`)
 
-        addDebugMessage(`Sending SDP offer to: ${sdpUrl}`)
-
-        const response = await fetch(sdpUrl, {
+        const response = await fetch("/api/webrtc-exchange", {
           method: "POST",
           headers: {
-            "Content-Type": "application/sdp",
-            "Authorization": `Bearer ${token}`, // Use the ephemeral token from session creation
-            "OpenAI-Beta": "realtime"
+            "Content-Type": "application/json",
           },
-          body: completeOffer.sdp,
+          body: JSON.stringify({
+            sessionId: sessionId,
+            token: token, // The ephemeral token from session creation
+            sdp: completeOffer.sdp,
+            model: "gpt-4o-realtime-preview"
+          }),
         })
 
         if (!response.ok) {
-          const errorText = await response.text()
-          throw new Error(`SDP exchange failed: ${response.status} - ${errorText}`)
+          const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
+          throw new Error(`SDP exchange failed: ${response.status} - ${errorData.error || errorData.message || "Unknown error"}`)
         }
 
-        // Get answer SDP
-        const answerSdp = await response.text()
+        // Get answer SDP from the JSON response
+        const responseData = await response.json()
+        const answerSdp = responseData.sdp
 
         // Set remote description
         await pc.setRemoteDescription({
