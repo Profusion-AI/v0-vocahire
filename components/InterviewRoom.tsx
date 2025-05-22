@@ -80,7 +80,7 @@ export default function InterviewRoom({
     // State for connection status
     const [connectionProgress, setConnectionProgress] = useState(0)
   const [connectionSteps, setConnectionSteps] = useState<
-    Array<{ id: string; name: string; status: string; message?: string }>
+    Array<{ id: string; name: string; status: "pending" | "in-progress" | "complete" | "error" | "retrying"; message?: string }>
   >([
     { id: "microphone", name: "Microphone Access", status: "pending" },
     { id: "api", name: "API Connection", status: "pending" },
