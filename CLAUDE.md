@@ -166,6 +166,13 @@ All Prisma migrations have been successfully applied to the production database:
    - **Fallback Database**: Secondary database instance for critical operations
    - **Performance Logging**: Detailed timing metrics for all database operations
 
+6. **Raw SQL Optimizations for Critical Paths (January 2025)**
+   - **Direct SQL Queries**: Bypass Prisma ORM overhead for session creation
+   - **Aggressive Timeouts**: 5-second database timeout (down from 12s)
+   - **Non-blocking Operations**: Credit deductions happen asynchronously
+   - **Optimized User Fetch**: Raw SQL with float8 casting for credits
+   - **Fire-and-Forget Pattern**: Usage tracking doesn't block response
+
 **Performance Monitoring Features:**
 ```typescript
 // Request tracing with performance logging
@@ -174,11 +181,16 @@ const perfLog = (phase: string, data?: any) => {
   console.log(`[${requestId}] ${phase} - ${elapsed}ms elapsed`, data);
 };
 
-// Enhanced timeout handling
-const dbQueryWithTimeout = Promise.race([
-  prisma.user.findUnique(query),
+// Enhanced timeout handling with raw SQL optimization
+const user = await Promise.race([
+  prisma.$queryRaw`
+    SELECT id, credits::float8 as credits, "isPremium" 
+    FROM "User" 
+    WHERE id = ${userId}
+    LIMIT 1
+  `,
   new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('Database query timeout')), 12000)
+    setTimeout(() => reject(new Error('Database timeout')), 5000) // Reduced from 12s to 5s
   )
 ]);
 
@@ -189,9 +201,12 @@ if (cachedUser) {
   return cachedUser;
 }
 
-// Database query with cache write-through
-const user = await prisma.user.findUnique({ where: { id: userId } });
-await setUserInCache(userId, user);
+// Optimized credit operations with raw SQL
+await prisma.$executeRaw`
+  UPDATE "User" 
+  SET credits = credits - ${INTERVIEW_COST}
+  WHERE id = ${userId} AND credits >= ${INTERVIEW_COST}
+`;
 ```
 
 **Key Success Metrics:**
