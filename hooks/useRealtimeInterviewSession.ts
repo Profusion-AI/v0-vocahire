@@ -332,7 +332,21 @@ export function useRealtimeInterviewSession() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
-        throw new Error(`Session creation failed: ${response.status} - ${errorData.error || "Unknown error"}`)
+        
+        // Handle specific error codes
+        if (response.status === 503) {
+          // Service unavailable - likely database timeout
+          const retryAfter = errorData.retryAfter || 5
+          throw new Error(`Service temporarily unavailable. Please wait ${retryAfter} seconds and try again.`)
+        } else if (response.status === 504) {
+          // Gateway timeout - OpenAI API slow
+          throw new Error("The AI service is taking longer than expected. Please try again.")
+        } else if (response.status === 403) {
+          // Insufficient credits
+          throw new Error(errorData.message || errorData.error || "Insufficient credits")
+        }
+        
+        throw new Error(`Session creation failed: ${response.status} - ${errorData.error || errorData.message || "Unknown error"}`)
       }
 
       const sessionData = await response.json()
@@ -379,13 +393,21 @@ export function useRealtimeInterviewSession() {
       setIsConnecting(false)
       addDebugMessage(`Start failed: ${errorMessage}`)
       
-      // Retry logic
-      if (retryCount < maxRetries && !errorMessage.includes("authentication")) {
-        addDebugMessage(`Retrying in 3 seconds... (${retryCount + 1}/${maxRetries})`)
+      // Retry logic with exponential backoff
+      const shouldRetry = retryCount < maxRetries && 
+        !errorMessage.includes("authentication") &&
+        !errorMessage.includes("Insufficient") &&
+        (errorMessage.includes("temporarily unavailable") || 
+         errorMessage.includes("timeout") ||
+         errorMessage.includes("taking longer"))
+      
+      if (shouldRetry) {
+        const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 10000) // 1s, 2s, 4s, max 10s
+        addDebugMessage(`Retrying in ${backoffDelay/1000} seconds... (${retryCount + 1}/${maxRetries})`)
         setTimeout(() => {
           setRetryCount(prev => prev + 1)
           start(jobTitle)
-        }, 3000)
+        }, backoffDelay)
       }
       
       throw error
