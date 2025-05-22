@@ -25,11 +25,15 @@ export async function POST(request: NextRequest) {
 
     // Authenticate the user with Clerk
     const auth = getAuth(request)
+    console.log("🔐 Auth check:", { userId: auth.userId, sessionId: auth.sessionId });
+    
     if (!auth.userId) {
+      console.error("❌ No userId in auth object - user not authenticated");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const userId = auth.userId
+    console.log("✅ User authenticated:", userId);
 
     // Apply rate limiting
     const rateLimitResult = await checkRateLimit(userId, RATE_LIMIT_CONFIGS.REALTIME_SESSION)
@@ -43,6 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has enough credits with timeout
+    console.log(`Checking credits for user: ${userId}`);
     const user = await Promise.race([
       prisma.user.findUnique({
         where: { id: userId },
@@ -53,15 +58,48 @@ export async function POST(request: NextRequest) {
       )
     ]).catch(error => {
       console.error('Database query failed or timed out in /api/realtime-session:', error);
-      // Return default user with zero credits to fail gracefully
-      return { credits: 0, isPremium: false } as { credits: number; isPremium: boolean };
+      // Return null to indicate database failure, don't assume zero credits
+      return null;
     }) as { credits: number; isPremium: boolean } | null;
 
+    if (!user) {
+      console.error("Failed to fetch user data from database");
+      return NextResponse.json({ error: "Unable to verify account status. Please try again." }, { status: 500 });
+    }
+
+    console.log(`User credits: ${user.credits}, isPremium: ${user.isPremium}`);
+
     // Allow premium users to proceed without credit check
-    if (user && user.isPremium) {
+    if (user.isPremium) {
       console.log("Premium user detected, bypassing credit check");
-    } else if (!user || Number(user.credits) <= 0) {
-      return NextResponse.json({ error: "Insufficient VocahireCredits. Please purchase more VocahireCredits." }, { status: 403 })
+    } else if (Number(user.credits) <= 0) {
+      console.log(`User has insufficient credits: ${user.credits}`);
+      
+      // Check if this is a new user who should have gotten initial credits
+      // If credits are exactly 0, try to give them the initial 3 credits as a fallback
+      if (Number(user.credits) === 0) {
+        console.log("User has 0 credits, attempting to grant initial credits as fallback");
+        try {
+          const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: { credits: 3 },
+            select: { credits: true }
+          });
+          console.log(`✅ Granted initial credits to user. New balance: ${updatedUser.credits}`);
+          // Continue with the interview since we just gave them credits
+        } catch (updateError) {
+          console.error("Failed to grant initial credits:", updateError);
+          return NextResponse.json({ 
+            error: "You need VocaHire credits to start an interview. Please purchase credits or upgrade to premium." 
+          }, { status: 403 })
+        }
+      } else {
+        return NextResponse.json({ 
+          error: "You need VocaHire credits to start an interview. Please purchase credits or upgrade to premium." 
+        }, { status: 403 })
+      }
+    } else {
+      console.log(`User has sufficient credits: ${user.credits}, proceeding with interview`);
     }
 
     // Process the request - Create OpenAI Realtime Session
