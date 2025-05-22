@@ -539,28 +539,32 @@ export default function InterviewRoom({
 
         // Set up data channel handlers
         dataChannel.onopen = () => {
-          addDebugMessage("Data channel opened")
+          try {
+            addDebugMessage("Data channel opened")
 
-          // Send initial message
-          dataChannel.send(
-            JSON.stringify({
-              type: "response.create",
-            }),
-          )
+            // Send initial message
+            dataChannel.send(
+              JSON.stringify({
+                type: "response.create",
+              }),
+            )
 
-          updateConnectionStep("webrtc", "complete")
-          updateConnectionStep("audio", "complete")
+            updateConnectionStep("webrtc", "complete")
+            updateConnectionStep("audio", "complete")
 
-          // Set status to active
-          setIsActive(true)
-          isActiveRef.current = true
-          setStatus("active")
-          setIsConnecting(false)
+            // Set status to active
+            setIsActive(true)
+            isActiveRef.current = true
+            setStatus("active")
+            setIsConnecting(false)
 
-          // Clear connection timeout
-          if (connectTimeoutRef.current) {
-            clearTimeout(connectTimeoutRef.current)
-            connectTimeoutRef.current = null
+            // Clear connection timeout
+            if (connectTimeoutRef.current) {
+              clearTimeout(connectTimeoutRef.current)
+              connectTimeoutRef.current = null
+            }
+          } catch (error) {
+            console.warn("Error handling data channel open:", error)
           }
         }
 
@@ -592,25 +596,39 @@ export default function InterviewRoom({
         }
 
         dataChannel.onerror = (event) => {
-          addDebugMessage(`Data channel error: ${JSON.stringify(event)}`)
-          updateConnectionStep("webrtc", "error", "Connection error")
-          handleConnectionFailure("Data channel connection error")
+          try {
+            addDebugMessage(`Data channel error: ${JSON.stringify(event)}`)
+            updateConnectionStep("webrtc", "error", "Connection error")
+            handleConnectionFailure("Data channel connection error")
+          } catch (error) {
+            // Silently handle connection error to prevent propagation to Sentry
+            console.warn("Error handling data channel error:", error)
+          }
         }
 
         dataChannel.onclose = () => {
-          addDebugMessage("Data channel closed")
-          if (isActiveRef.current) {
-            handleConnectionFailure("Data channel closed")
+          try {
+            addDebugMessage("Data channel closed")
+            if (isActiveRef.current) {
+              handleConnectionFailure("Data channel closed")
+            }
+          } catch (error) {
+            // Silently handle connection close errors to prevent them from propagating to Sentry
+            console.warn("Error handling data channel close:", error)
           }
         }
 
         // Handle incoming audio
         pc.ontrack = (event) => {
-          addDebugMessage("Received remote track")
-          if (event.streams && event.streams[0]) {
-            const audioElement = new Audio()
-            audioElement.srcObject = event.streams[0]
-            audioElement.play()
+          try {
+            addDebugMessage("Received remote track")
+            if (event.streams && event.streams[0]) {
+              const audioElement = new Audio()
+              audioElement.srcObject = event.streams[0]
+              audioElement.play()
+            }
+          } catch (error) {
+            console.warn("Error handling incoming audio track:", error)
           }
         }
 
