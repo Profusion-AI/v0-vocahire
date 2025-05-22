@@ -42,9 +42,22 @@ const profileUpdateSchema = z.object({
 }).partial();
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  const requestId = `user_req_${startTime}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Enhanced performance tracking
+  const perfLog = (phase: string, additionalData?: any) => {
+    const elapsed = Date.now() - startTime;
+    console.log(`[${requestId}] ${phase} - ${elapsed}ms elapsed${additionalData ? ` | ${JSON.stringify(additionalData)}` : ''}`);
+  };
+  
+  perfLog("REQUEST_START", { timestamp: new Date().toISOString() });
+  
   const auth = getAuth(request);
+  perfLog("AUTH_CHECK_COMPLETE", { userId: !!auth.userId });
 
   if (!auth.userId) {
+    perfLog("UNAUTHORIZED_ACCESS");
     return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
@@ -52,11 +65,14 @@ export async function GET(request: NextRequest) {
   }
 
   // Get Clerk user data as fallback
+  perfLog("CLERK_USER_FETCH_START");
   let clerkUser: any = null;
   try {
     const { currentUser } = await import("@clerk/nextjs/server");
     clerkUser = await currentUser();
+    perfLog("CLERK_USER_FETCH_COMPLETE", { hasClerkUser: !!clerkUser });
   } catch (error) {
+    perfLog("CLERK_USER_FETCH_ERROR", { error: error instanceof Error ? error.message : String(error) });
     console.error("Error fetching Clerk user data:", error);
     Sentry.captureException(error, {
       tags: { 
@@ -67,6 +83,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch user profile from DB with timeout to prevent 504 errors
+  perfLog("DATABASE_QUERY_START");
   let user: any = await Promise.race([
     withDatabaseFallback(
       async () => await prisma.user.findUnique({
@@ -100,11 +117,12 @@ export async function GET(request: NextRequest) {
         return null;
       }
     ),
-    // 10-second timeout to prevent API gateway timeouts
+    // Increased timeout from 10s to 25s to handle Vercel cold starts
     new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database query timeout')), 10000)
+      setTimeout(() => reject(new Error('Database query timeout')), 25000)
     )
   ]).catch(error => {
+    perfLog("DATABASE_QUERY_ERROR", { error: error.message });
     console.error('Database query failed or timed out in /api/user:', error);
     
     // Return fallback user from Clerk data if available
@@ -122,9 +140,12 @@ export async function GET(request: NextRequest) {
       error: error.message 
     });
   });
+  
+  perfLog("DATABASE_QUERY_COMPLETE", { userFound: !!user, hasClerkFallback: !!clerkUser });
 
   // If user doesn't exist but is authenticated with Clerk, create a new user record
   if (!user) {
+    perfLog("USER_CREATION_START");
     // Get user details from Clerk if not already fetched
     if (!clerkUser) {
       try {
@@ -175,6 +196,7 @@ export async function GET(request: NextRequest) {
       }
     );
     
+    perfLog("USER_CREATION_COMPLETE", { created: !!newUser });
     // Use the new user as our user variable
     user = newUser;
   }
@@ -215,6 +237,7 @@ export async function GET(request: NextRequest) {
     };
   }
 
+  perfLog("REQUEST_COMPLETE", { totalTime: Date.now() - startTime });
   return NextResponse.json(responseUser);
 }
 
