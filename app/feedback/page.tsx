@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState, useEffect, Suspense } from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FeedbackCard } from "@/components/feedback-card"
+import FeedbackCard from "@/components/FeedbackCard"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -94,7 +94,10 @@ function FeedbackPageContent() {
   // Handle mounting state
   useEffect(() => {
     setIsMounted(true)
-    return () => setIsMounted(false)
+    // Return cleanup function that safely sets mounted to false
+    return () => {
+      setIsMounted(false)
+    }
   }, [])
   
   useEffect(() => {
@@ -415,14 +418,7 @@ function FeedbackPageContent() {
 export default function FeedbackPage() {
   return (
     <AuthGuard>
-      {/* Wrap in React Suspense for better error handling during hydration */}
-      <React.Suspense fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-        </div>
-      }>
-        <FeedbackPageContent />
-      </React.Suspense>
+      <FeedbackPageContent />
     </AuthGuard>
   );
 }
