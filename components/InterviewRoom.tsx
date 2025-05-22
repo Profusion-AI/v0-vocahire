@@ -15,8 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import Link from "next/link"
 import { countFillerWords, getTotalFillerWordCount } from "@/lib/filler-words"
 import type { ResumeData } from "@/components/resume-input"
-// ARCHITECTURE DECISION: Using direct implementation instead of incomplete hook
-// import { useInterviewSession } from "@/hooks/useRealtimeInterviewSession"
+import { useRealtimeInterviewSession } from "@/hooks/useRealtimeInterviewSession"
 // Import the TranscriptDownload component at the top of the file
 import { TranscriptDownload } from "@/components/transcript-download"
 import { ConnectionProgress } from "@/components/ConnectionProgress"
@@ -285,6 +284,9 @@ export default function InterviewRoom({
   // Function to clean up resources
   const cleanup = useCallback(() => {
     addDebugMessage("Cleaning up resources")
+    
+    // Stop the WebRTC session via hook
+    stopHookSession()
 
     // Clear timer interval
     if (timerIntervalRef.current) {
@@ -372,7 +374,7 @@ export default function InterviewRoom({
 
     // Reset reconnect attempts
     reconnectAttemptsRef.current = 0
-  }, [addDebugMessage])
+  }, [addDebugMessage, stopHookSession])
 
   // Function to start fallback interview (text-based)
   const startFallbackInterview = useCallback(() => {
@@ -1014,11 +1016,19 @@ export default function InterviewRoom({
     startInterviewWithRetry(true)
   }, [retryCount, maxRetries, addDebugMessage, startInterviewWithRetry, handleConnectionFailure])
 
-  // Function to start the interview
-  const handleStartInterview = useCallback(() => {
-    // Start the real-time interview with WebRTC
-    startInterviewWithRetry()
-  }, [startInterviewWithRetry])
+  // Function to start the interview using the WebRTC hook
+  const handleStartInterview = useCallback(async () => {
+    try {
+      addDebugMessage("Starting interview via WebRTC hook...")
+      await startHookSession(jobTitle)
+      setStatus("active")
+      setIsActive(true)
+    } catch (error) {
+      addDebugMessage(`Interview start failed: ${error}`)
+      setError(error instanceof Error ? error.message : String(error))
+      setStatus("error")
+    }
+  }, [startHookSession, jobTitle, addDebugMessage])
 
   // Auto-start effect when autoStart prop is true
   useEffect(() => {
@@ -1200,13 +1210,21 @@ export default function InterviewRoom({
     )
   }
 
-  // TEMPORARY FIX: Replace incomplete hook usage
-  // const interviewSession = useInterviewSession()
-  // const { liveTranscript, aiCaptions } = interviewSession
-  
-  // Use local state instead of incomplete hook
-  const liveTranscript = null // placeholder
-  const aiCaptions = "" // placeholder
+  // Use the new WebRTC-only hook
+  const {
+    status: hookStatus,
+    messages: hookMessages,
+    error: hookError,
+    debug: hookDebug,
+    isConnecting: hookIsConnecting,
+    isActive: hookIsActive,
+    isUserSpeaking,
+    aiCaptions,
+    liveTranscript,
+    start: startHookSession,
+    stop: stopHookSession,
+    addDebugMessage: hookAddDebugMessage,
+  } = useRealtimeInterviewSession()
 
   return (
     <Card className="w-full max-w-3xl mx-auto">
