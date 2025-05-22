@@ -145,6 +145,15 @@ export function useUserData(): UseUserDataReturn {
     };
   }, [fetchUserData]);
 
+  // Debug logging
+  console.log('useUserData state:', { 
+    hasUser: !!user, 
+    credits: user?.credits, 
+    isPremium: user?.isPremium, 
+    isLoading, 
+    error: !!error 
+  })
+
   return {
     user,
     credits: user?.credits ?? null,

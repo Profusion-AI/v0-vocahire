@@ -209,7 +209,19 @@ export default function InterviewPageClient({
     refetchUserData();
   };
 
+  // Debug logging for loading states
+  console.log('InterviewPageClient loading states:', {
+    isLoadingResume,
+    isUserDataLoading,
+    hasResumeData,
+    skipResume,
+    currentView,
+    user: !!user,
+    credits
+  })
+
   if (isLoadingResume || isUserDataLoading) { // Check both resume and user data loading
+    console.log('InterviewPageClient showing loading skeleton')
     return (
         <SessionLayout>
           <Skeleton className="h-12 w-3/4 mx-auto mb-8" />
