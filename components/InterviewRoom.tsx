@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Mic, Clock, Volume2, VolumeX, AlertCircle, Loader2, Headphones } from "lucide-react"
@@ -48,6 +49,7 @@ export default function InterviewRoom({
   console.log(`InterviewRoom render #${renderCount}`)
 
   const router = useRouter()
+  const { isLoaded, isSignedIn } = useAuth()
 
   // State for session status - use refs for values that shouldn't trigger re-renders
   const [status, setStatus] = useState<"idle" | "connecting" | "active" | "ended" | "error">("idle")
@@ -729,6 +731,15 @@ export default function InterviewRoom({
 
         addDebugMessage(`Starting interview for job title: ${jobTitle}${isRetry ? " (retry attempt)" : ""}`)
 
+        // Check authentication before proceeding
+        if (!isLoaded || !isSignedIn) {
+          addDebugMessage("Authentication check failed - user not signed in")
+          setError("Please sign in to start the interview.")
+          setStatus("error")
+          setIsConnecting(false)
+          return
+        }
+
         // Request microphone access (skip if retrying)
         if (!isRetry || !localStreamRef.current) {
           try {
@@ -813,6 +824,13 @@ export default function InterviewRoom({
           if (!tokenResponse.ok) {
             const errorText = await tokenResponse.text()
             addDebugMessage(`Token API error: ${tokenResponse.status} - ${errorText.substring(0, 200)}`)
+            
+            // Check for authentication errors
+            if (tokenResponse.status === 401 || tokenResponse.status === 404) {
+              updateConnectionStep("session", "error", "Authentication required")
+              throw new Error("Please sign in again to start the interview.")
+            }
+            
             updateConnectionStep("session", "error", `API error: ${tokenResponse.status}`)
             throw new Error(`Failed to initialize interview session. Status: ${tokenResponse.status}`)
           }
@@ -895,6 +913,8 @@ export default function InterviewRoom({
       addDebugMessage,
       setupWebRTC,
       cleanup,
+      isLoaded,
+      isSignedIn,
     ],
   )
 
@@ -1147,10 +1167,14 @@ export default function InterviewRoom({
                 <p className="font-medium">
                   {error === "Insufficient credits. Please purchase more credits to continue."
                     ? "Action Required"
+                    : error === "Please sign in to start the interview." || error === "Please sign in again to start the interview."
+                    ? "Authentication Required"
                     : "Connection Issue"}
                 </p>
                 <p>{error}</p>
-                {error !== "Insufficient credits. Please purchase more credits to continue." && (
+                {error !== "Insufficient credits. Please purchase more credits to continue." && 
+                 error !== "Please sign in to start the interview." && 
+                 error !== "Please sign in again to start the interview." && (
                   <div className="mt-3 flex gap-2">
                     {/* CRITICAL CHANGE: Add retry button */}
                     <Button variant="default" onClick={retryConnection} disabled={retryCount >= maxRetries}>
@@ -1162,6 +1186,13 @@ export default function InterviewRoom({
                       disabled={isFallbackMode}
                     >
                       Continue with Text-Based Interview
+                    </Button>
+                  </div>
+                )}
+                {(error === "Please sign in to start the interview." || error === "Please sign in again to start the interview.") && (
+                  <div className="mt-3">
+                    <Button asChild>
+                      <Link href="/login">Sign In</Link>
                     </Button>
                   </div>
                 )}

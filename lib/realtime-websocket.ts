@@ -21,11 +21,29 @@ export class RealtimeWebSocket {
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        const wsUrl = `wss://api.openai.com/v1/realtime/ws?session_id=${this.options.sessionId}`
+        // For browser WebSocket, we need to include the ephemeral token in the connection
+        // Since we can't send custom headers, we'll include it as a query parameter
+        const wsUrl = `wss://api.openai.com/v1/realtime?authorization=Bearer%20${encodeURIComponent(this.options.token)}`
+        console.log("Connecting to OpenAI Realtime WebSocket with ephemeral token")
         this.ws = new WebSocket(wsUrl)
 
         this.ws.onopen = () => {
           console.log("WebSocket connection established")
+          
+          // The browser can't send custom headers, so we need to authenticate differently
+          // For the OpenAI Realtime API, we should send the token as a message
+          // But actually, the session should already be pre-configured with our token
+          
+          // Send a simple session update to verify connection
+          const sessionUpdate = {
+            event_id: this.generateEventId(),
+            type: "session.update",
+            session: {}
+          }
+          
+          this.ws!.send(JSON.stringify(sessionUpdate))
+          console.log("Sent session update to verify connection")
+          
           if (this.options.onOpen) this.options.onOpen()
           resolve()
         }

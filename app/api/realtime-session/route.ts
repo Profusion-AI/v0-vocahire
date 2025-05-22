@@ -44,8 +44,8 @@ export async function POST(request: NextRequest) {
     ]).catch(error => {
       console.error('Database query failed or timed out in /api/realtime-session:', error);
       // Return default user with zero credits to fail gracefully
-      return { credits: 0, isPremium: false };
-    });
+      return { credits: 0, isPremium: false } as { credits: number; isPremium: boolean };
+    }) as { credits: number; isPremium: boolean } | null;
 
     // Allow premium users to proceed without credit check
     if (user && user.isPremium) {
@@ -57,16 +57,59 @@ export async function POST(request: NextRequest) {
     // Process the request - Create OpenAI Realtime Session
     console.log("Creating OpenAI Realtime session for user:", userId);
     
-    // Create a simple session response
-    // In a full implementation, this would create an actual OpenAI Realtime session
-    const sessionData = {
-      sessionId: `session_${userId}_${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      userId: userId,
-      status: 'created'
-    };
+    // Parse request body to get job title and resume text for instructions
+    const body = await request.json();
+    const { jobTitle = "Software Engineer", resumeText = "" } = body;
+    
+    // Create interview-specific instructions
+    const instructions = `You are an experienced technical interviewer conducting a mock job interview for a ${jobTitle} position. ${resumeText ? `The candidate has provided this background: ${resumeText.substring(0, 500)}` : ''} 
 
-    console.log("Session created:", sessionData);
+Your role:
+- Ask relevant technical and behavioral questions
+- Provide a supportive but challenging interview experience
+- Give constructive feedback during the conversation
+- Keep questions focused on the job role
+- Be encouraging and professional
+- Allow natural conversation flow
+
+Begin by greeting the candidate and asking them to introduce themselves briefly.`;
+
+    // Create OpenAI Realtime session
+    const openaiResponse = await fetch('https://api.openai.com/v1/realtime/sessions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-realtime-preview",
+        modalities: ["audio", "text"],
+        instructions: instructions,
+        voice: "sage", // Professional voice for interviews
+        input_audio_format: "pcm16",
+        output_audio_format: "pcm16",
+        input_audio_transcription: {
+          model: "whisper-1"
+        },
+        turn_detection: {
+          type: "server_vad",
+          threshold: 0.5,
+          prefix_padding_ms: 300,
+          silence_duration_ms: 800 // Slightly longer for thoughtful responses
+        },
+        temperature: 0.7, // Balanced creativity for interview questions
+        max_response_output_tokens: 800 // Reasonable response length
+      })
+    });
+
+    if (!openaiResponse.ok) {
+      const errorText = await openaiResponse.text();
+      console.error("OpenAI Realtime session creation failed:", openaiResponse.status, errorText);
+      throw new Error(`Failed to create OpenAI session: ${openaiResponse.status}`);
+    }
+
+    const sessionData = await openaiResponse.json();
+    console.log("OpenAI session created:", sessionData.id);
 
     // Track usage with timeout (non-blocking)
     Promise.race([
@@ -90,10 +133,14 @@ export async function POST(request: NextRequest) {
       // Don't fail the request if rate limit increment fails
     });
 
-    // Return the response
+    // Return the response with OpenAI session data
     return NextResponse.json({ 
-      success: true, 
-      session: sessionData 
+      success: true,
+      id: sessionData.id,
+      token: sessionData.client_secret?.value,
+      expires_at: sessionData.client_secret?.expires_at,
+      session: sessionData,
+      usedFallbackModel: false // We're using the real OpenAI model
     })
   } catch (error) {
     console.error("Error in realtime-session route:", error)
