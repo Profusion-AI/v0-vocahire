@@ -731,10 +731,32 @@ export default function InterviewRoom({
 
         addDebugMessage(`Starting interview for job title: ${jobTitle}${isRetry ? " (retry attempt)" : ""}`)
 
-        // Check authentication before proceeding
+        // Enhanced authentication check with token verification
         if (!isLoaded || !isSignedIn) {
           addDebugMessage("Authentication check failed - user not signed in")
           setError("Please sign in to start the interview.")
+          setStatus("error")
+          setIsConnecting(false)
+          return
+        }
+
+        // Additional check to ensure we have a valid session token
+        try {
+          const response = await fetch("/api/user", { 
+            method: "GET",
+            headers: { "Content-Type": "application/json" }
+          })
+          if (!response.ok) {
+            addDebugMessage(`User session validation failed: ${response.status}`)
+            setError("Please refresh the page and sign in again.")
+            setStatus("error")
+            setIsConnecting(false)
+            return
+          }
+          addDebugMessage("User session validated successfully")
+        } catch (error) {
+          addDebugMessage(`Session validation error: ${error}`)
+          setError("Authentication error. Please refresh the page and try again.")
           setStatus("error")
           setIsConnecting(false)
           return
@@ -825,10 +847,15 @@ export default function InterviewRoom({
             const errorText = await tokenResponse.text()
             addDebugMessage(`Token API error: ${tokenResponse.status} - ${errorText.substring(0, 200)}`)
             
-            // Check for authentication errors
+            // Check for specific error types
             if (tokenResponse.status === 401 || tokenResponse.status === 404) {
               updateConnectionStep("session", "error", "Authentication required")
               throw new Error("Please sign in again to start the interview.")
+            }
+            
+            if (tokenResponse.status === 403) {
+              updateConnectionStep("session", "error", "Insufficient credits")
+              throw new Error("Insufficient VocaHire credits. Please purchase more credits to start an interview.")
             }
             
             updateConnectionStep("session", "error", `API error: ${tokenResponse.status}`)
