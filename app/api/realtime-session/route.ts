@@ -268,7 +268,30 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
       usedFallbackModel: false // We're using the real OpenAI model
     })
   } catch (error) {
-    console.error("Error in realtime-session route:", error)
-    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 })
+    const requestTime = Date.now();
+    console.error(`[${requestTime}] ERROR in realtime-session route:`, error);
+    
+    // Log specific error details for debugging
+    if (error instanceof Error) {
+      console.error(`[${requestTime}] Error name: ${error.name}`);
+      console.error(`[${requestTime}] Error message: ${error.message}`);
+      console.error(`[${requestTime}] Error stack: ${error.stack}`);
+    }
+    
+    // Check for specific Prisma errors
+    if (error && typeof error === 'object' && 'code' in error) {
+      console.error(`[${requestTime}] Prisma error code: ${(error as any).code}`);
+      console.error(`[${requestTime}] Prisma error meta: ${JSON.stringify((error as any).meta)}`);
+    }
+    
+    // Check for fetch/network errors
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      console.error(`[${requestTime}] Network/Fetch error detected`);
+    }
+    
+    return NextResponse.json({ 
+      error: "Something went wrong. Please try again.",
+      debug: process.env.NODE_ENV === 'development' ? error instanceof Error ? error.message : String(error) : undefined
+    }, { status: 500 })
   }
 }
