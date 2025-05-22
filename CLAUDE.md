@@ -15,9 +15,10 @@ VocaHire is an AI interview coaching platform that enables users to practice int
 - **Authentication**: Clerk for user management and session handling
 - **Payments**: Stripe for handling one-time purchases and subscriptions
 - **Frontend**: React 19, Shadcn/ui components, Tailwind CSS
-- **AI Services**: Integration with OpenAI and Vapi.ai for real-time voice interactions
-- **Error Monitoring**: Sentry for comprehensive error tracking and performance monitoring
-- **Deployment**: Vercel with intelligent build system for production readiness
+- **AI Services**: WebRTC-only integration with OpenAI Realtime API for low-latency voice interactions
+- **Error Monitoring**: Sentry for comprehensive error tracking and performance monitoring  
+- **Deployment**: Vercel with intelligent build system and optimized timeout handling
+- **Performance**: Enhanced database performance monitoring with 503 Service Unavailable error targeting
 
 ### Key Components
 
@@ -25,7 +26,7 @@ VocaHire is an AI interview coaching platform that enables users to practice int
 2. **Database Schema**: Prisma ORM defines models for Users, InterviewSessions, Transcripts, Feedback
 3. **API Routes**: Next.js API routes for backend functionality
 4. **Payment Processing**: Stripe integration for handling credits and premium subscriptions
-5. **Real-time Voice**: WebRTC and Vapi.ai for real-time AI interviews
+5. **Real-time Voice**: Pure WebRTC implementation for OpenAI Realtime API interviews
 
 ## Development Commands
 
@@ -59,6 +60,12 @@ npx prisma studio
 
 # Test database connectivity
 curl /api/diagnostic/connection-test
+
+# Test database performance and connection timing
+curl /api/diagnostic/db-performance
+
+# Test Vercel-Supabase connectivity patterns
+curl /api/diagnostic/vercel-db-test
 
 # Check Sentry error monitoring
 curl /api/sentry-example-api
@@ -117,6 +124,52 @@ All Prisma migrations have been successfully applied to the production database:
 - `20250515022414_update_user_with_clerk_id`
 - `20250515215903_add_email_name_image_to_user`
 - `20250519143501_update_credits_to_decimal`
+
+### Database Performance Optimizations (January 2025)
+
+**✅ Completed Optimizations**
+
+1. **Enhanced Error Handling & Timeout Management**
+   - Database queries: 12s timeout (optimized for Vercel's 15s function limit)
+   - OpenAI API calls: 20s timeout (under Vercel's 30s Pro limit)
+   - WebRTC exchange: 15s timeout with AbortController
+   - Systematic replacement of generic 500 errors with specific error codes
+
+2. **Performance Monitoring & Diagnosis**
+   - Request ID tracking for tracing specific requests through the system
+   - Phase-by-phase timing logs to identify exact bottlenecks
+   - `/api/diagnostic/db-performance`: Database query performance testing
+   - `/api/diagnostic/vercel-db-test`: Vercel-Supabase connectivity analysis
+   - Detailed error categorization (503 database, 504 timeout, 502 API errors)
+
+3. **Root Cause Analysis & Resolution**
+   - **503 Service Unavailable**: Progress indicator showing database timeouts are now properly detected
+   - **Vercel Cold Starts**: Database connections take longer during serverless function initialization
+   - **Connection Pool Saturation**: Supabase connection pooling optimization during high load
+   - **Network Latency**: Regional Vercel → Supabase connectivity improvements
+
+**Performance Monitoring Features:**
+```typescript
+// Request tracing with performance logging
+const perfLog = (phase: string, data?: any) => {
+  const elapsed = Date.now() - requestStartTime;
+  console.log(`[${requestId}] ${phase} - ${elapsed}ms elapsed`, data);
+};
+
+// Enhanced timeout handling
+const dbQueryWithTimeout = Promise.race([
+  prisma.user.findUnique(query),
+  new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Database query timeout')), 12000)
+  )
+]);
+```
+
+**Key Success Metrics:**
+- ✅ 503 errors instead of 500 errors (indicates timeout detection is working)
+- ✅ Specific error codes provide actionable user feedback
+- ✅ Enhanced debugging capabilities for production issue resolution
+- ✅ Timeout handling prevents Vercel function termination
 
 ## Environment Variables
 
@@ -338,14 +391,27 @@ For troubleshooting production issues:
    - Verifies table existence and query execution
    - Returns detailed connection status
 
-2. **Error Testing**: `/api/sentry-example-api`
+2. **Database Performance**: `/api/diagnostic/db-performance`
+   - Comprehensive database query performance testing
+   - Connection timing analysis and bottleneck identification
+   - User query execution with performance metrics
+   - Connection health monitoring for production optimization
+
+3. **Vercel-Database Analysis**: `/api/diagnostic/vercel-db-test`
+   - Vercel-Supabase connectivity pattern analysis
+   - Network latency and connection pool behavior testing
+   - Serverless function cold start impact assessment
+   - Regional connectivity performance evaluation
+
+4. **Error Testing**: `/api/sentry-example-api`
    - Triggers test errors to verify Sentry integration
    - Useful for validating error monitoring setup
 
-3. **User API**: `/api/user`
+5. **User API**: `/api/user`
    - Tests authentication flow with Clerk
-   - Validates database user operations
+   - Validates database user operations with enhanced timeout handling
    - Checks fallback logic for database failures
+   - Returns specific error codes (503/504/502) instead of generic 500s
 
 ### Production Issue Resolution
 
@@ -389,28 +455,35 @@ The application uses a sophisticated build strategy optimized for Vercel's serve
 - API routes: ✅ READY (all type errors resolved)
 - Interview system: ✅ READY (authentication and UX issues resolved)
 
-## Interview System Architecture
+## Interview System Architecture (WebRTC-Only)
 
 ### OpenAI Realtime API Integration
 
-VocaHire uses the OpenAI Realtime API for voice-based interview sessions:
+VocaHire uses **WebRTC exclusively** for all real-time communication with OpenAI's Realtime API:
+
+**🚨 Architecture Decision**: All WebSocket implementations have been removed to eliminate conflicts and optimize for low-latency audio streaming.
 
 **Key Components:**
-- `/app/api/realtime-session/route.ts`: Creates OpenAI Realtime sessions with proper authentication
-- `/components/InterviewRoom.tsx`: Handles WebSocket connections and audio processing
-- `/lib/realtime-websocket.ts`: WebSocket client for OpenAI API communication
+- `/app/api/realtime-session/route.ts`: Creates OpenAI Realtime sessions with enhanced timeout handling
+- `/app/api/webrtc-exchange/route.ts`: Backend proxy for SDP offer/answer exchange with OpenAI
+- `/hooks/useRealtimeInterviewSession.ts`: Centralized WebRTC session management hook
+- `/components/InterviewRoom.tsx`: Real-time interview interface using WebRTC hook
 
-**Session Creation Process:**
+**WebRTC-Only Session Creation Process:**
 1. User authentication validation via Clerk
 2. VocahireCredits/subscription verification with automatic 3.00 credit grant for new users
-3. OpenAI session creation with interview-specific instructions and timeout protection
+3. OpenAI session creation with enhanced timeout protection (20s limit)
 4. Credit deduction (1.00 VocahireCredits per interview for non-premium users)
-5. WebSocket connection establishment for real-time audio
+5. WebRTC peer connection setup with ICE servers
+6. SDP offer/answer exchange via backend proxy
+7. Direct WebRTC audio streaming and data channel establishment
 
-**Audio Configuration:**
-- Input/Output Format: PCM16 at 24kHz (OpenAI requirement)
-- Voice Activity Detection: Server-side VAD with configurable thresholds
-- Audio Processing: Browser-based WebRTC for microphone access
+**WebRTC Configuration:**
+- **Transport**: WebRTC with UDP/RTP for audio (lower latency than WebSocket TCP)
+- **Audio Format**: Direct audio streaming without base64 encoding overhead
+- **Data Channel**: RTCDataChannel for JSON events (transcripts, commands, status)
+- **ICE Servers**: STUN/TURN servers for NAT traversal and network resilience
+- **Model**: `gpt-4o-realtime-preview` with server-side Voice Activity Detection
 
 ### Interview Flow Architecture
 
@@ -429,45 +502,50 @@ idle → creatingSession → interviewActive → completed/feedback
 - Race condition fixes for Clerk authentication loading
 - Proper error handling for 403 (insufficient VocahireCredits) vs 401 (authentication)
 
-### Recent Fixes (January 2025)
+### Complete Architecture Transformation (January 2025)
 
-**Sentry Configuration:**
+**🔧 WebRTC-Only Architecture (COMPLETED)**
+- ❌ **REMOVED**: All WebSocket implementations (`lib/realtime-websocket.ts`, WebSocket test routes)
+- ✅ **NEW**: Complete `useRealtimeInterviewSession` hook for centralized WebRTC management
+- ✅ **UPDATED**: InterviewRoom.tsx uses WebRTC hook exclusively
+- ✅ **RESOLVED**: "Connection closed" errors eliminated by removing mixed architecture
+- ✅ **IMPROVED**: Direct WebRTC audio streaming with RTCDataChannel for events
+
+**Database Performance & Error Handling (COMPLETED)**
+- ✅ Enhanced timeout handling aligned with Vercel function limits
+- ✅ Specific error codes (503 database, 504 timeout, 502 API) replace generic 500s
+- ✅ Request ID tracking and phase-by-phase performance logging
+- ✅ Comprehensive diagnostic endpoints for production troubleshooting
+- ✅ Database query optimization with proper timeout protection
+
+**Interview UX & Reliability (COMPLETED)**
+- ✅ Eliminated duplicate "Start Interview" buttons
+- ✅ Fixed interview session looping and race conditions
+- ✅ Implemented clean state transitions (idle → loading → active)
+- ✅ Enhanced session token validation before API calls
+- ✅ Proper resource cleanup and connection state management
+
+**Sentry Configuration (COMPLETED)**
 - ✅ Resolved duplicate Session Replay instances error
 - ✅ Removed redundant `instrumentation-client.ts` file
-- ✅ Single Sentry initialization pattern
-
-**Interview UX Improvements:**
-- ✅ Eliminated duplicate "Start Interview" buttons
-- ✅ Fixed interview session looping issue
-- ✅ Implemented clean state transitions (idle → loading → active)
-- ✅ Added auto-start mechanism for seamless user experience
-
-**Authentication Enhancements:**
-- ✅ Added session token validation before interview creation
-- ✅ Fixed race conditions between Clerk loading and API calls
-- ✅ Improved error messaging for VocahireCredits vs authentication issues
-- ✅ Enhanced 403 error handling with specific user guidance
-
-**Component Architecture:**
-- ✅ Simplified state management following working `/test-interview` pattern  
-- ✅ Single component orchestration with clear phase transitions
-- ✅ Proper cleanup and state reset on interview completion
+- ✅ Single Sentry initialization pattern for consistent error monitoring
 
 ### OpenAI API Compliance
 
 **Session Configuration:**
-- Model: `gpt-4o-mini-realtime-preview`
+- Model: `gpt-4o-realtime-preview` (updated from `gpt-4o-mini-realtime-preview`)
 - Modalities: `["audio", "text"]` 
 - Voice: `alloy` (professional interviewer voice)
 - Turn Detection: Server VAD with optimized settings
-- Timeout: 15-second request timeout with AbortController
+- Timeout: 20-second request timeout with AbortController (optimized for Vercel)
 - Headers: Required `"OpenAI-Beta": "realtime"` header
 
-**WebSocket Implementation:**
-- Proper authentication using ephemeral tokens
-- Event handling for session.created, response.audio.delta, etc.
-- PCM16 audio format compliance
-- Graceful connection error handling
+**WebRTC Implementation (WebSocket Removed):**
+- **Authentication**: Ephemeral tokens via `/api/realtime-session`
+- **SDP Exchange**: Backend proxy via `/api/webrtc-exchange` for CORS/auth handling
+- **Audio Streaming**: Direct WebRTC audio tracks (no PCM16 base64 encoding needed)
+- **Event Handling**: RTCDataChannel for JSON events (session.created, response.audio.delta, etc.)
+- **Connection Management**: Comprehensive error handling with specific error codes
 
 ### Error Handling Strategy
 
@@ -480,9 +558,11 @@ idle → creatingSession → interviewActive → completed/feedback
 
 **Debugging Tools:**
 - `/api/diagnostic/connection-test`: Database connectivity verification
-- `/api/diagnostic/realtime`: OpenAI API connection testing
-- Comprehensive logging for interview session lifecycle
+- `/api/diagnostic/db-performance`: Database performance and timing analysis
+- `/api/diagnostic/vercel-db-test`: Vercel-Supabase connectivity testing
+- Enhanced performance logging with request ID tracking
 - Session replay via Sentry for issue reproduction
+- WebRTC connection state monitoring and debugging
 
 ## VocahireCredits System
 
@@ -534,3 +614,63 @@ await prisma.user.update({
 - Subscription plans provide unlimited access
 - Clear messaging about VocahireCredits vs subscription benefits
 - User-friendly error messages with current balance display
+
+## Architecture Benefits & Expected Results
+
+### WebRTC-Only Performance Advantages
+
+**🚀 Lower Latency Audio**
+- WebRTC uses UDP/RTP for audio transport vs TCP overhead of WebSockets
+- Direct audio streaming without base64 encoding overhead
+- Optimized for real-time media with automatic quality adaptation
+
+**🌐 Better Network Resilience**
+- Built-in NAT traversal with STUN/TURN servers
+- Automatic network adaptation and quality degradation vs connection drops
+- Separation of concerns: audio via WebRTC, events via RTCDataChannel
+
+**🔧 Cleaner Architecture**
+- Single source of truth: `useRealtimeInterviewSession` hook manages everything
+- No conflicts: Eliminated WebRTC/WebSocket mixing
+- Centralized error handling and state management
+
+### Database Performance Improvements
+
+**✅ Error Code Transformation**
+- **Before**: Generic 500 Internal Server Errors with no actionable information
+- **After**: Specific error codes provide clear user guidance:
+  - `503 Service Unavailable`: Database timeouts (temporary, retry-able)
+  - `504 Gateway Timeout`: API timeouts (external service issues)
+  - `502 Bad Gateway`: External API errors (OpenAI connectivity)
+
+**📊 Enhanced Monitoring**
+- Request tracing with unique IDs for debugging specific user issues
+- Phase-by-phase timing logs identify exact bottlenecks:
+  ```
+  [req_123] DATABASE_QUERY_START - 150ms elapsed
+  [req_123] DATABASE_QUERY_SUCCESS - 850ms elapsed
+  [req_123] OPENAI_SESSION_START - 900ms elapsed
+  ```
+- Performance diagnostic endpoints for production optimization
+
+**⏱️ Optimized Timeouts**
+- Database queries: 12s (under Vercel's 15s function limit)
+- OpenAI API calls: 20s (under Vercel's 30s Pro limit)  
+- WebRTC exchange: 15s with AbortController
+- Prevents Vercel function termination and provides faster error feedback
+
+### Expected Production Results
+
+**Issues Resolved:**
+1. ❌ "Connection closed" errors → ✅ Clean WebRTC-only connections
+2. ❌ Generic 500 errors → ✅ Specific 503/504/502 error codes
+3. ❌ Undefined method calls → ✅ Complete hook implementation
+4. ❌ Architecture conflicts → ✅ Single WebRTC approach
+
+**Key Success Metrics:**
+- **503 Service Unavailable** instead of 500 errors indicates timeout detection is working
+- WebRTC audio streaming enables VocaHire's natural conversation experience
+- Enhanced debugging capabilities for rapid production issue resolution
+- Vercel function timeout prevention with proper AbortController usage
+
+This architecture positions VocaHire for its "killer feature" of natural, low-latency voice conversation with AI interviewers while providing production-grade reliability and monitoring.
