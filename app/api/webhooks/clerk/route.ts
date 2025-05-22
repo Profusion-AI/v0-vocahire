@@ -83,10 +83,10 @@ export async function POST(req: NextRequest) {
             email: email,
             name: name,
             image: image,
-            credits: 3, // Explicitly set default credits
+            credits: 3, // Explicitly set default VocahireCredits
           },
         });
-        console.log(`[Clerk Webhook] User created in DB: ${clerkId} with 3 credits.`);
+        console.log(`[Clerk Webhook] User created in DB: ${clerkId} with 3 VocahireCredits.`);
 
         // Then, create Stripe Customer
         try {

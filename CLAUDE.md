@@ -179,7 +179,7 @@ Key props used in the ClerkProvider:
 
 ### User Record Creation
 When a user authenticates via Clerk, a corresponding user record is created in the database with:
-- Default of 3 credits for new users
+- Default of 3.00 VocahireCredits for new users
 - Basic profile information synced from Clerk (name, email)
 - A Stripe Customer ID for future payments
 
@@ -239,8 +239,8 @@ After each deployment, verify these endpoints:
 VocaHire uses Stripe for payment processing with various product offerings:
 
 ### Credit Packages
-- Three Credits (prod_SJPpjWE9zhJnEh): 3 top-up credits for existing users
-- Five Credits (prod_SJQ8EwiLxPh62L): 5 bundled credits
+- Three VocahireCredits (prod_SJPpjWE9zhJnEh): 3 top-up VocahireCredits for existing users
+- Five VocahireCredits (prod_SJQ8EwiLxPh62L): 5 bundled VocahireCredits
 
 ### Subscription Plans
 - Monthly Coach (prod_SLHl7Tl1LX1NMH): Monthly subscription with unlimited AI interviews
@@ -284,7 +284,7 @@ STRIPE_PRICE_ID_ANNUAL=prod_SJPmP9GnMNDso0
 
 - All Stripe integrations must handle real credit card transactions
 - Implement proper webhook handling for payment events
-- Ensure credit system is accurately tracked and debited
+- Ensure VocahireCredits system is accurately tracked and debited
 - Handle subscription management and one-time purchases
 
 ### User Experience
@@ -402,9 +402,10 @@ VocaHire uses the OpenAI Realtime API for voice-based interview sessions:
 
 **Session Creation Process:**
 1. User authentication validation via Clerk
-2. Credit/subscription verification
-3. OpenAI session creation with interview-specific instructions
-4. WebSocket connection establishment for real-time audio
+2. VocahireCredits/subscription verification with automatic 3.00 credit grant for new users
+3. OpenAI session creation with interview-specific instructions and timeout protection
+4. Credit deduction (1.00 VocahireCredits per interview for non-premium users)
+5. WebSocket connection establishment for real-time audio
 
 **Audio Configuration:**
 - Input/Output Format: PCM16 at 24kHz (OpenAI requirement)
@@ -426,7 +427,7 @@ idle → creatingSession → interviewActive → completed/feedback
 **Authentication Flow Improvements:**
 - Enhanced session validation before API calls
 - Race condition fixes for Clerk authentication loading
-- Proper error handling for 403 (insufficient credits) vs 401 (authentication)
+- Proper error handling for 403 (insufficient VocahireCredits) vs 401 (authentication)
 
 ### Recent Fixes (January 2025)
 
@@ -444,7 +445,7 @@ idle → creatingSession → interviewActive → completed/feedback
 **Authentication Enhancements:**
 - ✅ Added session token validation before interview creation
 - ✅ Fixed race conditions between Clerk loading and API calls
-- ✅ Improved error messaging for credit vs authentication issues
+- ✅ Improved error messaging for VocahireCredits vs authentication issues
 - ✅ Enhanced 403 error handling with specific user guidance
 
 **Component Architecture:**
@@ -455,12 +456,12 @@ idle → creatingSession → interviewActive → completed/feedback
 ### OpenAI API Compliance
 
 **Session Configuration:**
-- Model: `gpt-4o-realtime-preview`
+- Model: `gpt-4o-mini-realtime-preview`
 - Modalities: `["audio", "text"]` 
-- Voice: `sage` (professional interviewer voice)
+- Voice: `alloy` (professional interviewer voice)
 - Turn Detection: Server VAD with optimized settings
-- Temperature: 0.7 for balanced creativity in questions
-- Max Response Tokens: 800 for reasonable response length
+- Timeout: 15-second request timeout with AbortController
+- Headers: Required `"OpenAI-Beta": "realtime"` header
 
 **WebSocket Implementation:**
 - Proper authentication using ephemeral tokens

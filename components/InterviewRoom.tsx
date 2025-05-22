@@ -856,8 +856,23 @@ export default function InterviewRoom({
             }
             
             if (tokenResponse.status === 403) {
-              updateConnectionStep("session", "error", "Insufficient credits")
-              throw new Error("Insufficient VocaHire credits. Please purchase more credits to start an interview.")
+              // Try to parse the detailed error response
+              let errorMessage = "Insufficient VocahireCredits. Please purchase more VocahireCredits to start an interview."
+              try {
+                const errorData = JSON.parse(errorText)
+                if (errorData.error) {
+                  errorMessage = errorData.error
+                }
+                if (errorData.currentCredits !== undefined && errorData.minimumRequired !== undefined) {
+                  errorMessage += ` (Current: ${errorData.currentCredits}, Required: ${errorData.minimumRequired})`
+                }
+              } catch (parseError) {
+                // If parsing fails, use the default message
+                addDebugMessage("Could not parse 403 error response, using default message")
+              }
+              
+              updateConnectionStep("session", "error", "Insufficient VocahireCredits")
+              throw new Error(errorMessage)
             }
             
             updateConnectionStep("session", "error", `API error: ${tokenResponse.status}`)

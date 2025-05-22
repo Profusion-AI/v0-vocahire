@@ -69,37 +69,56 @@ export async function POST(request: NextRequest) {
 
     console.log(`User credits: ${user.credits}, isPremium: ${user.isPremium}`);
 
+    // Define minimum credit requirement for interview sessions
+    const MINIMUM_CREDITS_REQUIRED = 0.50;
+    const INTERVIEW_COST = 1.00; // Cost per interview session
+    
+    console.log(`VocahireCredit check - User: ${user.credits}, isPremium: ${user.isPremium}, Required: ${MINIMUM_CREDITS_REQUIRED}`);
+
     // Allow premium users to proceed without credit check
     if (user.isPremium) {
-      console.log("Premium user detected, bypassing credit check");
-    } else if (Number(user.credits) <= 0) {
-      console.log(`User has insufficient credits: ${user.credits}`);
-      
-      // Check if this is a new user who should have gotten initial credits
-      // If credits are exactly 0, try to give them the initial 3 credits as a fallback
-      if (Number(user.credits) === 0) {
-        console.log("User has 0 credits, attempting to grant initial credits as fallback");
-        try {
-          const updatedUser = await prisma.user.update({
-            where: { id: userId },
-            data: { credits: 3 },
-            select: { credits: true }
-          });
-          console.log(`✅ Granted initial credits to user. New balance: ${updatedUser.credits}`);
-          // Continue with the interview since we just gave them credits
-        } catch (updateError) {
-          console.error("Failed to grant initial credits:", updateError);
+      console.log("✅ Premium user detected, bypassing VocahireCredit check");
+    } else {
+      // Check if user has minimum VocahireCredits required
+      if (Number(user.credits) < MINIMUM_CREDITS_REQUIRED) {
+        console.log(`❌ User has insufficient VocahireCredits: ${user.credits} (minimum required: ${MINIMUM_CREDITS_REQUIRED})`);
+        
+        // Check if this is a new user who should have gotten initial VocahireCredits
+        if (Number(user.credits) === 0) {
+          console.log("🎁 New user detected with 0 VocahireCredits, granting initial 3.00 VocahireCredits");
+          try {
+            const updatedUser = await prisma.user.update({
+              where: { id: userId },
+              data: { credits: 3.00 },
+              select: { credits: true }
+            });
+            console.log(`✅ Granted initial 3.00 VocahireCredits to new user. Balance: ${updatedUser.credits}`);
+            // Continue with the interview since they now have sufficient VocahireCredits
+          } catch (updateError) {
+            console.error("❌ Failed to grant initial VocahireCredits:", updateError);
+            return NextResponse.json({ 
+              error: "Unable to initialize your account. Please contact support." 
+            }, { status: 500 })
+          }
+        } else {
+          // User has some VocahireCredits but below minimum - direct them to purchase more
           return NextResponse.json({ 
-            error: "You need VocaHire credits to start an interview. Please purchase credits or upgrade to premium." 
+            error: `Insufficient VocahireCredits. You need at least ${MINIMUM_CREDITS_REQUIRED} VocahireCredits to start an interview. Please purchase more VocahireCredits to continue.`,
+            currentCredits: Number(user.credits),
+            minimumRequired: MINIMUM_CREDITS_REQUIRED
           }, { status: 403 })
         }
-      } else {
+      } else if (Number(user.credits) < INTERVIEW_COST) {
+        // User has minimum VocahireCredits but not enough for a full interview
+        console.log(`⚠️ User has VocahireCredits (${user.credits}) but below interview cost (${INTERVIEW_COST})`);
         return NextResponse.json({ 
-          error: "You need VocaHire credits to start an interview. Please purchase credits or upgrade to premium." 
+          error: `You need at least ${INTERVIEW_COST} VocahireCredits to start a full interview. Please purchase more VocahireCredits.`,
+          currentCredits: Number(user.credits),
+          requiredCredits: INTERVIEW_COST
         }, { status: 403 })
+      } else {
+        console.log(`✅ User has sufficient VocahireCredits: ${user.credits}, proceeding with interview`);
       }
-    } else {
-      console.log(`User has sufficient credits: ${user.credits}, proceeding with interview`);
     }
 
     // Process the request - Create OpenAI Realtime Session
@@ -188,6 +207,29 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
 
     const sessionData = await openaiResponse.json();
     console.log("OpenAI session created:", sessionData.id);
+
+    // Deduct VocahireCredits for non-premium users
+    if (!user.isPremium) {
+      console.log(`💳 Deducting ${INTERVIEW_COST} VocahireCredits from user ${userId}`);
+      try {
+        const updatedUser = await prisma.user.update({
+          where: { id: userId },
+          data: { 
+            credits: { 
+              decrement: INTERVIEW_COST 
+            } 
+          },
+          select: { credits: true }
+        });
+        console.log(`✅ VocahireCredits deducted. New balance: ${updatedUser.credits}`);
+      } catch (deductError) {
+        console.error("❌ Failed to deduct VocahireCredits:", deductError);
+        // Continue with the session but log the error for manual review
+        console.error("⚠️ MANUAL ACTION REQUIRED: VocahireCredit deduction failed for session:", sessionData.id);
+      }
+    } else {
+      console.log("✅ Premium user - no VocahireCredit deduction required");
+    }
 
     // Track usage with timeout (non-blocking)
     Promise.race([

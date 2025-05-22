@@ -316,7 +316,7 @@ export default function InterviewPageClient({
                   You have <span className="font-bold text-indigo-600 dark:text-indigo-400">{typeof credits === 'number' ? credits.toFixed(2) : Number(credits).toFixed(2)}</span> VocahireCredits remaining.
                 </p>
                 <Button onClick={handlePurchaseCreditsClick} variant="link" className="text-indigo-600 dark:text-indigo-400 p-0 h-auto">
-                  Buy More VocahireCredits
+                  Purchase More VocahireCredits
                 </Button>
               </div>
             ) : ( // This covers credits === 0 or credits === null (and not premium, not loading)
@@ -353,7 +353,7 @@ export default function InterviewPageClient({
                   autoStart={true}
                 />
               </div>
-            ) : (isPremium || (credits !== null && Number(credits) > 0)) ? (
+            ) : (isPremium || (credits !== null && Number(credits) >= 0.50)) ? (
               <div className="mt-8">
                 <Button
                   onClick={handleStartInterviewAttempt}
@@ -370,11 +370,36 @@ export default function InterviewPageClient({
                   )}
                 </Button>
               </div>
-            ) : !isUserDataLoading && credits !== null && Number(credits) <= 0 && !isPremium ? (
-              <div className="text-center text-gray-600 dark:text-gray-400 mt-6">
-                Please upgrade to a premium subscription to access unlimited AI interviews. 
-                <p className="mt-2 text-sm">VocahireCredits are intended as top-ups for premium subscribers.</p>
-              </div>
+            ) : !isUserDataLoading && credits !== null && Number(credits) < 0.50 && !isPremium ? (
+              <Card className="max-w-lg mx-auto my-8 shadow-xl border-2 border-amber-500 dark:border-amber-400 bg-amber-50 dark:bg-amber-900/20">
+                <CardHeader className="text-center">
+                  <CardTitle className="text-2xl font-bold text-amber-600 dark:text-amber-400">Insufficient VocahireCredits</CardTitle>
+                  <CardDescription className="text-amber-700 dark:text-amber-300 mt-1">
+                    You need at least 0.50 VocahireCredits to start an interview.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-center p-6">
+                  <div className="mb-4">
+                    <p className="text-lg">
+                      Current Balance: <span className="font-bold text-amber-600 dark:text-amber-400">{credits !== null ? Number(credits).toFixed(2) : '0.00'}</span> VocahireCredits
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      Minimum Required: 0.50 VocahireCredits
+                    </p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button onClick={handlePurchaseCreditsClick} className="w-full sm:w-auto flex-1 bg-green-600 hover:bg-green-700">
+                      Purchase VocahireCredits
+                    </Button>
+                    <Button onClick={handleUpgradeToPremium} className="w-full sm:w-auto flex-1 bg-purple-600 hover:bg-purple-700">
+                      Upgrade to Premium
+                    </Button>
+                  </div>
+                </CardContent>
+                <CardFooter className="text-xs text-gray-500 dark:text-gray-400 justify-center">
+                  <Link href="/pricing" className="underline hover:text-indigo-500">View Pricing & Plans</Link>
+                </CardFooter>
+              </Card>
             ) : null}
           </SessionLayout>
         </TabsContent>
