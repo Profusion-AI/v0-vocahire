@@ -18,38 +18,41 @@ export function TermsAgreement() {
     return () => setIsMounted(false)
   }, [])
 
-  // Only render the hook after component is mounted
-  // This prevents any server-side localStorage access
-  const termsHook = isMounted ? useTermsAgreement(user?.id) : null
+  // Call the hook unconditionally
+  const {
+    hasAgreedToTerms,
+    showTermsModal: hookShowTermsModal,
+    setShowTermsModal: hookSetShowTermsModal,
+    agreeToTerms: hookAgreeToTerms,
+    isLoaded: termsHookIsLoaded
+  } = useTermsAgreement(user?.id)
   
-  // Combine the state from the hook with our local state
+  // Synchronize local showModal state with the hook's state
   useEffect(() => {
-    if (termsHook && termsHook.isLoaded && termsHook.showTermsModal !== undefined) {
-      setShowModal(termsHook.showTermsModal)
+    if (termsHookIsLoaded && hookShowTermsModal !== undefined) {
+      setShowModal(hookShowTermsModal)
     }
-  }, [termsHook])
+  }, [termsHookIsLoaded, hookShowTermsModal])
   
-  // Only update modal visibility on the client side via the hook
+  // Update modal visibility via the hook
   const handleModalChange = (open: boolean) => {
-    if (termsHook) {
-      termsHook.setShowTermsModal(open)
+    if (isMounted) { // Ensure hook interaction only happens client-side
+      hookSetShowTermsModal(open)
     }
-    // Always update local state for consistent UI
-    setShowModal(open)
+    setShowModal(open) // Keep local state in sync for immediate UI updates
   }
   
-  // Handle terms agreement
+  // Handle terms agreement via the hook
   const handleAgreeToTerms = () => {
-    if (termsHook) {
-      termsHook.agreeToTerms()
+    if (isMounted) { // Ensure hook interaction only happens client-side
+      hookAgreeToTerms()
     }
-    // Also update local state
-    setShowModal(false)
+    setShowModal(false) // Keep local state in sync
   }
 
   // Don't render anything during server-side rendering
   // or until everything is loaded on the client
-  if (!isMounted || !isUserLoaded || !termsHook?.isLoaded) {
+  if (!isMounted || !isUserLoaded || !termsHookIsLoaded) {
     return null
   }
 
