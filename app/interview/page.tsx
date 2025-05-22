@@ -38,7 +38,14 @@ async function InterviewPageDataFetcher({ searchParams: searchParamsPromise, par
   
   // Skip database query on server-side to prevent timeouts
   // Client-side useUserData hook will handle user data fetching
-  const dbUser = null;
+  type DbUserType = {
+    resumeJobTitle?: string | null;
+    resumeFileUrl?: string | null;
+    jobSearchStage?: string | null;
+    linkedinUrl?: string | null;
+  } | null;
+  
+  const dbUser: DbUserType = null;
 
   let initialName = "";
   if (clerkServerUser) {
@@ -58,10 +65,10 @@ async function InterviewPageDataFetcher({ searchParams: searchParamsPromise, par
     // as they are handled by the useUserData hook in InterviewPageClient
     initialProfileFormData: {
       name: initialName,
-      resumeJobTitle: dbUser?.resumeJobTitle || "",
-      resumeFileUrl: dbUser?.resumeFileUrl || "",
-      jobSearchStage: dbUser?.jobSearchStage || "",
-      linkedinUrl: dbUser?.linkedinUrl || "",
+      resumeJobTitle: (dbUser as DbUserType)?.resumeJobTitle || "",
+      resumeFileUrl: (dbUser as DbUserType)?.resumeFileUrl || "",
+      jobSearchStage: (dbUser as DbUserType)?.jobSearchStage || "",
+      linkedinUrl: (dbUser as DbUserType)?.linkedinUrl || "",
     },
     stripePublishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
     userId: userId, // userId might still be useful for specific actions not covered by the hook immediately
