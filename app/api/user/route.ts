@@ -66,39 +66,62 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Fetch user profile from DB with error handling using withDatabaseFallback
-  let user: any = await withDatabaseFallback(
-    async () => await prisma.user.findUnique({
-      where: { id: auth.userId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        image: true,
-        resumeJobTitle: true,
-        resumeFileUrl: true,
-        jobSearchStage: true,
-        linkedinUrl: true,
-        credits: true,
-        isPremium: true,
-        premiumExpiresAt: true,
-        premiumSubscriptionId: true,
-        role: true,
-        // Add more fields as needed
-      },
-    }),
-    async () => {
-      console.error("Database error when fetching user, using fallback");
-      
-      // Create a fallback user from Clerk data if available
-      if (clerkUser) {
-        console.log("Using Clerk data as fallback for database error");
-        // Use helper function to create a consistent fallback user
-        return createFallbackUser(auth.userId, clerkUser, { _dbError: true });
+  // Fetch user profile from DB with timeout to prevent 504 errors
+  let user: any = await Promise.race([
+    withDatabaseFallback(
+      async () => await prisma.user.findUnique({
+        where: { id: auth.userId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          resumeJobTitle: true,
+          resumeFileUrl: true,
+          jobSearchStage: true,
+          linkedinUrl: true,
+          credits: true,
+          isPremium: true,
+          premiumExpiresAt: true,
+          premiumSubscriptionId: true,
+          role: true,
+          // Add more fields as needed
+        },
+      }),
+      async () => {
+        console.error("Database error when fetching user, using fallback");
+        
+        // Create a fallback user from Clerk data if available
+        if (clerkUser) {
+          console.log("Using Clerk data as fallback for database error");
+          // Use helper function to create a consistent fallback user
+          return createFallbackUser(auth.userId, clerkUser, { _dbError: true });
+        }
+        return null;
       }
-      return null;
+    ),
+    // 10-second timeout to prevent API gateway timeouts
+    new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database query timeout')), 10000)
+    )
+  ]).catch(error => {
+    console.error('Database query failed or timed out in /api/user:', error);
+    
+    // Return fallback user from Clerk data if available
+    if (clerkUser) {
+      console.log("Using Clerk data as fallback after timeout");
+      return createFallbackUser(auth.userId, clerkUser, { 
+        _dbTimeout: true,
+        error: error.message 
+      });
     }
-  );
+    
+    // If no Clerk data, return minimal fallback
+    return createFallbackUser(auth.userId, null, { 
+      _dbTimeout: true,
+      error: error.message 
+    });
+  });
 
   // If user doesn't exist but is authenticated with Clerk, create a new user record
   if (!user) {
