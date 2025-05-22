@@ -54,8 +54,8 @@ export default function InterviewRoom({
   const [timeRemaining, setTimeRemaining] = useState(600) // 10 minutes in seconds
   const [isPermissionGranted, setIsPermissionGranted] = useState<boolean | null>(null)
   const [isMuted, setIsMuted] = useState(false)
-:start_line:119
--------
+  
+  // Audio analysis refs
   const audioContextRef = useRef<AudioContext | null>(null)
   const audioAnalyserRef = useRef<AnalyserNode | null>(null)
   const audioDataRef = useRef<Uint8Array | null>(null)

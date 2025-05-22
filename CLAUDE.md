@@ -487,20 +487,51 @@ VocaHire uses **WebRTC exclusively** for all real-time communication with OpenAI
 
 ### Interview Flow Architecture
 
-**Clean State Management Pattern:**
+**Clean Component Separation (Refactored January 2025):**
+
+**Single Source of Truth Pattern:**
+- `useRealtimeInterviewSession` hook: Manages all WebRTC session state and OpenAI communication
+- `InterviewRoom.tsx`: Pure UI component that consumes hook state (~200 LOC, down from 600+)
+- `InterviewPageClient.tsx`: Orchestration component for pre-flight checks and payment flows
+
+**Refactored Component Responsibilities:**
+
+1. **InterviewPageClient.tsx** (Orchestration):
+   - Pre-flight checks: authentication, credits, resume data
+   - Payment modals and subscription management
+   - Profile settings tab
+   - Mounts InterviewRoom when `interviewActive=true`
+   - Receives session creation status via callback
+
+2. **InterviewRoom.tsx** (Interview UI):
+   - Single responsibility: Interview interface using `useRealtimeInterviewSession`
+   - Auto-start mechanism: `autoStart` prop triggers `hook.start(jobTitle)`
+   - Real-time status display: connection progress, speaking indicators, conversation
+   - Error handling with retry capabilities
+   - Session completion and cleanup
+
+3. **useRealtimeInterviewSession.ts** (WebRTC Management):
+   - Complete WebRTC session lifecycle management
+   - OpenAI Realtime API communication
+   - Connection state management and error handling
+   - Audio streaming and data channel events
+
+**Improved Flow:**
 ```
-idle → creatingSession → interviewActive → completed/feedback
+User clicks "Start Interview" 
+→ InterviewPageClient validates credits/auth
+→ Sets interviewActive=true (mounts InterviewRoom)
+→ InterviewRoom autoStart calls hook.start(jobTitle)
+→ Hook manages entire WebRTC session lifecycle
+→ Parent gets notified via onSessionCreationStatus callback
 ```
 
-**Component Structure:**
-- `InterviewPageClient.tsx`: Main interview orchestration
-- `InterviewRoom.tsx`: Real-time interview interface
-- Auto-start mechanism: `autoStart` prop triggers interview when active
-
-**Authentication Flow Improvements:**
-- Enhanced session validation before API calls
-- Race condition fixes for Clerk authentication loading
-- Proper error handling for 403 (insufficient VocahireCredits) vs 401 (authentication)
+**Benefits of Refactored Architecture:**
+- **Eliminated State Duplication**: No more conflicting state between components and hook
+- **Easier Debugging**: All interview state centralized in the hook
+- **Cleaner Error Handling**: Clear error propagation chain
+- **Reduced Complexity**: 400 total LOC vs 1300+ LOC previously
+- **Better Maintainability**: Single responsibility principle enforced
 
 ### Complete Architecture Transformation (January 2025)
 
@@ -524,6 +555,14 @@ idle → creatingSession → interviewActive → completed/feedback
 - ✅ Implemented clean state transitions (idle → loading → active)
 - ✅ Enhanced session token validation before API calls
 - ✅ Proper resource cleanup and connection state management
+
+**Component Architecture Refactoring (COMPLETED January 2025)**
+- ✅ **InterviewRoom.tsx**: Reduced from 600+ LOC to ~200 LOC with single responsibility
+- ✅ **State Management**: Eliminated duplicate state between components and hook
+- ✅ **Error Handling**: Implemented clean error propagation via `onSessionCreationStatus` callback
+- ✅ **Props Simplification**: Removed credit management props, focused on interview-specific data
+- ✅ **Flow Optimization**: Clear separation between orchestration (InterviewPageClient) and UI (InterviewRoom)
+- ✅ **Debugging**: Centralized all interview state in `useRealtimeInterviewSession` hook
 
 **Sentry Configuration (COMPLETED)**
 - ✅ Resolved duplicate Session Replay instances error
@@ -674,3 +713,35 @@ await prisma.user.update({
 - Vercel function timeout prevention with proper AbortController usage
 
 This architecture positions VocaHire for its "killer feature" of natural, low-latency voice conversation with AI interviewers while providing production-grade reliability and monitoring.
+
+### Refactored Component Structure (January 2025)
+
+**File Locations:**
+- `/app/interview/InterviewPageClient.tsx`: Main interview page orchestration (~400 LOC)
+- `/components/InterviewRoom.tsx`: Clean interview UI component (~200 LOC) 
+- `/hooks/useRealtimeInterviewSession.ts`: WebRTC session management (~488 LOC)
+- `/components/InterviewRoom-original.tsx`: Backup of original complex implementation
+
+**Key API Props:**
+
+**InterviewRoom.tsx** (Simplified):
+```typescript
+interface InterviewRoomProps {
+  onComplete?: (messages: Array<{role: string; content: string; timestamp: number}>) => void
+  jobTitle?: string
+  resumeData?: ResumeData | null
+  autoStart?: boolean
+  onSessionCreationStatus?: (isCreating: boolean, error?: string) => void
+}
+```
+
+**InterviewPageClient.tsx** (Enhanced):
+- Added `handleSessionCreationStatus` callback for receiving InterviewRoom status updates
+- Removed duplicate credit management from InterviewRoom props
+- Simplified `startInterview` logic to just mount InterviewRoom with `autoStart=true`
+
+**Migration Benefits:**
+- **Debugging**: Single source of truth for interview state makes issues easy to trace
+- **Testing**: Each component can be tested independently with clear interfaces
+- **Maintenance**: Changes to interview logic only require hook updates
+- **Scalability**: New interview features can be added to the hook without UI changes
