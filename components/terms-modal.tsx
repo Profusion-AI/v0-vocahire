@@ -55,7 +55,7 @@ export function TermsModal({ open, onOpenChange, onAgree }: TermsModalProps) {
       scrollTop + clientHeight >= scrollHeight - 5 ||   // Alternative calculation
       Math.abs(scrollHeight - scrollTop - clientHeight) < 20 // Absolute difference
 
-    if (isAtBottom && !hasScrolledToBottom) {
+    if (isAtBottom) {
       setHasScrolledToBottom(true)
     }
   }
@@ -75,11 +75,7 @@ export function TermsModal({ open, onOpenChange, onAgree }: TermsModalProps) {
         <div
           ref={contentRef}
           onScroll={handleScroll}
-          className="overflow-y-auto border rounded-md"
-          style={{
-            height: "400px", // Fixed height instead of max-h-[50vh]
-            overflowY: "auto"
-          }}
+          className="flex-1 overflow-y-auto border rounded-md min-h-0"
         >
           <div className="text-sm space-y-4 p-4">
             <p>
@@ -260,13 +256,14 @@ export function TermsModal({ open, onOpenChange, onAgree }: TermsModalProps) {
           </div>
         )}
 
-        <DialogFooter className="pt-4 mt-4">
+        <DialogFooter className="pt-4 mt-4 flex-col gap-4">
           {showCheckboxFallback && !hasScrolledToBottom && (
-            <div className="flex items-center space-x-2 mb-4">
+            <div className="flex items-center space-x-2 w-full">
               <input
                 type="checkbox"
                 id="terms-checkbox"
                 onChange={(e) => setHasScrolledToBottom(e.target.checked)}
+                className="h-4 w-4"
               />
               <label htmlFor="terms-checkbox" className="text-sm">
                 I have read and agree to the Terms of Service
@@ -278,7 +275,10 @@ export function TermsModal({ open, onOpenChange, onAgree }: TermsModalProps) {
               Cancel
             </Button>
             <Button
-              onClick={onAgree}
+              onClick={() => {
+                onAgree()
+                onOpenChange(false)
+              }}
               disabled={!hasScrolledToBottom}
               className={hasScrolledToBottom ? "bg-green-600 hover:bg-green-700" : ""}
             >
