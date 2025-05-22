@@ -208,18 +208,25 @@ export default function InterviewPageClient({
 
   const startInterview = async () => {
     setIsConfirmStartModalOpen(false);
-    setCreatingSession(true);
+    setCreatingSession(false); // InterviewRoom will handle session creation loading
     
-    try {
-      // This will trigger the InterviewRoom to initialize and connect
-      setInterviewActive(true);
-      console.log("Interview session starting...");
-      await refetchUserData();
-    } catch (error) {
-      console.error("Error starting interview:", error);
+    // Just mount InterviewRoom and let it handle the entire session lifecycle
+    setInterviewActive(true);
+    console.log("Mounting InterviewRoom with autoStart...");
+  };
+
+  const handleSessionCreationStatus = (isCreating: boolean, error?: string) => {
+    setCreatingSession(isCreating);
+    
+    if (error) {
+      console.error("Session creation error:", error);
+      toast({ 
+        title: "Session Error", 
+        description: error, 
+        variant: "destructive" 
+      });
+      // Reset interview state on error
       setInterviewActive(false);
-    } finally {
-      setCreatingSession(false);
     }
   };
 
@@ -346,11 +353,8 @@ export default function InterviewPageClient({
                   jobTitle={jobTitle}
                   onComplete={handleInterviewComplete}
                   resumeData={resumeData}
-                  credits={credits}
-                  isCreditsLoading={isUserDataLoading}
-                  onBuyCredits={handlePurchaseCreditsClick}
-                  refetchCredits={refetchUserData}
                   autoStart={true}
+                  onSessionCreationStatus={handleSessionCreationStatus}
                 />
               </div>
             ) : (isPremium || (credits !== null && Number(credits) >= 0.50)) ? (
