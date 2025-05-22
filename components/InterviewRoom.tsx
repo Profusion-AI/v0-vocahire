@@ -9,6 +9,7 @@ import { Mic, Clock, AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import type { ResumeData } from "@/components/resume-input"
 import { useRealtimeInterviewSession } from "@/hooks/useRealtimeInterviewSession"
+import styles from "./InterviewRoom.module.css"
 // Removed ConnectionProgress import as we'll create a simple inline version
 
 interface InterviewRoomProps {
@@ -109,19 +110,16 @@ export default function InterviewRoom({
             <div className="text-center">
               <p className="text-sm text-gray-600">Current step: <strong>{status.replace('_', ' ')}</strong></p>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ 
-                  width: status === "requesting_mic" ? "20%" :
-                         status === "fetching_token" ? "40%" :
-                         status === "creating_offer" ? "60%" :
-                         status === "exchanging_sdp" ? "80%" :
-                         status === "connecting_webrtc" ? "90%" : "100%"
-                }}
+                className={`bg-blue-600 h-2 rounded-full transition-all duration-300 ${
+                  status === "requesting_mic" ? "progress-bar-20" :
+                  status === "fetching_token" ? "progress-bar-40" :
+                  status === "creating_offer" ? "progress-bar-60" :
+                  status === "exchanging_sdp" ? "progress-bar-80" :
+                  status === "connecting_webrtc" ? "progress-bar-90" : "progress-bar-100"
+                }`}
               />
             </div>
-          </div>
         </CardContent>
       </Card>
     )

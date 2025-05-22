@@ -31,10 +31,10 @@ model User {
   credits                 Decimal   @default(3.00) @db.Decimal(10, 2)
   isPremium               Boolean   @default(false)
   resumeJobTitle          String?
-  resumeSkills            String?
-  resumeExperience        String?
-  resumeEducation         String?
-  resumeAchievements      String?
+  resumeSkills            String?   @db.Text
+  resumeExperience        String?   @db.Text
+  resumeEducation         String?   @db.Text
+  resumeAchievements      String?   @db.Text
   resumeFileUrl           String?
   jobSearchStage          String?
   linkedinUrl             String?
@@ -52,17 +52,21 @@ model User {
   feedbacks               Feedback[]
   usageEvents             UsageEvent[]
 
+  // Optimized indexes for common queries
   @@index([email])
+  @@index([isPremium, credits])
+  @@index([role])
+  @@index([createdAt])
 }
 
 model InterviewSession {
   id                String    @id
   userId            String
   jobTitle          String
-  resumeSnapshot    Json?
+  resumeSnapshot    Json?     @db.JsonB
   company           String?
   interviewType     String?
-  jdContext         String?
+  jdContext         String?   @db.Text
   webrtcSessionId   String?   @unique
   openaiSessionId   String?   @unique
   fallbackMode      Boolean   @default(false)
@@ -79,15 +83,19 @@ model InterviewSession {
   transcripts       Transcript[]
   feedback          Feedback?
 
+  // Optimized indexes
   @@index([userId])
   @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([jobTitle])
+  @@index([startedAt])
 }
 
 model Transcript {
   id         String   @id
   sessionId  String
   role       String
-  content    String
+  content    String   @db.Text
   confidence Float?
   timestamp  DateTime
   expiresAt  DateTime?
@@ -97,17 +105,20 @@ model Transcript {
   // Relations
   session    InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
+  // Optimized indexes
   @@index([sessionId])
   @@index([timestamp])
+  @@index([sessionId, timestamp])
+  @@index([role])
 }
 
 model Feedback {
   id                    String   @id
   sessionId             String   @unique
   userId                String
-  summary               String
-  strengths             String?
-  areasForImprovement   String?
+  summary               String   @db.Text
+  strengths             String?  @db.Text
+  areasForImprovement   String?  @db.Text
   fillerWordCount       Int?
   transcriptScore       Float?
   expiresAt             DateTime?
@@ -118,14 +129,17 @@ model Feedback {
   session               InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   user                  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Optimized indexes
   @@index([userId])
+  @@index([userId, createdAt])
+  @@index([createdAt])
 }
 
 model UsageEvent {
   id         String   @id
   userId     String?
   eventType  String
-  details    Json?
+  details    Json?    @db.JsonB
   occurredAt DateTime @default(now())
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -133,19 +147,27 @@ model UsageEvent {
   // Relations
   user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Optimized indexes
   @@index([userId])
   @@index([eventType])
+  @@index([userId, eventType])
+  @@index([occurredAt])
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// IMPORTANT: This table appears to be legacy. Consider migrating to InterviewSession+Transcript+Feedback tables.
+/// If RLS is causing performance issues, review and optimize the policies.
 model interviews {
   id         BigInt    @id @default(autoincrement())
   user_id    String    @db.Uuid
-  transcript String?
-  feedback   Json?
+  transcript String?   @db.Text
+  feedback   Json?     @db.JsonB
   duration   Int?
   created_at DateTime? @default(now()) @db.Timestamptz(6)
   updated_at DateTime? @default(now()) @db.Timestamptz(6)
 
+  // Optimized indexes
   @@index([user_id], map: "idx_interviews_user_id")
+  @@index([created_at])
+  @@index([user_id, created_at])
 }
