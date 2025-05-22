@@ -28,3 +28,6 @@ next-env.d.ts
 **/.DS_Store
 output.md
 .mcp.json
+
+# Sentry Config File
+.env.sentry-build-plugin
