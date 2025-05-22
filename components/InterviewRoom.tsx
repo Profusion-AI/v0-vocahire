@@ -17,6 +17,9 @@ import type { ResumeData } from "@/components/resume-input"
 import { useInterviewSession } from "@/hooks/useRealtimeInterviewSession"
 // Import the TranscriptDownload component at the top of the file
 import { TranscriptDownload } from "@/components/transcript-download"
+import { ConnectionProgress } from "@/components/ConnectionProgress"
+import { CreditStatusDisplay } from "@/components/CreditStatusDisplay"
+import { FallbackMessage } from "@/components/FallbackMessage"
 
 // For debugging render cycles
 let renderCount = 0
@@ -113,6 +116,8 @@ export default function InterviewRoom({
   const audioAnalyserRef = useRef<AnalyserNode | null>(null)
   const audioDataRef = useRef<Uint8Array | null>(null)
   const audioLevelIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const audioLevelRef = useRef<number>(0)
+  const isUserSpeakingRef = useRef<boolean>(false)
   const reconnectAttemptsRef = useRef<number>(0)
   const maxReconnectAttemptsRef = useRef<number>(5) // CRITICAL CHANGE: Increase max reconnect attempts
 
@@ -138,7 +143,7 @@ export default function InterviewRoom({
       if (debugLogRef.current !== debug) {
         setDebug(debugLogRef.current)
       }
-    }, 1000) // Update once per second at most
+    }, 2000) // Reduced frequency from 1s to 2s to minimize re-renders
 
     return () => clearInterval(intervalId)
   }, [debug])
@@ -149,15 +154,15 @@ export default function InterviewRoom({
       setConnectionSteps((prev) => {
         // Create a new array with the updated step
         const updatedSteps = prev.map((step) => (step.id === id ? { ...step, status, message } : step))
-
-        // Calculate progress based on the updated steps
+        return updatedSteps
+      })
+      
+      // Update progress in a separate effect to avoid nested state updates
+      setConnectionSteps((updatedSteps) => {
         const completedSteps = updatedSteps.filter((step) => step.status === "complete").length
         const totalSteps = updatedSteps.length
         const newProgress = Math.round((completedSteps / totalSteps) * 100)
-
-        // Update progress in a separate call to avoid nested state updates
-        setTimeout(() => setConnectionProgress(newProgress), 0)
-
+        setConnectionProgress(newProgress)
         return updatedSteps
       })
     },
@@ -249,10 +254,20 @@ export default function InterviewRoom({
             analyser.getByteFrequencyData(dataArray)
             const average = dataArray.reduce((acc, val) => acc + val, 0) / dataArray.length
             const normalizedLevel = average / 255 // Normalize to 0-1 range
-            setAudioLevel(normalizedLevel)
-            setIsUserSpeaking(normalizedLevel > 0.05) // Threshold for "speaking"
+            const isSpeaking = normalizedLevel > 0.05
+            
+            // Only update state if values have meaningfully changed to reduce re-renders
+            if (Math.abs(audioLevelRef.current - normalizedLevel) > 0.02) {
+              setAudioLevel(normalizedLevel)
+              audioLevelRef.current = normalizedLevel
+            }
+            
+            if (isUserSpeakingRef.current !== isSpeaking) {
+              setIsUserSpeaking(isSpeaking)
+              isUserSpeakingRef.current = isSpeaking
+            }
           }
-        }, 100)
+        }, 200) // Reduced frequency from 100ms to 200ms
 
         addDebugMessage("Audio analysis setup complete")
       } catch (err) {
@@ -1273,58 +1288,12 @@ export default function InterviewRoom({
               )}
 
               {isConnecting && (
-                <div className="flex flex-col items-center justify-center h-[300px]">
-                  <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary" />
-                  <h3 className="text-lg font-medium mb-2">Connecting to OpenAI...</h3>
-                  <p className="text-muted-foreground text-center max-w-md mb-6">
-                    Establishing secure connection. This may take a few moments.
-                    {retryCount > 0 && ` (Attempt ${retryCount}/${maxRetries})`}
-                  </p>
-
-                  {/* Connection steps */}
-                  <div className="w-full max-w-md space-y-3 mb-4">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-sm font-medium">Connection Progress</h3>
-                      <span className="text-xs text-muted-foreground">{connectionProgress}%</span>
-                    </div>
-                    <Progress value={connectionProgress} className="h-2" />
-
-                    <div className="space-y-2 mt-3">
-                      {connectionSteps.map((step) => (
-                        <div key={step.id} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            {step.status === "pending" && (
-                              <div className="h-4 w-4 rounded-full border border-gray-300"></div>
-                            )}
-                            {step.status === "in-progress" && (
-                              <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
-                            )}
-                            {step.status === "retrying" && <Loader2 className="h-4 w-4 text-amber-500 animate-spin" />}
-                            {step.status === "complete" && <div className="h-4 w-4 text-green-500">✓</div>}
-                            {step.status === "error" && <div className="h-4 w-4 text-red-500">✗</div>}
-                            <span
-                              className={
-                                step.status === "error"
-                                  ? "text-red-500"
-                                  : step.status === "retrying"
-                                    ? "text-amber-500"
-                                    : ""
-                              }
-                            >
-                              {step.name}
-                            </span>
-                          </div>
-                          {step.status === "error" && step.message && (
-                            <span className="text-xs text-red-500">{step.message}</span>
-                          )}
-                          {step.status === "retrying" && step.message && (
-                            <span className="text-xs text-amber-500">{step.message}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <ConnectionProgress
+                  steps={connectionSteps}
+                  progress={connectionProgress}
+                  retryCount={retryCount}
+                  maxRetries={maxRetries}
+                />
               )}
 
               {status === "active" && (

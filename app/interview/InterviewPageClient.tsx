@@ -95,26 +95,30 @@ export default function InterviewPageClient({
     setIsLoadingResume(false);
   }, [initialJobTitle]); // Only re-run if initialJobTitle changes
 
+  // Separate effect for profile data updates - only when user changes
   useEffect(() => {
-    // Update profileDataForForm when user data from the hook changes
     if (user) {
       setProfileDataForForm(prev => ({
-        name: user.name || prev.name || "", // Prioritize user.name, then prev.name, then empty
+        name: user.name || prev.name || "",
         resumeJobTitle: user.resumeJobTitle || prev.resumeJobTitle || "",
         resumeFileUrl: user.resumeFileUrl || prev.resumeFileUrl || "",
         jobSearchStage: user.jobSearchStage || prev.jobSearchStage || "",
         linkedinUrl: user.linkedinUrl || prev.linkedinUrl || "",
       }));
     }
-    // Update skipResume based on initial prop
+  }, [user]);
+
+  // Separate effect for skip resume setting
+  useEffect(() => {
     setSkipResume(initialSkipResume);
+  }, [initialSkipResume]);
 
-    // If jobTitle from prop is different and no resume job title, update local jobTitle
+  // Separate effect for job title synchronization
+  useEffect(() => {
     if (initialJobTitle !== jobTitle && !resumeData?.jobTitle) {
-        setJobTitle(initialJobTitle);
+      setJobTitle(initialJobTitle);
     }
-
-  }, [user, initialProfileFormData, initialSkipResume, initialJobTitle, jobTitle, resumeData?.jobTitle]);
+  }, [initialJobTitle, resumeData?.jobTitle]);
   
   // Display a notification when fallback database is being used
   useEffect(() => {
