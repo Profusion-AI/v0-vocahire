@@ -33,11 +33,12 @@ async function InterviewPageDataFetcher({ searchParams: searchParamsPromise, par
     redirect('/login'); 
   }
 
+  // Get Clerk user data (this is fast and doesn't involve database)
   const clerkServerUser = await currentUser();
-  const dbUser = await withDatabaseFallback(
-    async () => await prisma.user.findUnique({ where: { id: userId } }),
-    async () => null // Fallback to null if there's a database error
-  );
+  
+  // Skip database query on server-side to prevent timeouts
+  // Client-side useUserData hook will handle user data fetching
+  const dbUser = null;
 
   let initialName = "";
   if (clerkServerUser) {

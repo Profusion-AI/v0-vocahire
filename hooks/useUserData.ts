@@ -54,9 +54,11 @@ export function useUserData(): UseUserDataReturn {
   const fetchUserData = useCallback(async () => {
     // Skip during server-side rendering
     if (typeof window === 'undefined') {
+      console.log('fetchUserData: Skipping on server-side');
       return;
     }
     
+    console.log('fetchUserData: Starting fetch...');
     setIsLoading(true);
     setError(null);
     try {
@@ -66,9 +68,11 @@ export function useUserData(): UseUserDataReturn {
         throw new Error(errorData.error || `Failed to fetch user data. Status: ${res.status}`);
       }
       const data = await res.json();
+      console.log('fetchUserData: Received API response:', data);
       // Adjust according to your actual /api/user response structure
       const userDataFromApi = data.user || data; 
       if (userDataFromApi) {
+        console.log('fetchUserData: Setting user data', userDataFromApi);
         setUser({
             id: userDataFromApi.id,
             email: userDataFromApi.email,
@@ -88,7 +92,7 @@ export function useUserData(): UseUserDataReturn {
         throw new Error("User data not found in API response.");
       }
     } catch (e: any) {
-      console.error("useUserData fetch error:", e);
+      console.error("fetchUserData: Error occurred:", e);
       setError(e.message || "An unknown error occurred while fetching user data.");
       // Use safeToast to show errors to the user
       safeToast.error(e.message || "Could not load user details.");
@@ -109,6 +113,7 @@ export function useUserData(): UseUserDataReturn {
         linkedinUrl: null,
       });
     } finally {
+      console.log('fetchUserData: Setting isLoading to false');
       setIsLoading(false);
     }
   }, []);
@@ -116,7 +121,10 @@ export function useUserData(): UseUserDataReturn {
   useEffect(() => {
     // Skip during server-side rendering
     if (typeof window !== 'undefined') {
+      console.log('useUserData: useEffect running, calling fetchUserData');
       fetchUserData();
+    } else {
+      console.log('useUserData: useEffect skipping due to SSR');
     }
   }, [fetchUserData]);
 
@@ -145,13 +153,15 @@ export function useUserData(): UseUserDataReturn {
     };
   }, [fetchUserData]);
 
-  // Debug logging
+  // Debug logging with more detail
   console.log('useUserData state:', { 
     hasUser: !!user, 
     credits: user?.credits, 
     isPremium: user?.isPremium, 
     isLoading, 
-    error: !!error 
+    error: !!error,
+    userName: user?.name,
+    userEmail: user?.email
   })
 
   return {
