@@ -75,7 +75,7 @@ export async function runOpenAIRealtimeDiagnostic(): Promise<DiagnosticResult[]>
     try {
       modelsData = JSON.parse(modelsRaw)
       isJson = true
-    } catch (e) {
+    } catch (_e) {
       modelsData = null
     }
 
@@ -158,7 +158,7 @@ export async function runOpenAIRealtimeDiagnostic(): Promise<DiagnosticResult[]>
     try {
       realtimeData = JSON.parse(realtimeRaw)
       isJson = true
-    } catch (e) {
+    } catch (_e) {
       realtimeData = null
     }
 
@@ -259,7 +259,7 @@ export async function runOpenAIRealtimeDiagnostic(): Promise<DiagnosticResult[]>
       try {
         modelData = JSON.parse(modelRaw)
         isJson = true
-      } catch (e) {
+      } catch (_e) {
         modelData = null
       }
 
@@ -349,7 +349,7 @@ export async function createRealtimeSessionWithFallback(
           lastStatus = response.status
           lastRaw = raw
         }
-      } catch (e) {
+      } catch (_e) {
         // Not JSON - likely HTML error
         lastError = `Non-JSON response (HTML): Status ${response.status}`
         lastStatus = response.status

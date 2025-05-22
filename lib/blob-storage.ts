@@ -17,7 +17,7 @@ export async function uploadToBlob(
 
     if (file instanceof File) {
       // For File objects, use the original filename
-      const extension = file.name.split(".").pop()
+      const _extension = file.name.split(".").pop()
       filename = `${folder}/${timestamp}-${file.name}`
     } else {
       // For other types, generate a name

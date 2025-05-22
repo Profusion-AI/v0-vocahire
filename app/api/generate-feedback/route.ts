@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
-import { z } from "zod"
 import { getAuth } from "@clerk/nextjs/server"
-import { checkRateLimit, incrementRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit"
+import { checkRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit"
 import { trackUsage, UsageType } from "@/lib/usage-tracking" // Added UsageType import
 import { prisma } from "@/lib/prisma"
 import { generateInterviewFeedback, parseFeedback } from "@/lib/openai"

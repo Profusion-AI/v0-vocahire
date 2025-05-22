@@ -33,7 +33,7 @@ export default function PaymentSuccessPage() {
           setLoading(false);
         }
       })
-      .catch((err) => {
+      .catch((_err) => {
         if (isMounted) {
           setError("Unable to load user data. Please refresh the page.");
           setLoading(false);

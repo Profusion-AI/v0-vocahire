@@ -43,7 +43,7 @@ function loadInterviewData() {
   
   try {
     const messages = JSON.parse(messagesJson)
-    const fillerWordCounts = fillerWordsJson ? JSON.parse(fillerWordsJson) : {}
+    const _fillerWordCounts = fillerWordsJson ? JSON.parse(fillerWordsJson) : {}
     const resumeData = resumeDataJson ? JSON.parse(resumeDataJson) : null
     
     // Calculate filler word stats
@@ -61,7 +61,7 @@ function loadInterviewData() {
     
     return {
       messages,
-      fillerWordCounts,
+      fillerWordCounts: _fillerWordCounts,
       resumeData,
       recordingUrl: recordingUrlJson,
       fillerWordStats,
@@ -133,7 +133,7 @@ function FeedbackPageContent() {
 
   const generateFeedback = async (
     messages: Array<{ role: string; content: string }>,
-    fillerWordCounts: { [key: string]: number } = {},
+    _fillerWordCounts: { [key: string]: number } = {},
     resumeData: any = null,
   ) => {
     setIsGenerating(true)

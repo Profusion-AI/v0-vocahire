@@ -3,11 +3,9 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
 import { useUser, SignedIn, SignedOut, UserButton, SignInButton, SignUpButton } from "@clerk/nextjs"; // Import Clerk components and hooks
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"; // Import dropdown components
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Import avatar components
 
 export function Navbar() {
-  const { isLoaded, isSignedIn, user } = useUser(); // Use Clerk's useUser hook
+  const { isLoaded: _isLoaded, isSignedIn, user: _user } = useUser(); // Use Clerk's useUser hook
 
   // Check if we're in development mode
   const isDev = process.env.NODE_ENV === "development";

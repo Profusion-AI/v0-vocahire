@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react"; // Removed useCallback as refreshUserData is now from hook
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
@@ -98,7 +98,7 @@ export default function ProfilePageClient({
 
   // State for subscription selection modal
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
-  const [selectedSubscription, setSelectedSubscription] = useState<string>("PREMIUM_MONTHLY_SUB");
+  const [_selectedSubscription, setSelectedSubscription] = useState<string>("PREMIUM_MONTHLY_SUB");
 
   const handleUpgradeToPremium = () => {
     // Open subscription selection modal instead of directly starting checkout

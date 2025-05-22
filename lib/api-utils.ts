@@ -58,7 +58,7 @@ export async function parseOpenAIResponse(response: Response): Promise<{ isJson:
     try {
       const json = JSON.parse(text)
       return { isJson: true, data: json }
-    } catch (e) {
+    } catch (_e) {
       // Not JSON, return as text
       return { isJson: false, data: text }
     }

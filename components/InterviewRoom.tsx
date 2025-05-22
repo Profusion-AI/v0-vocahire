@@ -5,7 +5,7 @@ import { useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mic, Clock, Volume2, VolumeX, AlertCircle, Loader2 } from "lucide-react"
+import { Mic, Clock, AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import type { ResumeData } from "@/components/resume-input"
 import { useRealtimeInterviewSession } from "@/hooks/useRealtimeInterviewSession"
@@ -22,7 +22,7 @@ interface InterviewRoomProps {
 export default function InterviewRoom({
   onComplete,
   jobTitle = "Software Engineer",
-  resumeData,
+  resumeData: _resumeData,
   autoStart = false,
   onSessionCreationStatus,
 }: InterviewRoomProps) {
@@ -33,8 +33,8 @@ export default function InterviewRoom({
     status,
     messages,
     error,
-    isConnecting,
-    isActive,
+    isConnecting: _isConnecting,
+    isActive: _isActive,
     isUserSpeaking,
     aiCaptions,
     start: startSession,

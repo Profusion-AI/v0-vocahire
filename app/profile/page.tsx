@@ -152,7 +152,7 @@ export default async function ProfilePage() {
           console.error("[ProfilePage SERVER] - 151.115.16.0/22");
           console.error("[ProfilePage SERVER] - 76.76.16.0/20");
         }
-      } catch (parseError) {
+      } catch (_parseError) {
         console.error("[ProfilePage SERVER] ERROR: Cannot parse DATABASE_URL - malformed URL");
       }
     } catch (urlAnalysisError) {

@@ -1,7 +1,7 @@
 'use client' // This component uses client-side interactivity (useState, useEffect)
 
 import React, { useState, useEffect, useRef } from 'react'
-import { UploadCloud, Bot, User, Mic, MicOff, Square, Lock } from 'lucide-react'
+import { UploadCloud, Bot, User, Mic, Square, Lock } from 'lucide-react'
 import Waveform from './Waveform'
 
 const questions = [

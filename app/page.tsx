@@ -15,8 +15,8 @@ function LandingPage() {
     // Smooth scrolling for anchor links
     const anchors = document.querySelectorAll('a[href^="#"]');
     anchors.forEach(anchor => {
-      anchor.addEventListener('click', function (this: HTMLAnchorElement, e) {
-        e.preventDefault();
+      anchor.addEventListener('click', function (this: HTMLAnchorElement, _e) {
+        _e.preventDefault();
         const targetId = this.getAttribute('href');
         if (targetId && targetId !== '#') {
           const targetElement = document.querySelector(targetId);
@@ -31,7 +31,7 @@ function LandingPage() {
 
     // Cleanup event listeners on component unmount
     return () => {
-      anchors.forEach(anchor => {
+      anchors.forEach(_anchor => {
         // It's tricky to remove the exact same event listener function reference here
         // without storing them. For this scope, if re-renders are minimal,
         // it might be acceptable. A more robust solution would store listener refs.
@@ -65,8 +65,5 @@ function LandingPage() {
     </div>
   )
 }
-
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
 
 export default LandingPage;

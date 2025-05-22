@@ -1,12 +1,11 @@
 // No "use client"; directive - this is a Server Component by default
 import { Suspense } from "react"; 
-import { prisma, withDatabaseFallback, isUsingFallbackDb } from "@/lib/prisma";
+import { isUsingFallbackDb } from "@/lib/prisma";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { Navbar } from "@/components/navbar";
 import AuthGuard from "@/components/auth/AuthGuard";
 import SessionLayout from "@/components/SessionLayout";
 import InterviewPageClient, { type InterviewPageClientProps } from "./InterviewPageClient";
-import { type ProfileFormData } from "@/components/ProfileSettingsForm";
 import { Skeleton } from "@/components/ui/skeleton";
 import { redirect } from 'next/navigation';
 
@@ -21,9 +20,8 @@ interface PageProps {
 }
 
 // This component fetches data using the searchParams passed from the Page
-async function InterviewPageDataFetcher({ searchParams: searchParamsPromise, params: paramsPromise }: { 
+async function InterviewPageDataFetcher({ searchParams: searchParamsPromise }: { 
   searchParams: PageProps['searchParams'];
-  params: PageProps['params']; // Added params promise here
 }) {
   const { userId } = await auth();
   const resolvedSearchParams = await searchParamsPromise; 
@@ -85,7 +83,7 @@ async function InterviewPageDataFetcher({ searchParams: searchParamsPromise, par
 }
 
 // The Page component itself receives params and searchParams as promise props from Next.js
-export default function InterviewPage({ params, searchParams }: PageProps) {
+export default function InterviewPage({ params: _params, searchParams }: PageProps) {
   return (
     <>
       <Navbar /> 
@@ -96,7 +94,7 @@ export default function InterviewPage({ params, searchParams }: PageProps) {
             <Skeleton className="h-[500px] w-full max-w-3xl mx-auto" />
           </SessionLayout>
         }>
-          <InterviewPageDataFetcher params={params} searchParams={searchParams} />
+          <InterviewPageDataFetcher searchParams={searchParams} />
         </Suspense>
       </AuthGuard>
     </>

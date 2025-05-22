@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     perfLog("USER_QUERY_TEST_START");
     try {
       const auth = getAuth(request);
-      let testUserId = auth.userId;
+      const testUserId = auth.userId;
       
       // If no auth, use a test query without specific user
       if (!testUserId) {

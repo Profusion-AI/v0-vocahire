@@ -187,7 +187,7 @@ export async function GET(request: NextRequest) {
           name: clerkUser?.firstName && clerkUser?.lastName ? 
                 `${clerkUser.firstName} ${clerkUser.lastName}` : 
                 clerkUser?.firstName || clerkUser?.lastName || null,
-          email: clerkUser?.emailAddresses[0]?.emailAddress || null,
+          email: clerkUser?.emailAddresses?.[0]?.emailAddress || null,
           image: clerkUser?.imageUrl || null,
           credits: createPrismaDecimal(3), // Default 3.00 VocahireCredits for new users - use Prisma.Decimal for database operations
           isPremium: false,
@@ -232,12 +232,13 @@ export async function GET(request: NextRequest) {
       error: "User not found and could not be created"
     });
     
-    // Convert credits to consistent format for JSON response
-    if (defaultUser.credits) {
-      defaultUser.credits = getConsistentCreditValue(defaultUser.credits);
-    }
+    // Create a new object with converted credits for JSON response
+    const responseUser = {
+      ...defaultUser,
+      credits: defaultUser.credits ? getConsistentCreditValue(defaultUser.credits) : 0
+    };
     
-    return NextResponse.json(defaultUser, { status: 200 }); // Return 200 status with default data
+    return NextResponse.json(responseUser, { status: 200 }); // Return 200 status with default data
   }
     
     return NextResponse.json(newUser);
@@ -256,7 +257,7 @@ export async function GET(request: NextRequest) {
   if (responseUser && typeof responseUser === 'object' && 'credits' in responseUser) {
     responseUser = {
       ...responseUser,
-      credits: getConsistentCreditValue(responseUser.credits)
+      credits: getConsistentCreditValue((responseUser as any).credits)
     };
   }
 
@@ -353,7 +354,7 @@ export async function PATCH(request: NextRequest) {
             name: clerkUser?.firstName && clerkUser?.lastName ? 
                   `${clerkUser.firstName} ${clerkUser.lastName}` : 
                   clerkUser?.firstName || clerkUser?.lastName || null,
-            email: clerkUser?.emailAddresses[0]?.emailAddress || null,
+            email: clerkUser?.emailAddresses?.[0]?.emailAddress || null,
             image: clerkUser?.imageUrl || null,
             credits: new Prisma.Decimal(3.00),
             isPremium: false,
@@ -368,7 +369,7 @@ export async function PATCH(request: NextRequest) {
             name: clerkUser?.firstName && clerkUser?.lastName ? 
                   `${clerkUser.firstName} ${clerkUser.lastName}` : 
                   clerkUser?.firstName || clerkUser?.lastName || null,
-            email: clerkUser?.emailAddresses[0]?.emailAddress || null,
+            email: clerkUser?.emailAddresses?.[0]?.emailAddress || null,
             image: clerkUser?.imageUrl || null,
             role: UserRole.USER,
             credits: new Prisma.Decimal(3.00),
@@ -451,7 +452,7 @@ export async function PATCH(request: NextRequest) {
             name: validatedData.name || (clerkUser?.firstName && clerkUser?.lastName ? 
                   `${clerkUser.firstName} ${clerkUser.lastName}` : 
                   clerkUser?.firstName || clerkUser?.lastName || null),
-            email: clerkUser?.emailAddresses[0]?.emailAddress || null,
+            email: clerkUser?.emailAddresses?.[0]?.emailAddress || null,
             image: clerkUser?.imageUrl || null,
             ...validatedData,
             resumeJobTitle: validatedData.resumeJobTitle || null,
@@ -470,11 +471,22 @@ export async function PATCH(request: NextRequest) {
           return fallbackUser;
         }
         
-        // Return an object with user ID and validated data
+        // Return a complete user object with error flag
         const errorObject = {
-          error: "Database error during update. Your changes have been saved locally.",
           id: auth.userId,
-          ...validatedData,
+          name: validatedData.name || null,
+          email: null,
+          image: null,
+          resumeJobTitle: validatedData.resumeJobTitle || null,
+          resumeFileUrl: validatedData.resumeFileUrl || null,
+          jobSearchStage: validatedData.jobSearchStage || null,
+          linkedinUrl: validatedData.linkedinUrl || null,
+          credits: new Prisma.Decimal(0),
+          isPremium: false,
+          premiumExpiresAt: null,
+          premiumSubscriptionId: null,
+          role: UserRole.USER,
+          error: "Database error during update. Your changes have been saved locally.",
           _usingFallbackDb: isUsingFallbackDb
         };
         return errorObject;
@@ -488,16 +500,16 @@ export async function PATCH(request: NextRequest) {
     }
     
     // Convert credits to consistent format for JSON response
-    let responseUser = updatedUser;
     if (updatedUser && typeof updatedUser === 'object' && 'credits' in updatedUser) {
-      const userWithCredits = updatedUser as { credits: unknown };
-      responseUser = {
+      const userWithCredits = updatedUser as any;
+      const responseUser = {
         ...updatedUser,
         credits: getConsistentCreditValue(userWithCredits.credits)
       };
+      return NextResponse.json(responseUser);
     }
     
-    return NextResponse.json(responseUser);
+    return NextResponse.json(updatedUser);
   } catch (err) {
     console.error("Error in overall update process:", err);
     

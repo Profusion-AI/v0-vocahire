@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import InterviewRoom from "@/components/InterviewRoom";
-import { useRouter, useSearchParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -14,7 +14,6 @@ import { Loader2 } from "lucide-react";
 import SessionLayout from "@/components/SessionLayout";
 import { loadStripe } from "@stripe/stripe-js";
 import { useToast } from "@/hooks/use-toast";
-import * as Sentry from "@sentry/nextjs";
 import { ProfileSettingsForm, type ProfileFormData } from "@/components/ProfileSettingsForm";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
 import { useUserData } from "@/hooks/useUserData"; // Import the new hook

@@ -48,7 +48,7 @@ interface IVocaHireRedisClient {
 
 // Define a type for our mock pipeline
 interface IVocaHireRedisPipeline {
-  get<TData = unknown>(key: string): this;
+  get<_TData = unknown>(key: string): this;
   set(key: string, value: unknown, options?: { ex?: number; px?: number; nx?: boolean; xx?: boolean; keepttl?: boolean }): this;
   incr(key: string): this;
   expire(key: string, seconds: number): this;

@@ -1,6 +1,6 @@
 import { getRedisClient } from "./redis";
 import { prisma, warmDatabaseConnection } from "./prisma";
-import { getConsistentCreditValue, createPrismaDecimal } from "./prisma-types";
+import { getConsistentCreditValue } from "./prisma-types";
 
 // Cache configuration
 const USER_CACHE_TTL = 30; // 30 seconds cache for user credentials

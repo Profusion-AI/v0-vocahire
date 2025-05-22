@@ -103,7 +103,7 @@ export const fallbackDb = {
   },
   
   // For testing database connectivity
-  $queryRaw: async (query: any) => {
+  $queryRaw: async (_query: any) => {
     throw new Error('Database connection not available');
   }
 };

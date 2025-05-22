@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Get the ID and type
-  const { id, type } = event.data;
+  const { id: _id, type } = event.data;
   const eventType = type;
 
   console.log(`Clerk Webhook received: ${eventType}`);
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
 
       try {
         // Create user in DB first
-        const dbUser = await prisma.user.create({
+        const _dbUser = await prisma.user.create({
           data: {
             id: clerkId,
             email: email,

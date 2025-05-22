@@ -11,7 +11,7 @@ export default function DirectWebRTCTest() {
   const [logs, setLogs] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
-  const [token, setToken] = useState<string | null>(null)
+  const [_token, setToken] = useState<string | null>(null)
   const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([])
   const [userInput, setUserInput] = useState("")
 
@@ -85,8 +85,8 @@ export default function DirectWebRTCTest() {
               configuration.iceServers = turnData.iceServers
             }
           }
-        } catch (err) {
-          addLog(`Failed to get TURN servers: ${err}. Using default STUN servers.`)
+        } catch (_err) {
+          addLog(`Failed to get TURN servers: ${_err}. Using default STUN servers.`)
         }
 
         const pc = new RTCPeerConnection(configuration)
@@ -224,7 +224,7 @@ export default function DirectWebRTCTest() {
     try {
       const { id, token } = await createSession()
       await setupWebRTC(id, token)
-    } catch (err) {
+    } catch (_err) {
       // Error already handled in individual functions
     }
   }, [createSession, setupWebRTC])

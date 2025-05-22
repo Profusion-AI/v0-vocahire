@@ -111,7 +111,7 @@ export async function testRealtimeAccess(apiKey?: string): Promise<{
         hasAccess: response.ok,
         response: responseJson,
       }
-    } catch (e) {
+    } catch (_e) {
       // Not JSON, return as text
       console.log(`Response text: ${responseText.substring(0, 500)}${responseText.length > 500 ? "..." : ""}`)
 

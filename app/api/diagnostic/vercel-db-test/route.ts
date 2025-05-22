@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { NextRequest } from "next/server"
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   const startTime = Date.now();
   const testId = `vercel_db_${startTime}`;
   
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
           provider: url.hostname.includes('supabase') ? 'supabase' : 
                    url.hostname.includes('neon') ? 'neon' : 'unknown'
         };
-      } catch (e) {
+      } catch (_e) {
         results.databaseConfig.runtime = { error: "Invalid DATABASE_URL format" };
       }
     }
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
           isPooled: url.hostname.includes('pooler') || url.port === '6543',
           isDirect: url.hostname.includes('db.') && url.port === '5432'
         };
-      } catch (e) {
+      } catch (_e) {
         results.databaseConfig.migration = { error: "Invalid MIGRATE_DATABASE_URL format" };
       }
     }

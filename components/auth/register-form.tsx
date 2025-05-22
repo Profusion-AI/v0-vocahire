@@ -1,10 +1,5 @@
 "use client";
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import React from "react";
 /**
  * Registration form logic removed as part of Supabase → Clerk migration.
  * All Supabase auth logic has been deleted.

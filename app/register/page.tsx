@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
-  const router = useRouter();
+  const _router = useRouter();
   
   useEffect(() => {
     // Redirect to Clerk's custom domain for registration

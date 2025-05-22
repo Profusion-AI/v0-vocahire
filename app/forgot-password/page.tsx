@@ -28,7 +28,7 @@ export default function ForgotPasswordPage() {
       // For now, we'll just simulate a successful submission
       await new Promise((resolve) => setTimeout(resolve, 1000))
       setIsSubmitted(true)
-    } catch (err) {
+    } catch (_err) {
       setError("An error occurred. Please try again.")
     }
   }

@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client"
 import { fallbackDb } from "./fallback-db" 
 
 declare global {
+  // eslint-disable-next-line no-var
   var prisma: PrismaClient | undefined
 }
 
@@ -28,7 +29,7 @@ function getValidatedPrismaClient() {
             console.log('[Prisma] 1. IP allow list includes Vercel deployment IPs');
             console.log('[Prisma] 2. Database is active and not in maintenance mode');
           }
-        } catch (urlError) {
+        } catch (_urlError) {
           console.error('[Prisma] Error parsing DATABASE_URL (but continuing without modification)');
         }
       } else {
@@ -130,7 +131,7 @@ function getValidatedPrismaClient() {
                 console.log('[Prisma] Please ensure DATABASE_URL has proper URL encoding in environment variables');
                 console.log('[Prisma] Special characters should be URL-encoded (e.g., space = %20)');
               }
-            } catch (decodeError) {
+            } catch (_decodeError) {
               console.error('[Prisma] Database password contains invalid URL encoding characters');
               console.error('[Prisma] Please fix your DATABASE_URL environment variable directly');
             }

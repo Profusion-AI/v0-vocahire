@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 
-export async function POST(req: Request) {
+export async function POST(_req: Request) {
   const apiKey = process.env.OPENAI_API_KEY
   console.log("🔑 OPENAI_API_KEY (first 6 chars):", apiKey?.slice(0, 6))
   console.log("Starting minimal create-session test…")
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       if (text && text.trim().startsWith("{")) {
         jsonData = JSON.parse(text)
       }
-    } catch (e) {
+    } catch (_e) {
       console.log("Response is not valid JSON")
     }
 

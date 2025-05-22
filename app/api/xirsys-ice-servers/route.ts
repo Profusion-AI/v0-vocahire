@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
   const XIRSYS_IDENT = process.env.XIRSYS_IDENT;
   const XIRSYS_SECRET = process.env.XIRSYS_SECRET;
   // It's good practice to ensure XIRSYS_CHANNEL is explicitly set,

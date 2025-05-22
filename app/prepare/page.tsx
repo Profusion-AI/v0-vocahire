@@ -37,7 +37,7 @@ function PreparePageContent() {
     router.push("/interview")
   }
 
-  const handleResumeUpload = (url: string, filename: string) => {
+  const handleResumeUpload = (url: string, _filename: string) => {
     setResumeData((prev: ResumeData) => ({ // Added type for prev
       ...prev,
       resumeUrl: url,
