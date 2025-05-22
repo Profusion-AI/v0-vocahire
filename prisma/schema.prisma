@@ -1,11 +1,12 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "./generated/client"
 }
 
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("MIGRATE_DATABASE_URL")
+  // directUrl = env("MIGRATE_DATABASE_URL")
 }
 
 enum UserRole {
