@@ -220,10 +220,37 @@ export default function InterviewPageClient({
     
     if (error) {
       console.error("Session creation error:", error);
+      let toastTitle = "Interview Session Error";
+      let toastDescription = "An unexpected error occurred. Please try again.";
+      let toastDuration = 5000; // Default duration
+
+      if (error.includes("database connectivity") || error.includes("cold start") || error.includes("timeout")) {
+        toastTitle = "Connection Issue";
+        toastDescription = "We're experiencing high load or a temporary database connection issue. Please wait a moment and try again.";
+        toastDuration = 10000; // Longer duration for transient issues
+      } else if (error.includes("Insufficient VocahireCredits") || error.includes("purchase more VocahireCredits")) {
+        toastTitle = "Insufficient Credits";
+        toastDescription = "You don't have enough VocahireCredits to start an interview. Please purchase more.";
+        toastDuration = 7000;
+      } else if (error.includes("Unauthorized")) {
+        toastTitle = "Authentication Error";
+        toastDescription = "You are not authenticated. Please log in again.";
+        toastDuration = 7000;
+      } else if (error.includes("API key not configured") || error.includes("Invalid OpenAI API key format")) {
+        toastTitle = "Configuration Error";
+        toastDescription = "The AI service is not properly configured. Please contact support.";
+        toastDuration = 10000;
+      } else if (error.includes("Rate limit exceeded")) {
+        toastTitle = "Rate Limit Exceeded";
+        toastDescription = "You've made too many requests. Please wait a moment before trying again.";
+        toastDuration = 7000;
+      }
+
       toast({ 
-        title: "Session Error", 
-        description: error, 
-        variant: "destructive" 
+        title: toastTitle, 
+        description: toastDescription, 
+        variant: "destructive",
+        duration: toastDuration
       });
       // Reset interview state on error
       setInterviewActive(false);
