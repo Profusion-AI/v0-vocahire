@@ -120,16 +120,23 @@ export function useUserData(): UseUserDataReturn {
     }
   }, [fetchUserData]);
 
-  // Re-fetch on window focus - only on client side
+  // Re-fetch on window focus - only on client side with debouncing
   useEffect(() => {
     // Skip during server-side rendering
     if (typeof window === 'undefined') {
       return;
     }
     
+    let lastFetchTime = 0;
+    const REFETCH_COOLDOWN = 5000; // 5 seconds cooldown between refetches
+    
     const handleFocus = () => {
-      console.log("Window focused, refetching user data via useUserData hook.");
-      fetchUserData();
+      const now = Date.now();
+      if (now - lastFetchTime > REFETCH_COOLDOWN) {
+        console.log("Window focused, refetching user data via useUserData hook.");
+        lastFetchTime = now;
+        fetchUserData();
+      }
     };
 
     window.addEventListener('focus', handleFocus);
