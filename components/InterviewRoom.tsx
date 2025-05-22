@@ -674,10 +674,9 @@ export default function InterviewRoom({
           }
         })
 
-        // Send offer to OpenAI - CRITICAL CHANGE: Use model parameter instead of session_id
-        // This follows OpenAI's documentation example
-        const model = "gpt-4o-mini-realtime-preview" // Use the model from your session creation
-        const sdpUrl = `https://api.openai.com/v1/realtime?model=${model}`
+        // Send offer to OpenAI WebRTC endpoint
+        // Use the ephemeral token from session creation
+        const sdpUrl = `https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview`
 
         addDebugMessage(`Sending SDP offer to: ${sdpUrl}`)
 
@@ -685,7 +684,8 @@ export default function InterviewRoom({
           method: "POST",
           headers: {
             "Content-Type": "application/sdp",
-            Authorization: `Bearer ${token}`,
+            "Authorization": `Bearer ${token}`, // Use the ephemeral token from session creation
+            "OpenAI-Beta": "realtime"
           },
           body: completeOffer.sdp,
         })
@@ -818,7 +818,9 @@ export default function InterviewRoom({
         // Try to get a real-time session token
         try {
           addDebugMessage("Fetching OpenAI token...")
-          updateConnectionStep("session", "in-progress")
+          updateConnectionStep("session", "in-progress", "Creating session...")
+          
+          const sessionStartTime = Date.now()
 
           // Prepare resume text if available
           let resumeText = ""
@@ -831,7 +833,7 @@ export default function InterviewRoom({
 
           // CRITICAL CHANGE: Add timeout to token request
           const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+          const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
 
           const tokenResponse = await fetch("/api/realtime-session", {
             method: "POST",
@@ -844,6 +846,9 @@ export default function InterviewRoom({
             }),
             signal: controller.signal,
           }).finally(() => clearTimeout(timeoutId))
+
+          const sessionTime = Date.now() - sessionStartTime
+          addDebugMessage(`Session request completed in ${sessionTime}ms`)
 
           if (!tokenResponse.ok) {
             const errorText = await tokenResponse.text()
@@ -879,11 +884,12 @@ export default function InterviewRoom({
             throw new Error(`Failed to initialize interview session. Status: ${tokenResponse.status}`)
           }
 
+          addDebugMessage("Parsing session response...")
           const sessionData = await tokenResponse.json()
           const { token, id: sessionId, usedFallbackModel } = sessionData
 
-          addDebugMessage(`Token received: ${sessionId}${usedFallbackModel ? " (using fallback model)" : ""}`)
-          updateConnectionStep("session", "complete")
+          addDebugMessage(`✅ Token received: ${sessionId}${usedFallbackModel ? " (using fallback model)" : ""}`)
+          updateConnectionStep("session", "complete", "Session created successfully")
 
           // Store session info for later use
           sessionInfoRef.current = { id: sessionId, token }
@@ -903,9 +909,11 @@ export default function InterviewRoom({
 
           // Set up WebRTC connection
           try {
+            addDebugMessage("Starting WebRTC setup...")
+            updateConnectionStep("webrtc", "in-progress", "Initializing WebRTC...")
             await setupWebRTC(sessionId, token)
           } catch (err) {
-            addDebugMessage(`WebRTC setup error: ${err}`)
+            addDebugMessage(`❌ WebRTC setup error: ${err}`)
             updateConnectionStep("webrtc", "error", `Setup error: ${err}`)
             handleConnectionFailure(`WebRTC setup failed: ${err}`)
           }

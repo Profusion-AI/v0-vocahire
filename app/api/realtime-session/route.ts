@@ -146,12 +146,19 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
-      console.log("OpenAI session creation timeout after 15 seconds");
+      console.log("OpenAI session creation timeout after 30 seconds");
       controller.abort();
-    }, 15000); // 15 second timeout
+    }, 30000); // 30 second timeout to handle potential API delays
     
     let openaiResponse;
     try {
+      console.log("📡 Sending request to OpenAI Realtime API...");
+    console.log("🔧 Request payload:", JSON.stringify({
+      model: "gpt-4o-realtime-preview",
+      instructions: instructions.substring(0, 100) + "..."
+    }, null, 2));
+    const requestStartTime = Date.now();
+      
       openaiResponse = await fetch('https://api.openai.com/v1/realtime/sessions', {
         method: 'POST',
         headers: {
@@ -160,24 +167,22 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
           'OpenAI-Beta': 'realtime', // Required header for Realtime API
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini-realtime-preview", // Working model from checkpoint
-          voice: "alloy", // Use alloy voice that works
-          instructions: instructions,
-          turn_detection: { type: "server_vad" }, // Simplified turn detection
-          input_audio_transcription: { model: "whisper-1" }, // Keep transcription
+          model: "gpt-4o-realtime-preview",
+          instructions: instructions
         }),
         signal: controller.signal
       });
       
       clearTimeout(timeoutId);
-      console.log(`OpenAI session creation response: ${openaiResponse.status} ${openaiResponse.statusText}`);
+      const requestTime = Date.now() - requestStartTime;
+      console.log(`✅ OpenAI session creation response: ${openaiResponse.status} ${openaiResponse.statusText} (${requestTime}ms)`);
       
       // Log response headers for debugging
       const responseHeaders: Record<string, string> = {};
       openaiResponse.headers.forEach((value, key) => {
         responseHeaders[key] = value;
       });
-      console.log("OpenAI API Response Headers:", JSON.stringify(responseHeaders, null, 2));
+      console.log("📋 OpenAI API Response Headers:", JSON.stringify(responseHeaders, null, 2));
       
     } catch (error) {
       clearTimeout(timeoutId);

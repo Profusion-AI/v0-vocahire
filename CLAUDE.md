@@ -483,3 +483,54 @@ idle → creatingSession → interviewActive → completed/feedback
 - `/api/diagnostic/realtime`: OpenAI API connection testing
 - Comprehensive logging for interview session lifecycle
 - Session replay via Sentry for issue reproduction
+
+## VocahireCredits System
+
+VocaHire uses a branded credit system called "VocahireCredits" for consistent user experience:
+
+### Credit Economy
+- **Initial Grant**: New users receive 3.00 VocahireCredits upon account creation
+- **Minimum Required**: 0.50 VocahireCredits required to access interview functionality
+- **Interview Cost**: 1.00 VocahireCredits per interview session (non-premium users)
+- **Premium Users**: Unlimited interviews with active subscription
+
+### Credit Validation Logic
+```typescript
+const MINIMUM_CREDITS_REQUIRED = 0.50;
+const INTERVIEW_COST = 1.00;
+
+// Automatic credit grant for new users (0 credits → 3.00 credits)
+if (Number(user.credits) === 0) {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { credits: 3.00 }
+  });
+}
+
+// Credit requirement validation
+if (!user.isPremium && Number(user.credits) < MINIMUM_CREDITS_REQUIRED) {
+  return NextResponse.json({ 
+    error: `Insufficient VocahireCredits. You need at least ${MINIMUM_CREDITS_REQUIRED} VocahireCredits to start an interview.`,
+    currentCredits: Number(user.credits),
+    minimumRequired: MINIMUM_CREDITS_REQUIRED
+  }, { status: 403 });
+}
+
+// Credit deduction after successful session creation
+await prisma.user.update({
+  where: { id: userId },
+  data: { credits: { decrement: INTERVIEW_COST } }
+});
+```
+
+### Brand Consistency
+- **UI Components**: All user-facing text uses "VocahireCredits" terminology
+- **API Responses**: Error messages and success responses reference VocahireCredits
+- **Console Logging**: Debug logs consistently use VocahireCredits terminology
+- **Database Operations**: Internal operations reference credits but user communication uses VocahireCredits
+
+### Credit Purchase Flow
+- Credit packages available via Stripe integration
+- Subscription plans provide unlimited access
+- Clear messaging about VocahireCredits vs subscription benefits
+- User-friendly error messages with current balance display
