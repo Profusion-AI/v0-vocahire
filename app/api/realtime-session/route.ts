@@ -2,8 +2,10 @@ import { NextResponse, NextRequest } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
 import { checkRateLimit, incrementRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit"
 import { trackUsage, UsageType } from "@/lib/usage-tracking" // Assuming UsageType is here
-import { prisma } from "@/lib/prisma"
+import { prisma, warmDatabaseConnection } from "@/lib/prisma"
 import { getOpenAIApiKey } from "@/lib/api-utils"
+import { getCachedUserCredentials, invalidateUserCache } from "@/lib/user-cache"
+import { withDatabaseRetry } from "@/lib/retry-utils"
 
 
 export async function POST(request: NextRequest) {
@@ -11,7 +13,7 @@ export async function POST(request: NextRequest) {
   const requestId = `req_${startTime}_${Math.random().toString(36).substr(2, 9)}`;
   
   // Enhanced performance tracking
-  const perfLog = (phase: string, additionalData?: any) => {
+  const perfLog = (phase: string, additionalData?: unknown) => {
     const elapsed = Date.now() - startTime;
     console.log(`[${requestId}] ${phase} - ${elapsed}ms elapsed${additionalData ? ` | ${JSON.stringify(additionalData)}` : ''}`);
   };
@@ -63,35 +65,81 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user has enough credits with timeout
+    // Warm database connection early in the request
+    perfLog("DATABASE_WARMING_START");
+    warmDatabaseConnection().catch(err => 
+      console.warn('[Realtime Session] Connection warming failed:', err)
+    );
+    
+    // Check if user has enough credits using cached credentials with retry logic
     perfLog("DATABASE_QUERY_START");
     console.log(`Checking credits for user: ${userId}`);
-    const user = await Promise.race([
-      prisma.user.findUnique({
-        where: { id: userId },
-        select: { credits: true, isPremium: true },
-      }),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database query timeout')), 12000) // 12s timeout to stay under Vercel's 15s limit
-      )
-    ]).catch(error => {
-      perfLog("DATABASE_QUERY_ERROR", { error: error.message });
-      console.error('Database query failed or timed out in /api/realtime-session:', error);
-      // Return null to indicate database failure, don't assume zero credits
-      return null;
-    }) as { credits: number; isPremium: boolean } | null;
     
-    perfLog("DATABASE_QUERY_COMPLETE", { userFound: !!user, credits: user?.credits, isPremium: user?.isPremium });
-
+    let user: { credits: number; isPremium: boolean } | null = null;
+    
+    try {
+      // Use cached credentials with automatic retry on failure
+      const credentials = await withDatabaseRetry(
+        async () => {
+          const result = await Promise.race([
+            getCachedUserCredentials(userId),
+            new Promise<null>((_, reject) => 
+              setTimeout(() => reject(new Error('Database query timeout')), 10000) // 10s timeout with retry logic
+            )
+          ]);
+          
+          if (!result) {
+            throw new Error('User not found in database');
+          }
+          
+          return result;
+        },
+        'getUserCredentials'
+      );
+      
+      if (credentials) {
+        user = {
+          credits: credentials.credits,
+          isPremium: credentials.isPremium
+        };
+        
+        perfLog("DATABASE_QUERY_COMPLETE", { 
+          userFound: true, 
+          credits: user.credits, 
+          isPremium: user.isPremium,
+          fromCache: credentials.fromCache 
+        });
+      }
+    } catch (error) {
+      perfLog("DATABASE_QUERY_ERROR", { error: error instanceof Error ? error.message : String(error) });
+      console.error('Failed to fetch user credentials after retries:', error);
+      
+      // Return a more specific error message based on the failure type
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      if (errorMessage.includes('timeout')) {
+        return NextResponse.json({ 
+          error: "Database connection timeout. The service is experiencing high load.",
+          details: "Please wait a moment and try again. If the issue persists, please contact support.",
+          retryable: true
+        }, { status: 503 });
+      }
+      
+      return NextResponse.json({ 
+        error: "Unable to verify account status. Please try again.",
+        details: "There was an issue connecting to our services.",
+        retryable: true
+      }, { status: 503 });
+    }
+    
     if (!user) {
       perfLog("DATABASE_USER_FETCH_FAILED");
-      console.error("Failed to fetch user data from database - may be cold start or connection issue");
+      console.error("User not found in database after retries");
       
-      // For now, let's fail gracefully but consider implementing a retry mechanism
       return NextResponse.json({ 
-        error: "Unable to verify account status due to database connectivity. Please try again in a moment.",
-        details: "This may be due to a serverless cold start. Please retry."
-      }, { status: 503 }); // 503 Service Unavailable instead of 500 to indicate temporary issue
+        error: "Account verification failed. Please ensure you are logged in.",
+        details: "If you just created an account, please wait a moment for it to be fully activated."
+      }, { status: 503 });
     }
 
     console.log(`User credits: ${user.credits}, isPremium: ${user.isPremium}`);
@@ -114,18 +162,30 @@ export async function POST(request: NextRequest) {
         if (Number(user.credits) === 0) {
           console.log("🎁 New user detected with 0 VocahireCredits, granting initial 3.00 VocahireCredits");
           try {
-            const updatedUser = await prisma.user.update({
-              where: { id: userId },
-              data: { credits: 3.00 },
-              select: { credits: true }
-            });
+            const updatedUser = await withDatabaseRetry(
+              async () => prisma.user.update({
+                where: { id: userId },
+                data: { credits: 3.00 },
+                select: { credits: true }
+              }),
+              'grantInitialCredits'
+            );
             console.log(`✅ Granted initial 3.00 VocahireCredits to new user. Balance: ${updatedUser.credits}`);
+            
+            // Invalidate cache after granting credits
+            await invalidateUserCache(userId).catch(err => 
+              console.warn('[Realtime Session] Failed to invalidate cache after granting credits:', err)
+            );
+            
+            // Update the user object to reflect new credits
+            user.credits = 3.00;
             // Continue with the interview since they now have sufficient VocahireCredits
           } catch (updateError) {
             console.error("❌ Failed to grant initial VocahireCredits:", updateError);
             return NextResponse.json({ 
-              error: "Unable to initialize your account. Please contact support." 
-            }, { status: 500 })
+              error: "Unable to initialize your account. Please try again or contact support.",
+              retryable: true
+            }, { status: 503 })
           }
         } else {
           // User has some VocahireCredits but below minimum - direct them to purchase more
@@ -240,7 +300,7 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
       try {
         const parsedError = JSON.parse(errorText);
         console.error("Parsed error:", JSON.stringify(parsedError, null, 2));
-      } catch (e) {
+      } catch {
         console.error("Error body is not valid JSON");
       }
       
@@ -255,20 +315,33 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
     if (!user.isPremium) {
       console.log(`💳 Deducting ${INTERVIEW_COST} VocahireCredits from user ${userId}`);
       try {
-        const updatedUser = await prisma.user.update({
-          where: { id: userId },
-          data: { 
-            credits: { 
-              decrement: INTERVIEW_COST 
-            } 
-          },
-          select: { credits: true }
-        });
+        const updatedUser = await withDatabaseRetry(
+          async () => prisma.user.update({
+            where: { id: userId },
+            data: { 
+              credits: { 
+                decrement: INTERVIEW_COST 
+              } 
+            },
+            select: { credits: true }
+          }),
+          'deductCredits'
+        );
         console.log(`✅ VocahireCredits deducted. New balance: ${updatedUser.credits}`);
+        
+        // Invalidate the user cache after credit deduction
+        await invalidateUserCache(userId).catch(err => 
+          console.warn('[Realtime Session] Failed to invalidate user cache:', err)
+        );
       } catch (deductError) {
         console.error("❌ Failed to deduct VocahireCredits:", deductError);
         // Continue with the session but log the error for manual review
         console.error("⚠️ MANUAL ACTION REQUIRED: VocahireCredit deduction failed for session:", sessionData.id);
+        
+        // Still try to invalidate cache even if deduction failed
+        await invalidateUserCache(userId).catch(err => 
+          console.warn('[Realtime Session] Failed to invalidate user cache after error:', err)
+        );
       }
     } else {
       console.log("✅ Premium user - no VocahireCredit deduction required");
@@ -323,8 +396,9 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
     
     // Check for specific Prisma errors
     if (error && typeof error === 'object' && 'code' in error) {
-      console.error(`[${requestTime}] Prisma error code: ${(error as any).code}`);
-      console.error(`[${requestTime}] Prisma error meta: ${JSON.stringify((error as any).meta)}`);
+      const prismaError = error as { code?: string; meta?: unknown };
+      console.error(`[${requestTime}] Prisma error code: ${prismaError.code}`);
+      console.error(`[${requestTime}] Prisma error meta: ${JSON.stringify(prismaError.meta)}`);
     }
     
     // Check for fetch/network errors

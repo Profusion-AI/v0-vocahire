@@ -129,12 +129,17 @@ export default function InterviewRoom({
 
   // Render error state
   if (status === "error" && error) {
+    const isRetryableError = error.toLowerCase().includes('timeout') || 
+                           error.toLowerCase().includes('database') ||
+                           error.toLowerCase().includes('cold start') ||
+                           error.toLowerCase().includes('high load');
+    
     return (
       <Card className="w-full max-w-md mx-auto">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-red-600">
             <AlertCircle className="h-5 w-5" />
-            Connection Error
+            {isRetryableError ? 'Temporary Connection Issue' : 'Connection Error'}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -142,12 +147,22 @@ export default function InterviewRoom({
             <AlertTitle>Unable to start interview</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
+          
+          {isRetryableError && (
+            <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                <strong>This is usually temporary.</strong> The system may be warming up or experiencing high load. 
+                Please wait a few seconds and try again.
+              </p>
+            </div>
+          )}
+          
           <Button 
             onClick={handleStartInterview}
             className="w-full mt-4"
-            variant="outline"
+            variant={isRetryableError ? "default" : "outline"}
           >
-            Try Again
+            {isRetryableError ? 'Retry Now' : 'Try Again'}
           </Button>
         </CardContent>
       </Card>
@@ -179,6 +194,14 @@ export default function InterviewRoom({
             </CardTitle>
           </CardHeader>
         </Card>
+
+        {/* Connection Quality Indicator */}
+        <div className="flex justify-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm">
+            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+            <span>Connected</span>
+          </div>
+        </div>
 
         {/* Speaking Status */}
         <Card>

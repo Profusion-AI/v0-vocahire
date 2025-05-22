@@ -98,6 +98,26 @@ export default function InterviewPageClient({
     setIsLoadingResume(false);
   }, [initialJobTitle]); // Only re-run if initialJobTitle changes
 
+  // Pre-fetch user credentials when component mounts to warm cache
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !isUserDataLoading) {
+      console.log('[InterviewPageClient] Pre-fetching user credentials to warm cache...');
+      
+      fetch('/api/prefetch-credentials')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            console.log('[InterviewPageClient] Successfully pre-fetched credentials:', data);
+          } else {
+            console.warn('[InterviewPageClient] Failed to pre-fetch credentials:', data);
+          }
+        })
+        .catch(err => {
+          console.error('[InterviewPageClient] Error pre-fetching credentials:', err);
+        });
+    }
+  }, [isUserDataLoading]);
+
   // Separate effect for profile data updates - only when user changes
   useEffect(() => {
     if (user) {

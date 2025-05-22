@@ -8,13 +8,20 @@ import { getConsistentCreditValue, createPrismaDecimal } from "@/lib/prisma-type
 import * as Sentry from "@sentry/nextjs"
 
 // Helper function to create consistent fallback user objects
-function createFallbackUser(userId: string, clerkUser: any, extraProps: Record<string, any> = {}) {
+interface ClerkUser {
+  firstName?: string;
+  lastName?: string;
+  emailAddresses?: Array<{ emailAddress: string }>;
+  imageUrl?: string;
+}
+
+function createFallbackUser(userId: string, clerkUser: ClerkUser | null, extraProps: Record<string, unknown> = {}) {
   return {
     id: userId,
     name: clerkUser?.firstName && clerkUser?.lastName ? 
           `${clerkUser.firstName} ${clerkUser.lastName}` : 
           clerkUser?.firstName || clerkUser?.lastName || null,
-    email: clerkUser?.emailAddresses[0]?.emailAddress || null,
+    email: clerkUser?.emailAddresses?.[0]?.emailAddress || null,
     image: clerkUser?.imageUrl || null,
     resumeJobTitle: null,
     resumeFileUrl: null,
@@ -28,7 +35,7 @@ function createFallbackUser(userId: string, clerkUser: any, extraProps: Record<s
     _isTemporaryUser: true,
     _usingFallbackDb: isUsingFallbackDb,
     ...extraProps
-  } as any; // Type assertion to handle the extra properties
+  };
 }
 
 // Define which fields are editable via PATCH
@@ -46,7 +53,7 @@ export async function GET(request: NextRequest) {
   const requestId = `user_req_${startTime}_${Math.random().toString(36).substr(2, 9)}`;
   
   // Enhanced performance tracking
-  const perfLog = (phase: string, additionalData?: any) => {
+  const perfLog = (phase: string, additionalData?: unknown) => {
     const elapsed = Date.now() - startTime;
     console.log(`[${requestId}] ${phase} - ${elapsed}ms elapsed${additionalData ? ` | ${JSON.stringify(additionalData)}` : ''}`);
   };
@@ -66,10 +73,18 @@ export async function GET(request: NextRequest) {
 
   // Get Clerk user data as fallback
   perfLog("CLERK_USER_FETCH_START");
-  let clerkUser: any = null;
+  let clerkUser: ClerkUser | null = null;
   try {
     const { currentUser } = await import("@clerk/nextjs/server");
-    clerkUser = await currentUser();
+    const user = await currentUser();
+    if (user) {
+      clerkUser = {
+        firstName: user.firstName || undefined,
+        lastName: user.lastName || undefined,
+        emailAddresses: user.emailAddresses?.map(e => ({ emailAddress: e.emailAddress })) || [],
+        imageUrl: user.imageUrl || undefined
+      };
+    }
     perfLog("CLERK_USER_FETCH_COMPLETE", { hasClerkUser: !!clerkUser });
   } catch (error) {
     perfLog("CLERK_USER_FETCH_ERROR", { error: error instanceof Error ? error.message : String(error) });
@@ -84,7 +99,7 @@ export async function GET(request: NextRequest) {
 
   // Fetch user profile from DB with timeout to prevent 504 errors
   perfLog("DATABASE_QUERY_START");
-  let user: any = await Promise.race([
+  const user = await Promise.race([
     withDatabaseFallback(
       async () => await prisma.user.findUnique({
         where: { id: auth.userId },
@@ -150,14 +165,22 @@ export async function GET(request: NextRequest) {
     if (!clerkUser) {
       try {
         const { currentUser } = await import("@clerk/nextjs/server");
-        clerkUser = await currentUser();
+        const user = await currentUser();
+        if (user) {
+          clerkUser = {
+            firstName: user.firstName || undefined,
+            lastName: user.lastName || undefined,
+            emailAddresses: user.emailAddresses?.map(e => ({ emailAddress: e.emailAddress })) || [],
+            imageUrl: user.imageUrl || undefined
+          };
+        }
       } catch (error) {
         console.error("Error fetching Clerk user data for new user:", error);
       }
     }
     
     // Create new user using withDatabaseFallback
-    let newUser = await withDatabaseFallback(
+    const newUser = await withDatabaseFallback(
       async () => await prisma.user.create({
         data: {
           id: auth.userId,
@@ -197,11 +220,8 @@ export async function GET(request: NextRequest) {
     );
     
     perfLog("USER_CREATION_COMPLETE", { created: !!newUser });
-    // Use the new user as our user variable
-    user = newUser;
-  }
-
-  if (!user) {
+    
+    if (!newUser) {
     // Instead of returning a 404, return a default user structure
     // This prevents the client from failing completely
     console.error("User not found and could not be created, returning default user structure");
@@ -219,21 +239,24 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json(defaultUser, { status: 200 }); // Return 200 status with default data
   }
+    
+    return NextResponse.json(newUser);
+  }
   
   // If we're using fallback database, add a flag to the response
+  let responseUser = user;
   if (isUsingFallbackDb && user && typeof user === 'object') {
-    user = {
+    responseUser = {
       ...user,
       _usingFallbackDb: true
-    } as typeof user;
+    };
   }
 
   // Convert credits to consistent format for JSON response
-  let responseUser = user;
-  if (user && typeof user === 'object' && user.credits) {
+  if (responseUser && typeof responseUser === 'object' && 'credits' in responseUser) {
     responseUser = {
-      ...user,
-      credits: getConsistentCreditValue(user.credits)
+      ...responseUser,
+      credits: getConsistentCreditValue(responseUser.credits)
     };
   }
 
@@ -270,10 +293,18 @@ export async function PATCH(request: NextRequest) {
 
   try {
     // Get Clerk user data as fallback
-    let clerkUser: any = null;
+    let clerkUser: ClerkUser | null = null;
     try {
       const { currentUser } = await import("@clerk/nextjs/server");
-      clerkUser = await currentUser();
+      const user = await currentUser();
+      if (user) {
+        clerkUser = {
+          firstName: user.firstName || undefined,
+          lastName: user.lastName || undefined,
+          emailAddresses: user.emailAddresses?.map(e => ({ emailAddress: e.emailAddress })) || [],
+          imageUrl: user.imageUrl || undefined
+        };
+      }
     } catch (error) {
       console.error("Error fetching Clerk user data for update:", error);
     }
@@ -300,7 +331,15 @@ export async function PATCH(request: NextRequest) {
       if (!clerkUser) {
         try {
           const { currentUser } = await import("@clerk/nextjs/server");
-          clerkUser = await currentUser();
+          const user = await currentUser();
+          if (user) {
+            clerkUser = {
+              firstName: user.firstName || undefined,
+              lastName: user.lastName || undefined,
+              emailAddresses: user.emailAddresses?.map(e => ({ emailAddress: e.emailAddress })) || [],
+              imageUrl: user.imageUrl || undefined
+            };
+          }
         } catch (error) {
           console.error("Error fetching Clerk user data for new user during update:", error);
         }
@@ -353,23 +392,25 @@ export async function PATCH(request: NextRequest) {
             _isFallbackCreation: true
           };
           
-          return fallbackCreationUser as any;
+          return fallbackCreationUser;
         }
       );
       
       // If user creation failed and we're using a fallback, return early with appropriate data
-      if ((createdUser as any)?._isFallbackCreation && clerkUser) {
+      const fallbackCreation = createdUser as { _isFallbackCreation?: boolean };
+      if (fallbackCreation?._isFallbackCreation && clerkUser) {
         // Create fallback user with the validated data and extra flags
         const fallbackUser = createFallbackUser(auth.userId, clerkUser, {
           ...validatedData,
         });
         
         // Convert credits to consistent format for JSON response
-        if (fallbackUser.credits) {
-          fallbackUser.credits = getConsistentCreditValue(fallbackUser.credits);
-        }
-        return NextResponse.json(fallbackUser);
-      } else if (createdUser?._isFallbackCreation) {
+        const responseData = {
+          ...fallbackUser,
+          credits: getConsistentCreditValue(fallbackUser.credits)
+        };
+        return NextResponse.json(responseData);
+      } else if (fallbackCreation?._isFallbackCreation) {
         return NextResponse.json({ 
           error: "Failed to create user profile before update.",
           id: auth.userId,
@@ -426,7 +467,7 @@ export async function PATCH(request: NextRequest) {
             _dbUpdateError: true,
             _usingFallbackDb: isUsingFallbackDb
           };
-          return fallbackUser as any;
+          return fallbackUser;
         }
         
         // Return an object with user ID and validated data
@@ -436,21 +477,23 @@ export async function PATCH(request: NextRequest) {
           ...validatedData,
           _usingFallbackDb: isUsingFallbackDb
         };
-        return errorObject as any;
+        return errorObject;
       }
     );
     
     // If we're using fallback database, add a flag to the response
-    if (isUsingFallbackDb && updatedUser && typeof updatedUser === 'object' && !updatedUser._usingFallbackDb) {
-      (updatedUser as any)._usingFallbackDb = true;
+    if (isUsingFallbackDb && updatedUser && typeof updatedUser === 'object' && !('_usingFallbackDb' in updatedUser)) {
+      const userWithFlag = updatedUser as Record<string, unknown>;
+      userWithFlag._usingFallbackDb = true;
     }
     
     // Convert credits to consistent format for JSON response
     let responseUser = updatedUser;
-    if (updatedUser && typeof updatedUser === 'object' && updatedUser.credits) {
+    if (updatedUser && typeof updatedUser === 'object' && 'credits' in updatedUser) {
+      const userWithCredits = updatedUser as { credits: unknown };
       responseUser = {
         ...updatedUser,
-        credits: getConsistentCreditValue(updatedUser.credits)
+        credits: getConsistentCreditValue(userWithCredits.credits)
       };
     }
     

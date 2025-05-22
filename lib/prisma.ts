@@ -175,6 +175,56 @@ if (process.env.NODE_ENV !== "production") {
   globalThis.prisma = prisma;
 }
 
+// Connection pool warming for serverless functions
+let isConnectionWarmed = false;
+let lastWarmTime = 0;
+const WARM_INTERVAL = 5 * 60 * 1000; // Re-warm every 5 minutes
+
+/**
+ * Pre-warm database connection pool to reduce cold start latency
+ * This is especially important for Vercel serverless functions
+ */
+export async function warmDatabaseConnection(): Promise<boolean> {
+  const now = Date.now();
+  
+  // Skip if recently warmed
+  if (isConnectionWarmed && (now - lastWarmTime) < WARM_INTERVAL) {
+    console.log('[Prisma] Connection already warmed, skipping');
+    return true;
+  }
+  
+  try {
+    console.log('[Prisma] Warming database connection pool...');
+    const warmStart = Date.now();
+    
+    // Execute a simple query to establish connection
+    await prisma.$queryRaw`SELECT 1 as warmup`;
+    
+    // Mark as warmed
+    isConnectionWarmed = true;
+    lastWarmTime = now;
+    
+    const warmTime = Date.now() - warmStart;
+    console.log(`[Prisma] Connection pool warmed successfully in ${warmTime}ms`);
+    
+    return true;
+  } catch (error) {
+    console.error('[Prisma] Failed to warm connection:', error instanceof Error ? error.message : String(error));
+    isConnectionWarmed = false;
+    return false;
+  }
+}
+
+// Auto-warm on module load for critical routes
+if (typeof window === 'undefined' && process.env.NODE_ENV === 'production') {
+  // Fire and forget - don't block module loading
+  setImmediate(() => {
+    warmDatabaseConnection().catch(err => 
+      console.error('[Prisma] Background connection warming failed:', err)
+    );
+  });
+}
+
 /**
  * Check if the database is available for connections
  * @returns Promise<boolean> True if the database is available, false otherwise
