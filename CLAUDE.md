@@ -384,6 +384,101 @@ The application uses a sophisticated build strategy optimized for Vercel's serve
 **Production Build Status**:
 - TypeScript compilation: ✅ READY
 - Prisma schema: ✅ READY (matches database migrations)
-- Sentry integration: ✅ READY (API updated to v9.x)
+- Sentry integration: ✅ READY (duplicate Session Replay instances resolved)
 - Admin functionality: ✅ READY (uses correct Prisma models)
 - API routes: ✅ READY (all type errors resolved)
+- Interview system: ✅ READY (authentication and UX issues resolved)
+
+## Interview System Architecture
+
+### OpenAI Realtime API Integration
+
+VocaHire uses the OpenAI Realtime API for voice-based interview sessions:
+
+**Key Components:**
+- `/app/api/realtime-session/route.ts`: Creates OpenAI Realtime sessions with proper authentication
+- `/components/InterviewRoom.tsx`: Handles WebSocket connections and audio processing
+- `/lib/realtime-websocket.ts`: WebSocket client for OpenAI API communication
+
+**Session Creation Process:**
+1. User authentication validation via Clerk
+2. Credit/subscription verification
+3. OpenAI session creation with interview-specific instructions
+4. WebSocket connection establishment for real-time audio
+
+**Audio Configuration:**
+- Input/Output Format: PCM16 at 24kHz (OpenAI requirement)
+- Voice Activity Detection: Server-side VAD with configurable thresholds
+- Audio Processing: Browser-based WebRTC for microphone access
+
+### Interview Flow Architecture
+
+**Clean State Management Pattern:**
+```
+idle → creatingSession → interviewActive → completed/feedback
+```
+
+**Component Structure:**
+- `InterviewPageClient.tsx`: Main interview orchestration
+- `InterviewRoom.tsx`: Real-time interview interface
+- Auto-start mechanism: `autoStart` prop triggers interview when active
+
+**Authentication Flow Improvements:**
+- Enhanced session validation before API calls
+- Race condition fixes for Clerk authentication loading
+- Proper error handling for 403 (insufficient credits) vs 401 (authentication)
+
+### Recent Fixes (January 2025)
+
+**Sentry Configuration:**
+- ✅ Resolved duplicate Session Replay instances error
+- ✅ Removed redundant `instrumentation-client.ts` file
+- ✅ Single Sentry initialization pattern
+
+**Interview UX Improvements:**
+- ✅ Eliminated duplicate "Start Interview" buttons
+- ✅ Fixed interview session looping issue
+- ✅ Implemented clean state transitions (idle → loading → active)
+- ✅ Added auto-start mechanism for seamless user experience
+
+**Authentication Enhancements:**
+- ✅ Added session token validation before interview creation
+- ✅ Fixed race conditions between Clerk loading and API calls
+- ✅ Improved error messaging for credit vs authentication issues
+- ✅ Enhanced 403 error handling with specific user guidance
+
+**Component Architecture:**
+- ✅ Simplified state management following working `/test-interview` pattern  
+- ✅ Single component orchestration with clear phase transitions
+- ✅ Proper cleanup and state reset on interview completion
+
+### OpenAI API Compliance
+
+**Session Configuration:**
+- Model: `gpt-4o-realtime-preview`
+- Modalities: `["audio", "text"]` 
+- Voice: `sage` (professional interviewer voice)
+- Turn Detection: Server VAD with optimized settings
+- Temperature: 0.7 for balanced creativity in questions
+- Max Response Tokens: 800 for reasonable response length
+
+**WebSocket Implementation:**
+- Proper authentication using ephemeral tokens
+- Event handling for session.created, response.audio.delta, etc.
+- PCM16 audio format compliance
+- Graceful connection error handling
+
+### Error Handling Strategy
+
+**Production-Ready Error Management:**
+- Comprehensive Sentry integration for real-time monitoring
+- Graceful fallback for API connectivity issues  
+- User-friendly error messages without exposing sensitive details
+- Timeout handling for database and API operations
+- Retry mechanisms for transient failures
+
+**Debugging Tools:**
+- `/api/diagnostic/connection-test`: Database connectivity verification
+- `/api/diagnostic/realtime`: OpenAI API connection testing
+- Comprehensive logging for interview session lifecycle
+- Session replay via Sentry for issue reproduction

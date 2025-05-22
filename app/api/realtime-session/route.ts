@@ -12,6 +12,16 @@ export async function POST(request: NextRequest) {
     console.log(`=== REALTIME SESSION REQUEST (${new Date().toISOString()}) ===`)
     const apiKey = getOpenAIApiKey()
     console.log("🔑 API key available:", !!apiKey, apiKey ? `(starts with ${apiKey.slice(0, 6)}...)` : "(not found)")
+    
+    if (!apiKey) {
+      console.error("❌ No OpenAI API key available");
+      return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
+    }
+    
+    if (!apiKey.startsWith('sk-')) {
+      console.error("❌ Invalid OpenAI API key format");
+      return NextResponse.json({ error: "Invalid OpenAI API key format" }, { status: 500 });
+    }
 
     // Authenticate the user with Clerk
     const auth = getAuth(request)
@@ -74,38 +84,68 @@ Your role:
 
 Begin by greeting the candidate and asking them to introduce themselves briefly.`;
 
-    // Create OpenAI Realtime session
-    const openaiResponse = await fetch('https://api.openai.com/v1/realtime/sessions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-realtime-preview",
-        modalities: ["audio", "text"],
-        instructions: instructions,
-        voice: "sage", // Professional voice for interviews
-        input_audio_format: "pcm16",
-        output_audio_format: "pcm16",
-        input_audio_transcription: {
-          model: "whisper-1"
+    // Create OpenAI Realtime session with timeout
+    console.log("Creating OpenAI Realtime session...");
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.log("OpenAI session creation timeout after 15 seconds");
+      controller.abort();
+    }, 15000); // 15 second timeout
+    
+    let openaiResponse;
+    try {
+      openaiResponse = await fetch('https://api.openai.com/v1/realtime/sessions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'OpenAI-Beta': 'realtime', // Required header for Realtime API
         },
-        turn_detection: {
-          type: "server_vad",
-          threshold: 0.5,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 800 // Slightly longer for thoughtful responses
-        },
-        temperature: 0.7, // Balanced creativity for interview questions
-        max_response_output_tokens: 800 // Reasonable response length
-      })
-    });
+        body: JSON.stringify({
+          model: "gpt-4o-mini-realtime-preview", // Working model from checkpoint
+          voice: "alloy", // Use alloy voice that works
+          instructions: instructions,
+          turn_detection: { type: "server_vad" }, // Simplified turn detection
+          input_audio_transcription: { model: "whisper-1" }, // Keep transcription
+        }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      console.log(`OpenAI session creation response: ${openaiResponse.status} ${openaiResponse.statusText}`);
+      
+      // Log response headers for debugging
+      const responseHeaders: Record<string, string> = {};
+      openaiResponse.headers.forEach((value, key) => {
+        responseHeaders[key] = value;
+      });
+      console.log("OpenAI API Response Headers:", JSON.stringify(responseHeaders, null, 2));
+      
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error("OpenAI session creation timed out");
+        throw new Error("Session creation timed out. Please try again.");
+      }
+      console.error("OpenAI session creation error:", error);
+      throw error;
+    }
 
     if (!openaiResponse.ok) {
       const errorText = await openaiResponse.text();
-      console.error("OpenAI Realtime session creation failed:", openaiResponse.status, errorText);
-      throw new Error(`Failed to create OpenAI session: ${openaiResponse.status}`);
+      console.error("OpenAI Realtime session creation failed:", openaiResponse.status, openaiResponse.statusText);
+      console.error("Error response body:", errorText);
+      
+      // Try to parse error as JSON for better understanding
+      try {
+        const parsedError = JSON.parse(errorText);
+        console.error("Parsed error:", JSON.stringify(parsedError, null, 2));
+      } catch (e) {
+        console.error("Error body is not valid JSON");
+      }
+      
+      throw new Error(`Failed to create OpenAI session: ${openaiResponse.status} - ${errorText}`);
     }
 
     const sessionData = await openaiResponse.json();
