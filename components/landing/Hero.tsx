@@ -1,8 +1,12 @@
+"use client"; // Required for useUser hook
+
 import React from 'react'
-// import Link from 'next/link' // For CTAs if they navigate to different pages
+import Link from 'next/link'
+import { useUser } from '@clerk/nextjs'
 import { Briefcase } from 'lucide-react' // Placeholder for fa-user-tie
 
 const Hero = () => {
+  const { isSignedIn } = useUser();
   return (
     <section id="home" className="pt-20 md:pt-28 lg:pt-32"> {/* Adjusted top padding to account for fixed navbar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -16,18 +20,37 @@ const Hero = () => {
               Practice unlimited interview scenarios with our AI-powered coach. Get real-time feedback on your speaking style, answer content, and confidence. All in a safe, private environment.
             </p>
             <div className="mt-8 sm:max-w-lg sm:mx-auto sm:text-center lg:text-left lg:mx-0">
-              <a
-                href="#simulation"
-                className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-              >
-                See How It Works
-              </a>
-              <a
-                href="#pricing"
-                className="ml-3 inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-indigo-600 bg-white hover:bg-gray-50"
-              >
-                See Pricing
-              </a>
+              {isSignedIn ? (
+                <>
+                  <Link
+                    href="/interview"
+                    className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    Start Practice Interview
+                  </Link>
+                  <Link
+                    href="/profile"
+                    className="ml-3 inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-indigo-600 bg-white hover:bg-gray-50"
+                  >
+                    View Profile
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <a
+                    href="#simulation"
+                    className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    See How It Works
+                  </a>
+                  <a
+                    href="#pricing"
+                    className="ml-3 inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-indigo-600 bg-white hover:bg-gray-50"
+                  >
+                    See Pricing
+                  </a>
+                </>
+              )}
             </div>
           </div>
           <div className="mt-12 relative sm:max-w-lg sm:mx-auto lg:mt-0 lg:max-w-none lg:mx-0 lg:col-span-6 lg:flex lg:items-center">

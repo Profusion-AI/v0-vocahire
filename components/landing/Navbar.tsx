@@ -1,18 +1,33 @@
 "use client"; // Required for useUser hook
 
-import React from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
-import { useUser } from '@clerk/nextjs'
+import { useUser, useClerk } from '@clerk/nextjs'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button" // For consistent styling if needed
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { User, Briefcase, LogOut, Menu, X } from 'lucide-react'
 
 const Navbar = () => {
   const { isSignedIn, user } = useUser();
+  const { signOut } = useClerk();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const getInitials = (firstName?: string | null, lastName?: string | null) => {
     const firstInitial = firstName?.[0]?.toUpperCase() || '';
     const lastInitial = lastName?.[0]?.toUpperCase() || '';
     return `${firstInitial}${lastInitial}` || 'U'; // Default to 'U' if no initials
+  }
+
+  const handleSignOut = () => {
+    signOut();
   }
 
   return (
@@ -54,12 +69,43 @@ const Navbar = () => {
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center space-x-3">
             {isSignedIn ? (
-              <Link href="/profile">
-                <Avatar className="h-9 w-9 cursor-pointer">
-                  <AvatarImage src={user?.imageUrl} alt={user?.firstName || "User"} />
-                  <AvatarFallback>{getInitials(user?.firstName, user?.lastName)}</AvatarFallback>
-                </Avatar>
-              </Link>
+              <>
+                <Link href="/interview">
+                  <Button variant="default" size="sm" className="mr-2">
+                    <Briefcase className="mr-2 h-4 w-4" />
+                    Start Interview
+                  </Button>
+                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Avatar className="h-9 w-9 cursor-pointer">
+                      <AvatarImage src={user?.imageUrl} alt={user?.firstName || "User"} />
+                      <AvatarFallback>{getInitials(user?.firstName, user?.lastName)}</AvatarFallback>
+                    </Avatar>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile" className="flex items-center cursor-pointer">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Profile</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/interview" className="flex items-center cursor-pointer">
+                        <Briefcase className="mr-2 h-4 w-4" />
+                        <span>Interview Practice</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut} className="flex items-center cursor-pointer text-red-600">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Sign Out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : (
               <>
                 <Link href="/login">
@@ -75,9 +121,118 @@ const Navbar = () => {
               </>
             )}
           </div>
-          {/* TODO: Add mobile menu button and functionality */}
+          {/* Mobile menu button */}
+          <div className="flex items-center sm:hidden">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+            >
+              <span className="sr-only">Open main menu</span>
+              {mobileMenuOpen ? (
+                <X className="block h-6 w-6" aria-hidden="true" />
+              ) : (
+                <Menu className="block h-6 w-6" aria-hidden="true" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Mobile menu panel */}
+      {mobileMenuOpen && (
+        <div className="sm:hidden">
+          <div className="pt-2 pb-3 space-y-1">
+            <a
+              href="/#home"
+              className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Home
+            </a>
+            <a
+              href="/#simulation"
+              className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Simulation
+            </a>
+            <a
+              href="/#feedback"
+              className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Feedback
+            </a>
+            <a
+              href="/#pricing"
+              className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Pricing
+            </a>
+          </div>
+          <div className="pt-4 pb-3 border-t border-gray-200">
+            {isSignedIn ? (
+              <>
+                <div className="flex items-center px-4 mb-3">
+                  <div className="flex-shrink-0">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={user?.imageUrl} alt={user?.firstName || "User"} />
+                      <AvatarFallback>{getInitials(user?.firstName, user?.lastName)}</AvatarFallback>
+                    </Avatar>
+                  </div>
+                  <div className="ml-3">
+                    <div className="text-base font-medium text-gray-800">{user?.firstName} {user?.lastName}</div>
+                    <div className="text-sm font-medium text-gray-500">{user?.emailAddresses?.[0]?.emailAddress}</div>
+                  </div>
+                </div>
+                <div className="mt-3 space-y-1">
+                  <Link
+                    href="/interview"
+                    className="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Start Interview
+                  </Link>
+                  <Link
+                    href="/profile"
+                    className="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Profile
+                  </Link>
+                  <button
+                    onClick={() => {
+                      handleSignOut();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-base font-medium text-red-500 hover:text-red-700 hover:bg-gray-100"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="mt-3 space-y-1 px-2">
+                <Link
+                  href="/login"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/register"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Sign Up Free
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </nav>
   )
 }
