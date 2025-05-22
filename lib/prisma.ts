@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client"
+import { PrismaClient } from "../prisma/generated/client"
 import { fallbackDb } from "./fallback-db" 
 
 declare global {
