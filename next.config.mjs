@@ -11,6 +11,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Ensure source maps are generated for better debugging
+  productionBrowserSourceMaps: true,
 }
 
 // Make sure adding Sentry options is the last code to run before exporting

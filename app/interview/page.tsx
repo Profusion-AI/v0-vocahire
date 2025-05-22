@@ -10,6 +10,9 @@ import { type ProfileFormData } from "@/components/ProfileSettingsForm";
 import { Skeleton } from "@/components/ui/skeleton";
 import { redirect } from 'next/navigation';
 
+// Force dynamic rendering for this route since it uses auth
+export const dynamic = 'force-dynamic';
+
 // Props for the Page Server Component, as provided by Next.js
 interface PageProps {
   // Both params and searchParams are promises that resolve to the respective objects

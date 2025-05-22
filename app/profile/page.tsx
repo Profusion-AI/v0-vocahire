@@ -9,6 +9,9 @@ import SessionLayout from "@/components/SessionLayout";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { redirect } from 'next/navigation';
 
+// Force dynamic rendering for this route since it uses auth
+export const dynamic = 'force-dynamic';
+
 // This is now the main Server Component for the /profile route
 export default async function ProfilePage() {
   console.log("[ProfilePage SERVER] Page rendering started.");
