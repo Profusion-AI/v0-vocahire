@@ -19,29 +19,43 @@ interface TermsModalProps {
 
 export function TermsModal({ open, onOpenChange, onAgree }: TermsModalProps) {
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false)
+  const [showCheckboxFallback, setShowCheckboxFallback] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
 
-  // Reset scroll state when modal opens
+  // Reset scroll state and fallback checkbox state when modal opens
   useEffect(() => {
     if (open) {
       setHasScrolledToBottom(false)
+      setShowCheckboxFallback(false)
 
       // Reset scroll position when modal opens
       if (contentRef.current) {
         contentRef.current.scrollTop = 0
       }
+
+      // Show checkbox fallback after 10 seconds if user hasn't scrolled
+      const timer = setTimeout(() => {
+        if (!hasScrolledToBottom) {
+          setShowCheckboxFallback(true)
+        }
+      }, 10000)
+
+      return () => clearTimeout(timer)
     }
-  }, [open])
+  }, [open, hasScrolledToBottom])
 
   const handleScroll = () => {
     if (!contentRef.current) return
 
     const { scrollTop, scrollHeight, clientHeight } = contentRef.current
 
-    // Consider "scrolled to bottom" when within 20px of the bottom or at the bottom
-    const isAtBottom = scrollHeight - scrollTop - clientHeight <= 20
+    // Multiple detection methods for better reliability
+    const isAtBottom =
+      scrollHeight - scrollTop - clientHeight <= 20 || // Original method
+      scrollTop + clientHeight >= scrollHeight - 5 ||   // Alternative calculation
+      Math.abs(scrollHeight - scrollTop - clientHeight) < 20 // Absolute difference
 
-    if (isAtBottom) {
+    if (isAtBottom && !hasScrolledToBottom) {
       setHasScrolledToBottom(true)
     }
   }
@@ -61,8 +75,11 @@ export function TermsModal({ open, onOpenChange, onAgree }: TermsModalProps) {
         <div
           ref={contentRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto max-h-[50vh] pr-4 border rounded-md"
-          style={{ overflowY: "auto" }}
+          className="overflow-y-auto border rounded-md"
+          style={{
+            height: "400px", // Fixed height instead of max-h-[50vh]
+            overflowY: "auto"
+          }}
         >
           <div className="text-sm space-y-4 p-4">
             <p>
@@ -234,7 +251,28 @@ export function TermsModal({ open, onOpenChange, onAgree }: TermsModalProps) {
           </div>
         </div>
 
+        {process.env.NODE_ENV === 'development' && (
+          <div className="text-xs text-gray-500 p-2 bg-gray-100">
+            Debug: scrollTop={contentRef.current?.scrollTop},
+            scrollHeight={contentRef.current?.scrollHeight},
+            clientHeight={contentRef.current?.clientHeight},
+            hasScrolled={hasScrolledToBottom}
+          </div>
+        )}
+
         <DialogFooter className="pt-4 mt-4">
+          {showCheckboxFallback && !hasScrolledToBottom && (
+            <div className="flex items-center space-x-2 mb-4">
+              <input
+                type="checkbox"
+                id="terms-checkbox"
+                onChange={(e) => setHasScrolledToBottom(e.target.checked)}
+              />
+              <label htmlFor="terms-checkbox" className="text-sm">
+                I have read and agree to the Terms of Service
+              </label>
+            </div>
+          )}
           <div className="w-full flex flex-col sm:flex-row gap-2 justify-end">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel

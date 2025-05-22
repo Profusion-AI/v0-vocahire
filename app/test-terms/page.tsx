@@ -4,6 +4,9 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { TermsModal } from "@/components/terms-modal"
 
+// This page is for manual testing only and should not be included in production builds or user flows.
+// To ensure the TermsModal is not shown anywhere except on login, this page should be removed or excluded from routing in production.
+
 export default function TestTermsPage() {
   const [showTerms, setShowTerms] = useState(false)
   const [accepted, setAccepted] = useState(false)
