@@ -36,7 +36,7 @@ if [ "$VERCEL" = "1" ]; then
       # Try pooled URL
       if [ -n "$DATABASE_URL" ]; then
         echo "   Testing pooled database connection..."
-        if npx prisma migrate deploy 2>/dev/null; then
+        if npx prisma migrate deploy; then
           echo "✅ Migrations successful with pooled URL"
         else
           echo "⚠️  Pooled URL also failed"
