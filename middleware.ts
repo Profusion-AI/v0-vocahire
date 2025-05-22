@@ -14,7 +14,8 @@ const isPublicRoute = createRouteMatcher([
   '/terms(.*)', // Added terms as public
   '/privacy(.*)', // Added privacy as public
   '/api/oauth_callback', // Added OAuth callback
-  '/oauth_callback' // Added OAuth callback without API prefix
+  '/oauth_callback', // Added OAuth callback without API prefix
+  '/api/diagnostic/db-performance(.*)' // Temporarily public for testing
 ]);
 
 export default clerkMiddleware(async (auth, req: NextRequest) => {
