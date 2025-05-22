@@ -7,9 +7,20 @@ import { getOpenAIApiKey } from "@/lib/api-utils"
 
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  const requestId = `req_${startTime}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Enhanced performance tracking
+  const perfLog = (phase: string, additionalData?: any) => {
+    const elapsed = Date.now() - startTime;
+    console.log(`[${requestId}] ${phase} - ${elapsed}ms elapsed${additionalData ? ` | ${JSON.stringify(additionalData)}` : ''}`);
+  };
+  
   try {
-    // Log start of request with timestamp
-    console.log(`=== REALTIME SESSION REQUEST (${new Date().toISOString()}) ===`)
+    perfLog("REQUEST_START", { timestamp: new Date().toISOString() });
+    console.log(`=== REALTIME SESSION REQUEST (${new Date().toISOString()}) - ID: ${requestId} ===`)
+    
+    perfLog("API_KEY_CHECK_START");
     const apiKey = getOpenAIApiKey()
     console.log("🔑 API key available:", !!apiKey, apiKey ? `(starts with ${apiKey.slice(0, 6)}...)` : "(not found)")
     
@@ -23,8 +34,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid OpenAI API key format" }, { status: 500 });
     }
 
+    perfLog("API_KEY_CHECK_COMPLETE");
+    
     // Authenticate the user with Clerk
+    perfLog("CLERK_AUTH_START");
     const auth = getAuth(request)
+    perfLog("CLERK_AUTH_COMPLETE", { userId: !!auth.userId, sessionId: !!auth.sessionId });
     console.log("🔐 Auth check:", { userId: auth.userId, sessionId: auth.sessionId });
     
     if (!auth.userId) {
@@ -36,7 +51,9 @@ export async function POST(request: NextRequest) {
     console.log("✅ User authenticated:", userId);
 
     // Apply rate limiting
+    perfLog("RATE_LIMIT_START");
     const rateLimitResult = await checkRateLimit(userId, RATE_LIMIT_CONFIGS.REALTIME_SESSION)
+    perfLog("RATE_LIMIT_COMPLETE", { isLimited: rateLimitResult.isLimited });
     if (rateLimitResult.isLimited) {
       return NextResponse.json(
         {
@@ -47,6 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has enough credits with timeout
+    perfLog("DATABASE_QUERY_START");
     console.log(`Checking credits for user: ${userId}`);
     const user = await Promise.race([
       prisma.user.findUnique({
@@ -54,17 +72,26 @@ export async function POST(request: NextRequest) {
         select: { credits: true, isPremium: true },
       }),
       new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database query timeout')), 10000)
+        setTimeout(() => reject(new Error('Database query timeout')), 25000) // Increased from 10s to 25s for Vercel cold starts
       )
     ]).catch(error => {
+      perfLog("DATABASE_QUERY_ERROR", { error: error.message });
       console.error('Database query failed or timed out in /api/realtime-session:', error);
       // Return null to indicate database failure, don't assume zero credits
       return null;
     }) as { credits: number; isPremium: boolean } | null;
+    
+    perfLog("DATABASE_QUERY_COMPLETE", { userFound: !!user, credits: user?.credits, isPremium: user?.isPremium });
 
     if (!user) {
-      console.error("Failed to fetch user data from database");
-      return NextResponse.json({ error: "Unable to verify account status. Please try again." }, { status: 500 });
+      perfLog("DATABASE_USER_FETCH_FAILED");
+      console.error("Failed to fetch user data from database - may be cold start or connection issue");
+      
+      // For now, let's fail gracefully but consider implementing a retry mechanism
+      return NextResponse.json({ 
+        error: "Unable to verify account status due to database connectivity. Please try again in a moment.",
+        details: "This may be due to a serverless cold start. Please retry."
+      }, { status: 503 }); // 503 Service Unavailable instead of 500 to indicate temporary issue
     }
 
     console.log(`User credits: ${user.credits}, isPremium: ${user.isPremium}`);
@@ -142,13 +169,15 @@ Your role:
 Begin by greeting the candidate and asking them to introduce themselves briefly.`;
 
     // Create OpenAI Realtime session with timeout
+    perfLog("OPENAI_SESSION_START");
     console.log("Creating OpenAI Realtime session...");
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
-      console.log("OpenAI session creation timeout after 30 seconds");
+      perfLog("OPENAI_SESSION_TIMEOUT");
+      console.log("OpenAI session creation timeout after 45 seconds");
       controller.abort();
-    }, 30000); // 30 second timeout to handle potential API delays
+    }, 45000); // 45 second timeout to handle Vercel cold starts and potential API delays
     
     let openaiResponse;
     try {
@@ -175,6 +204,7 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
       
       clearTimeout(timeoutId);
       const requestTime = Date.now() - requestStartTime;
+      perfLog("OPENAI_SESSION_RESPONSE", { status: openaiResponse.status, requestTime });
       console.log(`✅ OpenAI session creation response: ${openaiResponse.status} ${openaiResponse.statusText} (${requestTime}ms)`);
       
       // Log response headers for debugging
@@ -186,12 +216,19 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
       
     } catch (error) {
       clearTimeout(timeoutId);
+      perfLog("OPENAI_SESSION_ERROR", { error: error instanceof Error ? error.message : String(error) });
       if (error instanceof Error && error.name === 'AbortError') {
-        console.error("OpenAI session creation timed out");
-        throw new Error("Session creation timed out. Please try again.");
+        console.error("OpenAI session creation timed out after 45 seconds");
+        return NextResponse.json({ 
+          error: "Session creation timed out. This may be due to high API load. Please try again.",
+          details: "OpenAI API timeout"
+        }, { status: 504 }); // Gateway timeout
       }
       console.error("OpenAI session creation error:", error);
-      throw error;
+      return NextResponse.json({ 
+        error: "Failed to create interview session due to external API error. Please try again.",
+        details: error instanceof Error ? error.message : String(error)
+      }, { status: 502 }); // Bad gateway for external API errors
     }
 
     if (!openaiResponse.ok) {
@@ -211,6 +248,7 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
     }
 
     const sessionData = await openaiResponse.json();
+    perfLog("OPENAI_SESSION_PARSE_COMPLETE", { sessionId: sessionData.id });
     console.log("OpenAI session created:", sessionData.id);
 
     // Deduct VocahireCredits for non-premium users
@@ -236,29 +274,34 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
       console.log("✅ Premium user - no VocahireCredit deduction required");
     }
 
-    // Track usage with timeout (non-blocking)
-    Promise.race([
-      trackUsage(userId, UsageType.INTERVIEW_SESSION),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Usage tracking timeout')), 5000)
-      )
-    ]).catch(error => {
-      console.error('Usage tracking failed:', error);
-      // Don't fail the request if usage tracking fails
+    // Track usage with timeout (non-blocking) - fire and forget
+    perfLog("USAGE_TRACKING_START");
+    setImmediate(() => {
+      Promise.race([
+        trackUsage(userId, UsageType.INTERVIEW_SESSION),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Usage tracking timeout')), 3000) // Reduced timeout
+        )
+      ]).catch(error => {
+        console.error('Usage tracking failed (non-blocking):', error);
+      });
     });
 
-    // Increment rate limit with timeout (non-blocking)
-    Promise.race([
-      incrementRateLimit(userId, RATE_LIMIT_CONFIGS.REALTIME_SESSION),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Rate limit increment timeout')), 5000)
-      )
-    ]).catch(error => {
-      console.error('Rate limit increment failed:', error);
-      // Don't fail the request if rate limit increment fails
+    // Increment rate limit with timeout (non-blocking) - fire and forget
+    perfLog("RATE_LIMIT_INCREMENT_START");
+    setImmediate(() => {
+      Promise.race([
+        incrementRateLimit(userId, RATE_LIMIT_CONFIGS.REALTIME_SESSION),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Rate limit increment timeout')), 3000) // Reduced timeout
+        )
+      ]).catch(error => {
+        console.error('Rate limit increment failed (non-blocking):', error);
+      });
     });
 
     // Return the response with OpenAI session data
+    perfLog("REQUEST_COMPLETE", { totalTime: Date.now() - startTime });
     return NextResponse.json({ 
       success: true,
       id: sessionData.id,
