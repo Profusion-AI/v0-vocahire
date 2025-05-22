@@ -32,27 +32,69 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user has enough credits
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { credits: true },
-    })
+    // Check if user has enough credits with timeout
+    const user = await Promise.race([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { credits: true, isPremium: true },
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database query timeout')), 10000)
+      )
+    ]).catch(error => {
+      console.error('Database query failed or timed out in /api/realtime-session:', error);
+      // Return default user with zero credits to fail gracefully
+      return { credits: 0, isPremium: false };
+    });
 
-    if (!user || Number(user.credits) <= 0) {
+    // Allow premium users to proceed without credit check
+    if (user && user.isPremium) {
+      console.log("Premium user detected, bypassing credit check");
+    } else if (!user || Number(user.credits) <= 0) {
       return NextResponse.json({ error: "Insufficient VocahireCredits. Please purchase more VocahireCredits." }, { status: 403 })
     }
 
-    // Process the request
-    // ... (your existing code to create a realtime session)
+    // Process the request - Create OpenAI Realtime Session
+    console.log("Creating OpenAI Realtime session for user:", userId);
+    
+    // Create a simple session response
+    // In a full implementation, this would create an actual OpenAI Realtime session
+    const sessionData = {
+      sessionId: `session_${userId}_${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      userId: userId,
+      status: 'created'
+    };
 
-    // Track usage
-    await trackUsage(userId, UsageType.INTERVIEW_SESSION)
+    console.log("Session created:", sessionData);
 
-    // Increment rate limit
-    await incrementRateLimit(userId, RATE_LIMIT_CONFIGS.REALTIME_SESSION)
+    // Track usage with timeout (non-blocking)
+    Promise.race([
+      trackUsage(userId, UsageType.INTERVIEW_SESSION),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Usage tracking timeout')), 5000)
+      )
+    ]).catch(error => {
+      console.error('Usage tracking failed:', error);
+      // Don't fail the request if usage tracking fails
+    });
+
+    // Increment rate limit with timeout (non-blocking)
+    Promise.race([
+      incrementRateLimit(userId, RATE_LIMIT_CONFIGS.REALTIME_SESSION),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Rate limit increment timeout')), 5000)
+      )
+    ]).catch(error => {
+      console.error('Rate limit increment failed:', error);
+      // Don't fail the request if rate limit increment fails
+    });
 
     // Return the response
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ 
+      success: true, 
+      session: sessionData 
+    })
   } catch (error) {
     console.error("Error in realtime-session route:", error)
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 })
