@@ -51,7 +51,7 @@ export default function InterviewRoom({
   console.log(`InterviewRoom render #${renderCount}`)
 
   const router = useRouter()
-  const { isLoaded, isSignedIn } = useAuth()
+  const { isLoaded, isSignedIn, getToken } = useAuth()
 
   // State for session status - use refs for values that shouldn't trigger re-renders
   const [status, setStatus] = useState<"idle" | "connecting" | "active" | "ended" | "error">("idle")
@@ -746,9 +746,13 @@ export default function InterviewRoom({
 
         // Additional check to ensure we have a valid session token
         try {
+          const token = await getToken()
           const response = await fetch("/api/user", { 
             method: "GET",
-            headers: { "Content-Type": "application/json" }
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            }
           })
           if (!response.ok) {
             addDebugMessage(`User session validation failed: ${response.status}`)
@@ -833,14 +837,21 @@ export default function InterviewRoom({
             if (resumeData.achievements) resumeText += `Achievements: ${resumeData.achievements}\n`
           }
 
-          // CRITICAL CHANGE: Add timeout to token request
+          // CRITICAL CHANGE: Add timeout to token request with authentication
           const controller = new AbortController()
           const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+
+          // Get authentication token for API call
+          const authToken = await getToken()
+          if (!authToken) {
+            throw new Error("No authentication token available. Please sign in again.")
+          }
 
           const tokenResponse = await fetch("/api/realtime-session", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              "Authorization": `Bearer ${authToken}`
             },
             body: JSON.stringify({
               jobTitle,
