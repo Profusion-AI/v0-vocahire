@@ -720,7 +720,8 @@ This architecture positions VocaHire for its "killer feature" of natural, low-la
 - `/app/interview/InterviewPageClient.tsx`: Main interview page orchestration (~400 LOC)
 - `/components/InterviewRoom.tsx`: Clean interview UI component (~200 LOC) 
 - `/hooks/useRealtimeInterviewSession.ts`: WebRTC session management (~488 LOC)
-- `/components/InterviewRoom-original.tsx`: Backup of original complex implementation
+
+**Note**: The original 600+ LOC InterviewRoom implementation was replaced during refactoring. The new implementation provides the same functionality with better maintainability and cleaner separation of concerns.
 
 **Key API Props:**
 
