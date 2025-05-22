@@ -9,7 +9,7 @@ import { Mic, Clock, AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import type { ResumeData } from "@/components/resume-input"
 import { useRealtimeInterviewSession } from "@/hooks/useRealtimeInterviewSession"
-import styles from "./InterviewRoom.module.css"
+// import styles from "./InterviewRoom.module.css"
 // Removed ConnectionProgress import as we'll create a simple inline version
 
 interface InterviewRoomProps {

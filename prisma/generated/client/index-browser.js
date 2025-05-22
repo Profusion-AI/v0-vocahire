@@ -122,12 +122,8 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
 
 exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
-  email: 'email',
-  name: 'name',
-  image: 'image',
   role: 'role',
   credits: 'credits',
-  isPremium: 'isPremium',
   resumeJobTitle: 'resumeJobTitle',
   resumeSkills: 'resumeSkills',
   resumeExperience: 'resumeExperience',
@@ -139,11 +135,15 @@ exports.Prisma.UserScalarFieldEnum = {
   acceptedTermsAt: 'acceptedTermsAt',
   acceptedPrivacyAt: 'acceptedPrivacyAt',
   dataRetentionOverride: 'dataRetentionOverride',
-  stripeCustomerId: 'stripeCustomerId',
-  premiumSubscriptionId: 'premiumSubscriptionId',
-  premiumExpiresAt: 'premiumExpiresAt',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  premiumExpiresAt: 'premiumExpiresAt',
+  premiumSubscriptionId: 'premiumSubscriptionId',
+  stripeCustomerId: 'stripeCustomerId',
+  isPremium: 'isPremium',
+  email: 'email',
+  image: 'image',
+  name: 'name'
 };
 
 exports.Prisma.InterviewSessionScalarFieldEnum = {
@@ -202,16 +202,6 @@ exports.Prisma.UsageEventScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
-exports.Prisma.InterviewsScalarFieldEnum = {
-  id: 'id',
-  user_id: 'user_id',
-  transcript: 'transcript',
-  feedback: 'feedback',
-  duration: 'duration',
-  created_at: 'created_at',
-  updated_at: 'updated_at'
-};
-
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -247,8 +237,7 @@ exports.Prisma.ModelName = {
   InterviewSession: 'InterviewSession',
   Transcript: 'Transcript',
   Feedback: 'Feedback',
-  UsageEvent: 'UsageEvent',
-  interviews: 'interviews'
+  UsageEvent: 'UsageEvent'
 };
 
 /**

@@ -38,11 +38,6 @@ export type Feedback = $Result.DefaultSelection<Prisma.$FeedbackPayload>
  * 
  */
 export type UsageEvent = $Result.DefaultSelection<Prisma.$UsageEventPayload>
-/**
- * Model interviews
- * This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
- */
-export type interviews = $Result.DefaultSelection<Prisma.$interviewsPayload>
 
 /**
  * Enums
@@ -250,16 +245,6 @@ export class PrismaClient<
     * ```
     */
   get usageEvent(): Prisma.UsageEventDelegate<ExtArgs, ClientOptions>;
-
-  /**
-   * `prisma.interviews`: Exposes CRUD operations for the **interviews** model.
-    * Example usage:
-    * ```ts
-    * // Fetch zero or more Interviews
-    * const interviews = await prisma.interviews.findMany()
-    * ```
-    */
-  get interviews(): Prisma.interviewsDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -704,8 +689,7 @@ export namespace Prisma {
     InterviewSession: 'InterviewSession',
     Transcript: 'Transcript',
     Feedback: 'Feedback',
-    UsageEvent: 'UsageEvent',
-    interviews: 'interviews'
+    UsageEvent: 'UsageEvent'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -724,7 +708,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "interviewSession" | "transcript" | "feedback" | "usageEvent" | "interviews"
+      modelProps: "user" | "interviewSession" | "transcript" | "feedback" | "usageEvent"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1098,80 +1082,6 @@ export namespace Prisma {
           }
         }
       }
-      interviews: {
-        payload: Prisma.$interviewsPayload<ExtArgs>
-        fields: Prisma.interviewsFieldRefs
-        operations: {
-          findUnique: {
-            args: Prisma.interviewsFindUniqueArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$interviewsPayload> | null
-          }
-          findUniqueOrThrow: {
-            args: Prisma.interviewsFindUniqueOrThrowArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$interviewsPayload>
-          }
-          findFirst: {
-            args: Prisma.interviewsFindFirstArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$interviewsPayload> | null
-          }
-          findFirstOrThrow: {
-            args: Prisma.interviewsFindFirstOrThrowArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$interviewsPayload>
-          }
-          findMany: {
-            args: Prisma.interviewsFindManyArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$interviewsPayload>[]
-          }
-          create: {
-            args: Prisma.interviewsCreateArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$interviewsPayload>
-          }
-          createMany: {
-            args: Prisma.interviewsCreateManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          createManyAndReturn: {
-            args: Prisma.interviewsCreateManyAndReturnArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$interviewsPayload>[]
-          }
-          delete: {
-            args: Prisma.interviewsDeleteArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$interviewsPayload>
-          }
-          update: {
-            args: Prisma.interviewsUpdateArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$interviewsPayload>
-          }
-          deleteMany: {
-            args: Prisma.interviewsDeleteManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          updateMany: {
-            args: Prisma.interviewsUpdateManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          updateManyAndReturn: {
-            args: Prisma.interviewsUpdateManyAndReturnArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$interviewsPayload>[]
-          }
-          upsert: {
-            args: Prisma.interviewsUpsertArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$interviewsPayload>
-          }
-          aggregate: {
-            args: Prisma.InterviewsAggregateArgs<ExtArgs>
-            result: $Utils.Optional<AggregateInterviews>
-          }
-          groupBy: {
-            args: Prisma.interviewsGroupByArgs<ExtArgs>
-            result: $Utils.Optional<InterviewsGroupByOutputType>[]
-          }
-          count: {
-            args: Prisma.interviewsCountArgs<ExtArgs>
-            result: $Utils.Optional<InterviewsCountAggregateOutputType> | number
-          }
-        }
-      }
     }
   } & {
     other: {
@@ -1261,7 +1171,6 @@ export namespace Prisma {
     transcript?: TranscriptOmit
     feedback?: FeedbackOmit
     usageEvent?: UsageEventOmit
-    interviews?: interviewsOmit
   }
 
   /* Types for Logging */
@@ -1356,14 +1265,14 @@ export namespace Prisma {
    */
 
   export type UserCountOutputType = {
-    interviewSessions: number
     feedbacks: number
+    interviewSessions: number
     usageEvents: number
   }
 
   export type UserCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    interviewSessions?: boolean | UserCountOutputTypeCountInterviewSessionsArgs
     feedbacks?: boolean | UserCountOutputTypeCountFeedbacksArgs
+    interviewSessions?: boolean | UserCountOutputTypeCountInterviewSessionsArgs
     usageEvents?: boolean | UserCountOutputTypeCountUsageEventsArgs
   }
 
@@ -1381,15 +1290,15 @@ export namespace Prisma {
   /**
    * UserCountOutputType without action
    */
-  export type UserCountOutputTypeCountInterviewSessionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: InterviewSessionWhereInput
+  export type UserCountOutputTypeCountFeedbacksArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: FeedbackWhereInput
   }
 
   /**
    * UserCountOutputType without action
    */
-  export type UserCountOutputTypeCountFeedbacksArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: FeedbackWhereInput
+  export type UserCountOutputTypeCountInterviewSessionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: InterviewSessionWhereInput
   }
 
   /**
@@ -1457,12 +1366,8 @@ export namespace Prisma {
 
   export type UserMinAggregateOutputType = {
     id: string | null
-    email: string | null
-    name: string | null
-    image: string | null
     role: $Enums.UserRole | null
     credits: Decimal | null
-    isPremium: boolean | null
     resumeJobTitle: string | null
     resumeSkills: string | null
     resumeExperience: string | null
@@ -1474,21 +1379,21 @@ export namespace Prisma {
     acceptedTermsAt: Date | null
     acceptedPrivacyAt: Date | null
     dataRetentionOverride: boolean | null
-    stripeCustomerId: string | null
-    premiumSubscriptionId: string | null
-    premiumExpiresAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
+    premiumExpiresAt: Date | null
+    premiumSubscriptionId: string | null
+    stripeCustomerId: string | null
+    isPremium: boolean | null
+    email: string | null
+    image: string | null
+    name: string | null
   }
 
   export type UserMaxAggregateOutputType = {
     id: string | null
-    email: string | null
-    name: string | null
-    image: string | null
     role: $Enums.UserRole | null
     credits: Decimal | null
-    isPremium: boolean | null
     resumeJobTitle: string | null
     resumeSkills: string | null
     resumeExperience: string | null
@@ -1500,21 +1405,21 @@ export namespace Prisma {
     acceptedTermsAt: Date | null
     acceptedPrivacyAt: Date | null
     dataRetentionOverride: boolean | null
-    stripeCustomerId: string | null
-    premiumSubscriptionId: string | null
-    premiumExpiresAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
+    premiumExpiresAt: Date | null
+    premiumSubscriptionId: string | null
+    stripeCustomerId: string | null
+    isPremium: boolean | null
+    email: string | null
+    image: string | null
+    name: string | null
   }
 
   export type UserCountAggregateOutputType = {
     id: number
-    email: number
-    name: number
-    image: number
     role: number
     credits: number
-    isPremium: number
     resumeJobTitle: number
     resumeSkills: number
     resumeExperience: number
@@ -1526,11 +1431,15 @@ export namespace Prisma {
     acceptedTermsAt: number
     acceptedPrivacyAt: number
     dataRetentionOverride: number
-    stripeCustomerId: number
-    premiumSubscriptionId: number
-    premiumExpiresAt: number
     createdAt: number
     updatedAt: number
+    premiumExpiresAt: number
+    premiumSubscriptionId: number
+    stripeCustomerId: number
+    isPremium: number
+    email: number
+    image: number
+    name: number
     _all: number
   }
 
@@ -1545,12 +1454,8 @@ export namespace Prisma {
 
   export type UserMinAggregateInputType = {
     id?: true
-    email?: true
-    name?: true
-    image?: true
     role?: true
     credits?: true
-    isPremium?: true
     resumeJobTitle?: true
     resumeSkills?: true
     resumeExperience?: true
@@ -1562,21 +1467,21 @@ export namespace Prisma {
     acceptedTermsAt?: true
     acceptedPrivacyAt?: true
     dataRetentionOverride?: true
-    stripeCustomerId?: true
-    premiumSubscriptionId?: true
-    premiumExpiresAt?: true
     createdAt?: true
     updatedAt?: true
+    premiumExpiresAt?: true
+    premiumSubscriptionId?: true
+    stripeCustomerId?: true
+    isPremium?: true
+    email?: true
+    image?: true
+    name?: true
   }
 
   export type UserMaxAggregateInputType = {
     id?: true
-    email?: true
-    name?: true
-    image?: true
     role?: true
     credits?: true
-    isPremium?: true
     resumeJobTitle?: true
     resumeSkills?: true
     resumeExperience?: true
@@ -1588,21 +1493,21 @@ export namespace Prisma {
     acceptedTermsAt?: true
     acceptedPrivacyAt?: true
     dataRetentionOverride?: true
-    stripeCustomerId?: true
-    premiumSubscriptionId?: true
-    premiumExpiresAt?: true
     createdAt?: true
     updatedAt?: true
+    premiumExpiresAt?: true
+    premiumSubscriptionId?: true
+    stripeCustomerId?: true
+    isPremium?: true
+    email?: true
+    image?: true
+    name?: true
   }
 
   export type UserCountAggregateInputType = {
     id?: true
-    email?: true
-    name?: true
-    image?: true
     role?: true
     credits?: true
-    isPremium?: true
     resumeJobTitle?: true
     resumeSkills?: true
     resumeExperience?: true
@@ -1614,11 +1519,15 @@ export namespace Prisma {
     acceptedTermsAt?: true
     acceptedPrivacyAt?: true
     dataRetentionOverride?: true
-    stripeCustomerId?: true
-    premiumSubscriptionId?: true
-    premiumExpiresAt?: true
     createdAt?: true
     updatedAt?: true
+    premiumExpiresAt?: true
+    premiumSubscriptionId?: true
+    stripeCustomerId?: true
+    isPremium?: true
+    email?: true
+    image?: true
+    name?: true
     _all?: true
   }
 
@@ -1710,12 +1619,8 @@ export namespace Prisma {
 
   export type UserGroupByOutputType = {
     id: string
-    email: string | null
-    name: string | null
-    image: string | null
     role: $Enums.UserRole
     credits: Decimal
-    isPremium: boolean
     resumeJobTitle: string | null
     resumeSkills: string | null
     resumeExperience: string | null
@@ -1727,11 +1632,15 @@ export namespace Prisma {
     acceptedTermsAt: Date | null
     acceptedPrivacyAt: Date | null
     dataRetentionOverride: boolean | null
-    stripeCustomerId: string | null
-    premiumSubscriptionId: string | null
-    premiumExpiresAt: Date | null
     createdAt: Date
     updatedAt: Date
+    premiumExpiresAt: Date | null
+    premiumSubscriptionId: string | null
+    stripeCustomerId: string | null
+    isPremium: boolean
+    email: string | null
+    image: string | null
+    name: string | null
     _count: UserCountAggregateOutputType | null
     _avg: UserAvgAggregateOutputType | null
     _sum: UserSumAggregateOutputType | null
@@ -1755,12 +1664,8 @@ export namespace Prisma {
 
   export type UserSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    email?: boolean
-    name?: boolean
-    image?: boolean
     role?: boolean
     credits?: boolean
-    isPremium?: boolean
     resumeJobTitle?: boolean
     resumeSkills?: boolean
     resumeExperience?: boolean
@@ -1772,25 +1677,25 @@ export namespace Prisma {
     acceptedTermsAt?: boolean
     acceptedPrivacyAt?: boolean
     dataRetentionOverride?: boolean
-    stripeCustomerId?: boolean
-    premiumSubscriptionId?: boolean
-    premiumExpiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
-    interviewSessions?: boolean | User$interviewSessionsArgs<ExtArgs>
+    premiumExpiresAt?: boolean
+    premiumSubscriptionId?: boolean
+    stripeCustomerId?: boolean
+    isPremium?: boolean
+    email?: boolean
+    image?: boolean
+    name?: boolean
     feedbacks?: boolean | User$feedbacksArgs<ExtArgs>
+    interviewSessions?: boolean | User$interviewSessionsArgs<ExtArgs>
     usageEvents?: boolean | User$usageEventsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
 
   export type UserSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    email?: boolean
-    name?: boolean
-    image?: boolean
     role?: boolean
     credits?: boolean
-    isPremium?: boolean
     resumeJobTitle?: boolean
     resumeSkills?: boolean
     resumeExperience?: boolean
@@ -1802,21 +1707,21 @@ export namespace Prisma {
     acceptedTermsAt?: boolean
     acceptedPrivacyAt?: boolean
     dataRetentionOverride?: boolean
-    stripeCustomerId?: boolean
-    premiumSubscriptionId?: boolean
-    premiumExpiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    premiumExpiresAt?: boolean
+    premiumSubscriptionId?: boolean
+    stripeCustomerId?: boolean
+    isPremium?: boolean
+    email?: boolean
+    image?: boolean
+    name?: boolean
   }, ExtArgs["result"]["user"]>
 
   export type UserSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    email?: boolean
-    name?: boolean
-    image?: boolean
     role?: boolean
     credits?: boolean
-    isPremium?: boolean
     resumeJobTitle?: boolean
     resumeSkills?: boolean
     resumeExperience?: boolean
@@ -1828,21 +1733,21 @@ export namespace Prisma {
     acceptedTermsAt?: boolean
     acceptedPrivacyAt?: boolean
     dataRetentionOverride?: boolean
-    stripeCustomerId?: boolean
-    premiumSubscriptionId?: boolean
-    premiumExpiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    premiumExpiresAt?: boolean
+    premiumSubscriptionId?: boolean
+    stripeCustomerId?: boolean
+    isPremium?: boolean
+    email?: boolean
+    image?: boolean
+    name?: boolean
   }, ExtArgs["result"]["user"]>
 
   export type UserSelectScalar = {
     id?: boolean
-    email?: boolean
-    name?: boolean
-    image?: boolean
     role?: boolean
     credits?: boolean
-    isPremium?: boolean
     resumeJobTitle?: boolean
     resumeSkills?: boolean
     resumeExperience?: boolean
@@ -1854,17 +1759,21 @@ export namespace Prisma {
     acceptedTermsAt?: boolean
     acceptedPrivacyAt?: boolean
     dataRetentionOverride?: boolean
-    stripeCustomerId?: boolean
-    premiumSubscriptionId?: boolean
-    premiumExpiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    premiumExpiresAt?: boolean
+    premiumSubscriptionId?: boolean
+    stripeCustomerId?: boolean
+    isPremium?: boolean
+    email?: boolean
+    image?: boolean
+    name?: boolean
   }
 
-  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "name" | "image" | "role" | "credits" | "isPremium" | "resumeJobTitle" | "resumeSkills" | "resumeExperience" | "resumeEducation" | "resumeAchievements" | "resumeFileUrl" | "jobSearchStage" | "linkedinUrl" | "acceptedTermsAt" | "acceptedPrivacyAt" | "dataRetentionOverride" | "stripeCustomerId" | "premiumSubscriptionId" | "premiumExpiresAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "role" | "credits" | "resumeJobTitle" | "resumeSkills" | "resumeExperience" | "resumeEducation" | "resumeAchievements" | "resumeFileUrl" | "jobSearchStage" | "linkedinUrl" | "acceptedTermsAt" | "acceptedPrivacyAt" | "dataRetentionOverride" | "createdAt" | "updatedAt" | "premiumExpiresAt" | "premiumSubscriptionId" | "stripeCustomerId" | "isPremium" | "email" | "image" | "name", ExtArgs["result"]["user"]>
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    interviewSessions?: boolean | User$interviewSessionsArgs<ExtArgs>
     feedbacks?: boolean | User$feedbacksArgs<ExtArgs>
+    interviewSessions?: boolean | User$interviewSessionsArgs<ExtArgs>
     usageEvents?: boolean | User$usageEventsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }
@@ -1874,18 +1783,14 @@ export namespace Prisma {
   export type $UserPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "User"
     objects: {
-      interviewSessions: Prisma.$InterviewSessionPayload<ExtArgs>[]
       feedbacks: Prisma.$FeedbackPayload<ExtArgs>[]
+      interviewSessions: Prisma.$InterviewSessionPayload<ExtArgs>[]
       usageEvents: Prisma.$UsageEventPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
-      email: string | null
-      name: string | null
-      image: string | null
       role: $Enums.UserRole
       credits: Prisma.Decimal
-      isPremium: boolean
       resumeJobTitle: string | null
       resumeSkills: string | null
       resumeExperience: string | null
@@ -1897,11 +1802,15 @@ export namespace Prisma {
       acceptedTermsAt: Date | null
       acceptedPrivacyAt: Date | null
       dataRetentionOverride: boolean | null
-      stripeCustomerId: string | null
-      premiumSubscriptionId: string | null
-      premiumExpiresAt: Date | null
       createdAt: Date
       updatedAt: Date
+      premiumExpiresAt: Date | null
+      premiumSubscriptionId: string | null
+      stripeCustomerId: string | null
+      isPremium: boolean
+      email: string | null
+      image: string | null
+      name: string | null
     }, ExtArgs["result"]["user"]>
     composites: {}
   }
@@ -2296,8 +2205,8 @@ export namespace Prisma {
    */
   export interface Prisma__UserClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
-    interviewSessions<T extends User$interviewSessionsArgs<ExtArgs> = {}>(args?: Subset<T, User$interviewSessionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$InterviewSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     feedbacks<T extends User$feedbacksArgs<ExtArgs> = {}>(args?: Subset<T, User$feedbacksArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$FeedbackPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    interviewSessions<T extends User$interviewSessionsArgs<ExtArgs> = {}>(args?: Subset<T, User$interviewSessionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$InterviewSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     usageEvents<T extends User$usageEventsArgs<ExtArgs> = {}>(args?: Subset<T, User$usageEventsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UsageEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -2329,12 +2238,8 @@ export namespace Prisma {
    */
   interface UserFieldRefs {
     readonly id: FieldRef<"User", 'String'>
-    readonly email: FieldRef<"User", 'String'>
-    readonly name: FieldRef<"User", 'String'>
-    readonly image: FieldRef<"User", 'String'>
     readonly role: FieldRef<"User", 'UserRole'>
     readonly credits: FieldRef<"User", 'Decimal'>
-    readonly isPremium: FieldRef<"User", 'Boolean'>
     readonly resumeJobTitle: FieldRef<"User", 'String'>
     readonly resumeSkills: FieldRef<"User", 'String'>
     readonly resumeExperience: FieldRef<"User", 'String'>
@@ -2346,11 +2251,15 @@ export namespace Prisma {
     readonly acceptedTermsAt: FieldRef<"User", 'DateTime'>
     readonly acceptedPrivacyAt: FieldRef<"User", 'DateTime'>
     readonly dataRetentionOverride: FieldRef<"User", 'Boolean'>
-    readonly stripeCustomerId: FieldRef<"User", 'String'>
-    readonly premiumSubscriptionId: FieldRef<"User", 'String'>
-    readonly premiumExpiresAt: FieldRef<"User", 'DateTime'>
     readonly createdAt: FieldRef<"User", 'DateTime'>
     readonly updatedAt: FieldRef<"User", 'DateTime'>
+    readonly premiumExpiresAt: FieldRef<"User", 'DateTime'>
+    readonly premiumSubscriptionId: FieldRef<"User", 'String'>
+    readonly stripeCustomerId: FieldRef<"User", 'String'>
+    readonly isPremium: FieldRef<"User", 'Boolean'>
+    readonly email: FieldRef<"User", 'String'>
+    readonly image: FieldRef<"User", 'String'>
+    readonly name: FieldRef<"User", 'String'>
   }
     
 
@@ -2739,30 +2648,6 @@ export namespace Prisma {
   }
 
   /**
-   * User.interviewSessions
-   */
-  export type User$interviewSessionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the InterviewSession
-     */
-    select?: InterviewSessionSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the InterviewSession
-     */
-    omit?: InterviewSessionOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: InterviewSessionInclude<ExtArgs> | null
-    where?: InterviewSessionWhereInput
-    orderBy?: InterviewSessionOrderByWithRelationInput | InterviewSessionOrderByWithRelationInput[]
-    cursor?: InterviewSessionWhereUniqueInput
-    take?: number
-    skip?: number
-    distinct?: InterviewSessionScalarFieldEnum | InterviewSessionScalarFieldEnum[]
-  }
-
-  /**
    * User.feedbacks
    */
   export type User$feedbacksArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -2784,6 +2669,30 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: FeedbackScalarFieldEnum | FeedbackScalarFieldEnum[]
+  }
+
+  /**
+   * User.interviewSessions
+   */
+  export type User$interviewSessionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the InterviewSession
+     */
+    select?: InterviewSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the InterviewSession
+     */
+    omit?: InterviewSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: InterviewSessionInclude<ExtArgs> | null
+    where?: InterviewSessionWhereInput
+    orderBy?: InterviewSessionOrderByWithRelationInput | InterviewSessionOrderByWithRelationInput[]
+    cursor?: InterviewSessionWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: InterviewSessionScalarFieldEnum | InterviewSessionScalarFieldEnum[]
   }
 
   /**
@@ -3119,9 +3028,9 @@ export namespace Prisma {
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    feedback?: boolean | InterviewSession$feedbackArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
     transcripts?: boolean | InterviewSession$transcriptsArgs<ExtArgs>
-    feedback?: boolean | InterviewSession$feedbackArgs<ExtArgs>
     _count?: boolean | InterviewSessionCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["interviewSession"]>
 
@@ -3189,9 +3098,9 @@ export namespace Prisma {
 
   export type InterviewSessionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "jobTitle" | "resumeSnapshot" | "company" | "interviewType" | "jdContext" | "webrtcSessionId" | "openaiSessionId" | "fallbackMode" | "startedAt" | "endedAt" | "durationSeconds" | "audioUrl" | "expiresAt" | "createdAt" | "updatedAt", ExtArgs["result"]["interviewSession"]>
   export type InterviewSessionInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    feedback?: boolean | InterviewSession$feedbackArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
     transcripts?: boolean | InterviewSession$transcriptsArgs<ExtArgs>
-    feedback?: boolean | InterviewSession$feedbackArgs<ExtArgs>
     _count?: boolean | InterviewSessionCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type InterviewSessionIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -3204,9 +3113,9 @@ export namespace Prisma {
   export type $InterviewSessionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "InterviewSession"
     objects: {
+      feedback: Prisma.$FeedbackPayload<ExtArgs> | null
       user: Prisma.$UserPayload<ExtArgs>
       transcripts: Prisma.$TranscriptPayload<ExtArgs>[]
-      feedback: Prisma.$FeedbackPayload<ExtArgs> | null
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -3620,9 +3529,9 @@ export namespace Prisma {
    */
   export interface Prisma__InterviewSessionClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    feedback<T extends InterviewSession$feedbackArgs<ExtArgs> = {}>(args?: Subset<T, InterviewSession$feedbackArgs<ExtArgs>>): Prisma__FeedbackClient<$Result.GetResult<Prisma.$FeedbackPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     transcripts<T extends InterviewSession$transcriptsArgs<ExtArgs> = {}>(args?: Subset<T, InterviewSession$transcriptsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TranscriptPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-    feedback<T extends InterviewSession$feedbackArgs<ExtArgs> = {}>(args?: Subset<T, InterviewSession$feedbackArgs<ExtArgs>>): Prisma__FeedbackClient<$Result.GetResult<Prisma.$FeedbackPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -4065,6 +3974,25 @@ export namespace Prisma {
   }
 
   /**
+   * InterviewSession.feedback
+   */
+  export type InterviewSession$feedbackArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Feedback
+     */
+    select?: FeedbackSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Feedback
+     */
+    omit?: FeedbackOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FeedbackInclude<ExtArgs> | null
+    where?: FeedbackWhereInput
+  }
+
+  /**
    * InterviewSession.transcripts
    */
   export type InterviewSession$transcriptsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -4086,25 +4014,6 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: TranscriptScalarFieldEnum | TranscriptScalarFieldEnum[]
-  }
-
-  /**
-   * InterviewSession.feedback
-   */
-  export type InterviewSession$feedbackArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the Feedback
-     */
-    select?: FeedbackSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the Feedback
-     */
-    omit?: FeedbackOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: FeedbackInclude<ExtArgs> | null
-    where?: FeedbackWhereInput
   }
 
   /**
@@ -7552,1061 +7461,6 @@ export namespace Prisma {
 
 
   /**
-   * Model interviews
-   */
-
-  export type AggregateInterviews = {
-    _count: InterviewsCountAggregateOutputType | null
-    _avg: InterviewsAvgAggregateOutputType | null
-    _sum: InterviewsSumAggregateOutputType | null
-    _min: InterviewsMinAggregateOutputType | null
-    _max: InterviewsMaxAggregateOutputType | null
-  }
-
-  export type InterviewsAvgAggregateOutputType = {
-    id: number | null
-    duration: number | null
-  }
-
-  export type InterviewsSumAggregateOutputType = {
-    id: bigint | null
-    duration: number | null
-  }
-
-  export type InterviewsMinAggregateOutputType = {
-    id: bigint | null
-    user_id: string | null
-    transcript: string | null
-    duration: number | null
-    created_at: Date | null
-    updated_at: Date | null
-  }
-
-  export type InterviewsMaxAggregateOutputType = {
-    id: bigint | null
-    user_id: string | null
-    transcript: string | null
-    duration: number | null
-    created_at: Date | null
-    updated_at: Date | null
-  }
-
-  export type InterviewsCountAggregateOutputType = {
-    id: number
-    user_id: number
-    transcript: number
-    feedback: number
-    duration: number
-    created_at: number
-    updated_at: number
-    _all: number
-  }
-
-
-  export type InterviewsAvgAggregateInputType = {
-    id?: true
-    duration?: true
-  }
-
-  export type InterviewsSumAggregateInputType = {
-    id?: true
-    duration?: true
-  }
-
-  export type InterviewsMinAggregateInputType = {
-    id?: true
-    user_id?: true
-    transcript?: true
-    duration?: true
-    created_at?: true
-    updated_at?: true
-  }
-
-  export type InterviewsMaxAggregateInputType = {
-    id?: true
-    user_id?: true
-    transcript?: true
-    duration?: true
-    created_at?: true
-    updated_at?: true
-  }
-
-  export type InterviewsCountAggregateInputType = {
-    id?: true
-    user_id?: true
-    transcript?: true
-    feedback?: true
-    duration?: true
-    created_at?: true
-    updated_at?: true
-    _all?: true
-  }
-
-  export type InterviewsAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Filter which interviews to aggregate.
-     */
-    where?: interviewsWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of interviews to fetch.
-     */
-    orderBy?: interviewsOrderByWithRelationInput | interviewsOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the start position
-     */
-    cursor?: interviewsWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` interviews from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` interviews.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Count returned interviews
-    **/
-    _count?: true | InterviewsCountAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to average
-    **/
-    _avg?: InterviewsAvgAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to sum
-    **/
-    _sum?: InterviewsSumAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to find the minimum value
-    **/
-    _min?: InterviewsMinAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to find the maximum value
-    **/
-    _max?: InterviewsMaxAggregateInputType
-  }
-
-  export type GetInterviewsAggregateType<T extends InterviewsAggregateArgs> = {
-        [P in keyof T & keyof AggregateInterviews]: P extends '_count' | 'count'
-      ? T[P] extends true
-        ? number
-        : GetScalarType<T[P], AggregateInterviews[P]>
-      : GetScalarType<T[P], AggregateInterviews[P]>
-  }
-
-
-
-
-  export type interviewsGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: interviewsWhereInput
-    orderBy?: interviewsOrderByWithAggregationInput | interviewsOrderByWithAggregationInput[]
-    by: InterviewsScalarFieldEnum[] | InterviewsScalarFieldEnum
-    having?: interviewsScalarWhereWithAggregatesInput
-    take?: number
-    skip?: number
-    _count?: InterviewsCountAggregateInputType | true
-    _avg?: InterviewsAvgAggregateInputType
-    _sum?: InterviewsSumAggregateInputType
-    _min?: InterviewsMinAggregateInputType
-    _max?: InterviewsMaxAggregateInputType
-  }
-
-  export type InterviewsGroupByOutputType = {
-    id: bigint
-    user_id: string
-    transcript: string | null
-    feedback: JsonValue | null
-    duration: number | null
-    created_at: Date | null
-    updated_at: Date | null
-    _count: InterviewsCountAggregateOutputType | null
-    _avg: InterviewsAvgAggregateOutputType | null
-    _sum: InterviewsSumAggregateOutputType | null
-    _min: InterviewsMinAggregateOutputType | null
-    _max: InterviewsMaxAggregateOutputType | null
-  }
-
-  type GetInterviewsGroupByPayload<T extends interviewsGroupByArgs> = Prisma.PrismaPromise<
-    Array<
-      PickEnumerable<InterviewsGroupByOutputType, T['by']> &
-        {
-          [P in ((keyof T) & (keyof InterviewsGroupByOutputType))]: P extends '_count'
-            ? T[P] extends boolean
-              ? number
-              : GetScalarType<T[P], InterviewsGroupByOutputType[P]>
-            : GetScalarType<T[P], InterviewsGroupByOutputType[P]>
-        }
-      >
-    >
-
-
-  export type interviewsSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    user_id?: boolean
-    transcript?: boolean
-    feedback?: boolean
-    duration?: boolean
-    created_at?: boolean
-    updated_at?: boolean
-  }, ExtArgs["result"]["interviews"]>
-
-  export type interviewsSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    user_id?: boolean
-    transcript?: boolean
-    feedback?: boolean
-    duration?: boolean
-    created_at?: boolean
-    updated_at?: boolean
-  }, ExtArgs["result"]["interviews"]>
-
-  export type interviewsSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    user_id?: boolean
-    transcript?: boolean
-    feedback?: boolean
-    duration?: boolean
-    created_at?: boolean
-    updated_at?: boolean
-  }, ExtArgs["result"]["interviews"]>
-
-  export type interviewsSelectScalar = {
-    id?: boolean
-    user_id?: boolean
-    transcript?: boolean
-    feedback?: boolean
-    duration?: boolean
-    created_at?: boolean
-    updated_at?: boolean
-  }
-
-  export type interviewsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "user_id" | "transcript" | "feedback" | "duration" | "created_at" | "updated_at", ExtArgs["result"]["interviews"]>
-
-  export type $interviewsPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    name: "interviews"
-    objects: {}
-    scalars: $Extensions.GetPayloadResult<{
-      id: bigint
-      user_id: string
-      transcript: string | null
-      feedback: Prisma.JsonValue | null
-      duration: number | null
-      created_at: Date | null
-      updated_at: Date | null
-    }, ExtArgs["result"]["interviews"]>
-    composites: {}
-  }
-
-  type interviewsGetPayload<S extends boolean | null | undefined | interviewsDefaultArgs> = $Result.GetResult<Prisma.$interviewsPayload, S>
-
-  type interviewsCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
-    Omit<interviewsFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
-      select?: InterviewsCountAggregateInputType | true
-    }
-
-  export interface interviewsDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
-    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['interviews'], meta: { name: 'interviews' } }
-    /**
-     * Find zero or one Interviews that matches the filter.
-     * @param {interviewsFindUniqueArgs} args - Arguments to find a Interviews
-     * @example
-     * // Get one Interviews
-     * const interviews = await prisma.interviews.findUnique({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findUnique<T extends interviewsFindUniqueArgs>(args: SelectSubset<T, interviewsFindUniqueArgs<ExtArgs>>): Prisma__interviewsClient<$Result.GetResult<Prisma.$interviewsPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find one Interviews that matches the filter or throw an error with `error.code='P2025'`
-     * if no matches were found.
-     * @param {interviewsFindUniqueOrThrowArgs} args - Arguments to find a Interviews
-     * @example
-     * // Get one Interviews
-     * const interviews = await prisma.interviews.findUniqueOrThrow({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findUniqueOrThrow<T extends interviewsFindUniqueOrThrowArgs>(args: SelectSubset<T, interviewsFindUniqueOrThrowArgs<ExtArgs>>): Prisma__interviewsClient<$Result.GetResult<Prisma.$interviewsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find the first Interviews that matches the filter.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {interviewsFindFirstArgs} args - Arguments to find a Interviews
-     * @example
-     * // Get one Interviews
-     * const interviews = await prisma.interviews.findFirst({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findFirst<T extends interviewsFindFirstArgs>(args?: SelectSubset<T, interviewsFindFirstArgs<ExtArgs>>): Prisma__interviewsClient<$Result.GetResult<Prisma.$interviewsPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find the first Interviews that matches the filter or
-     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {interviewsFindFirstOrThrowArgs} args - Arguments to find a Interviews
-     * @example
-     * // Get one Interviews
-     * const interviews = await prisma.interviews.findFirstOrThrow({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findFirstOrThrow<T extends interviewsFindFirstOrThrowArgs>(args?: SelectSubset<T, interviewsFindFirstOrThrowArgs<ExtArgs>>): Prisma__interviewsClient<$Result.GetResult<Prisma.$interviewsPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find zero or more Interviews that matches the filter.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {interviewsFindManyArgs} args - Arguments to filter and select certain fields only.
-     * @example
-     * // Get all Interviews
-     * const interviews = await prisma.interviews.findMany()
-     * 
-     * // Get first 10 Interviews
-     * const interviews = await prisma.interviews.findMany({ take: 10 })
-     * 
-     * // Only select the `id`
-     * const interviewsWithIdOnly = await prisma.interviews.findMany({ select: { id: true } })
-     * 
-     */
-    findMany<T extends interviewsFindManyArgs>(args?: SelectSubset<T, interviewsFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$interviewsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
-
-    /**
-     * Create a Interviews.
-     * @param {interviewsCreateArgs} args - Arguments to create a Interviews.
-     * @example
-     * // Create one Interviews
-     * const Interviews = await prisma.interviews.create({
-     *   data: {
-     *     // ... data to create a Interviews
-     *   }
-     * })
-     * 
-     */
-    create<T extends interviewsCreateArgs>(args: SelectSubset<T, interviewsCreateArgs<ExtArgs>>): Prisma__interviewsClient<$Result.GetResult<Prisma.$interviewsPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Create many Interviews.
-     * @param {interviewsCreateManyArgs} args - Arguments to create many Interviews.
-     * @example
-     * // Create many Interviews
-     * const interviews = await prisma.interviews.createMany({
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     *     
-     */
-    createMany<T extends interviewsCreateManyArgs>(args?: SelectSubset<T, interviewsCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Create many Interviews and returns the data saved in the database.
-     * @param {interviewsCreateManyAndReturnArgs} args - Arguments to create many Interviews.
-     * @example
-     * // Create many Interviews
-     * const interviews = await prisma.interviews.createManyAndReturn({
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * 
-     * // Create many Interviews and only return the `id`
-     * const interviewsWithIdOnly = await prisma.interviews.createManyAndReturn({
-     *   select: { id: true },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * 
-     */
-    createManyAndReturn<T extends interviewsCreateManyAndReturnArgs>(args?: SelectSubset<T, interviewsCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$interviewsPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
-
-    /**
-     * Delete a Interviews.
-     * @param {interviewsDeleteArgs} args - Arguments to delete one Interviews.
-     * @example
-     * // Delete one Interviews
-     * const Interviews = await prisma.interviews.delete({
-     *   where: {
-     *     // ... filter to delete one Interviews
-     *   }
-     * })
-     * 
-     */
-    delete<T extends interviewsDeleteArgs>(args: SelectSubset<T, interviewsDeleteArgs<ExtArgs>>): Prisma__interviewsClient<$Result.GetResult<Prisma.$interviewsPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Update one Interviews.
-     * @param {interviewsUpdateArgs} args - Arguments to update one Interviews.
-     * @example
-     * // Update one Interviews
-     * const interviews = await prisma.interviews.update({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: {
-     *     // ... provide data here
-     *   }
-     * })
-     * 
-     */
-    update<T extends interviewsUpdateArgs>(args: SelectSubset<T, interviewsUpdateArgs<ExtArgs>>): Prisma__interviewsClient<$Result.GetResult<Prisma.$interviewsPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Delete zero or more Interviews.
-     * @param {interviewsDeleteManyArgs} args - Arguments to filter Interviews to delete.
-     * @example
-     * // Delete a few Interviews
-     * const { count } = await prisma.interviews.deleteMany({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     * 
-     */
-    deleteMany<T extends interviewsDeleteManyArgs>(args?: SelectSubset<T, interviewsDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Update zero or more Interviews.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {interviewsUpdateManyArgs} args - Arguments to update one or more rows.
-     * @example
-     * // Update many Interviews
-     * const interviews = await prisma.interviews.updateMany({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: {
-     *     // ... provide data here
-     *   }
-     * })
-     * 
-     */
-    updateMany<T extends interviewsUpdateManyArgs>(args: SelectSubset<T, interviewsUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Update zero or more Interviews and returns the data updated in the database.
-     * @param {interviewsUpdateManyAndReturnArgs} args - Arguments to update many Interviews.
-     * @example
-     * // Update many Interviews
-     * const interviews = await prisma.interviews.updateManyAndReturn({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * 
-     * // Update zero or more Interviews and only return the `id`
-     * const interviewsWithIdOnly = await prisma.interviews.updateManyAndReturn({
-     *   select: { id: true },
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * 
-     */
-    updateManyAndReturn<T extends interviewsUpdateManyAndReturnArgs>(args: SelectSubset<T, interviewsUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$interviewsPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
-
-    /**
-     * Create or update one Interviews.
-     * @param {interviewsUpsertArgs} args - Arguments to update or create a Interviews.
-     * @example
-     * // Update or create a Interviews
-     * const interviews = await prisma.interviews.upsert({
-     *   create: {
-     *     // ... data to create a Interviews
-     *   },
-     *   update: {
-     *     // ... in case it already exists, update
-     *   },
-     *   where: {
-     *     // ... the filter for the Interviews we want to update
-     *   }
-     * })
-     */
-    upsert<T extends interviewsUpsertArgs>(args: SelectSubset<T, interviewsUpsertArgs<ExtArgs>>): Prisma__interviewsClient<$Result.GetResult<Prisma.$interviewsPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-
-    /**
-     * Count the number of Interviews.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {interviewsCountArgs} args - Arguments to filter Interviews to count.
-     * @example
-     * // Count the number of Interviews
-     * const count = await prisma.interviews.count({
-     *   where: {
-     *     // ... the filter for the Interviews we want to count
-     *   }
-     * })
-    **/
-    count<T extends interviewsCountArgs>(
-      args?: Subset<T, interviewsCountArgs>,
-    ): Prisma.PrismaPromise<
-      T extends $Utils.Record<'select', any>
-        ? T['select'] extends true
-          ? number
-          : GetScalarType<T['select'], InterviewsCountAggregateOutputType>
-        : number
-    >
-
-    /**
-     * Allows you to perform aggregations operations on a Interviews.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {InterviewsAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
-     * @example
-     * // Ordered by age ascending
-     * // Where email contains prisma.io
-     * // Limited to the 10 users
-     * const aggregations = await prisma.user.aggregate({
-     *   _avg: {
-     *     age: true,
-     *   },
-     *   where: {
-     *     email: {
-     *       contains: "prisma.io",
-     *     },
-     *   },
-     *   orderBy: {
-     *     age: "asc",
-     *   },
-     *   take: 10,
-     * })
-    **/
-    aggregate<T extends InterviewsAggregateArgs>(args: Subset<T, InterviewsAggregateArgs>): Prisma.PrismaPromise<GetInterviewsAggregateType<T>>
-
-    /**
-     * Group by Interviews.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {interviewsGroupByArgs} args - Group by arguments.
-     * @example
-     * // Group by city, order by createdAt, get count
-     * const result = await prisma.user.groupBy({
-     *   by: ['city', 'createdAt'],
-     *   orderBy: {
-     *     createdAt: true
-     *   },
-     *   _count: {
-     *     _all: true
-     *   },
-     * })
-     * 
-    **/
-    groupBy<
-      T extends interviewsGroupByArgs,
-      HasSelectOrTake extends Or<
-        Extends<'skip', Keys<T>>,
-        Extends<'take', Keys<T>>
-      >,
-      OrderByArg extends True extends HasSelectOrTake
-        ? { orderBy: interviewsGroupByArgs['orderBy'] }
-        : { orderBy?: interviewsGroupByArgs['orderBy'] },
-      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
-      ByFields extends MaybeTupleToUnion<T['by']>,
-      ByValid extends Has<ByFields, OrderFields>,
-      HavingFields extends GetHavingFields<T['having']>,
-      HavingValid extends Has<ByFields, HavingFields>,
-      ByEmpty extends T['by'] extends never[] ? True : False,
-      InputErrors extends ByEmpty extends True
-      ? `Error: "by" must not be empty.`
-      : HavingValid extends False
-      ? {
-          [P in HavingFields]: P extends ByFields
-            ? never
-            : P extends string
-            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
-            : [
-                Error,
-                'Field ',
-                P,
-                ` in "having" needs to be provided in "by"`,
-              ]
-        }[HavingFields]
-      : 'take' extends Keys<T>
-      ? 'orderBy' extends Keys<T>
-        ? ByValid extends True
-          ? {}
-          : {
-              [P in OrderFields]: P extends ByFields
-                ? never
-                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-            }[OrderFields]
-        : 'Error: If you provide "take", you also need to provide "orderBy"'
-      : 'skip' extends Keys<T>
-      ? 'orderBy' extends Keys<T>
-        ? ByValid extends True
-          ? {}
-          : {
-              [P in OrderFields]: P extends ByFields
-                ? never
-                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-            }[OrderFields]
-        : 'Error: If you provide "skip", you also need to provide "orderBy"'
-      : ByValid extends True
-      ? {}
-      : {
-          [P in OrderFields]: P extends ByFields
-            ? never
-            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-        }[OrderFields]
-    >(args: SubsetIntersection<T, interviewsGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetInterviewsGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
-  /**
-   * Fields of the interviews model
-   */
-  readonly fields: interviewsFieldRefs;
-  }
-
-  /**
-   * The delegate class that acts as a "Promise-like" for interviews.
-   * Why is this prefixed with `Prisma__`?
-   * Because we want to prevent naming conflicts as mentioned in
-   * https://github.com/prisma/prisma-client-js/issues/707
-   */
-  export interface Prisma__interviewsClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
-    readonly [Symbol.toStringTag]: "PrismaPromise"
-    /**
-     * Attaches callbacks for the resolution and/or rejection of the Promise.
-     * @param onfulfilled The callback to execute when the Promise is resolved.
-     * @param onrejected The callback to execute when the Promise is rejected.
-     * @returns A Promise for the completion of which ever callback is executed.
-     */
-    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
-    /**
-     * Attaches a callback for only the rejection of the Promise.
-     * @param onrejected The callback to execute when the Promise is rejected.
-     * @returns A Promise for the completion of the callback.
-     */
-    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
-    /**
-     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
-     * resolved value cannot be modified from the callback.
-     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
-     * @returns A Promise for the completion of the callback.
-     */
-    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
-  }
-
-
-
-
-  /**
-   * Fields of the interviews model
-   */
-  interface interviewsFieldRefs {
-    readonly id: FieldRef<"interviews", 'BigInt'>
-    readonly user_id: FieldRef<"interviews", 'String'>
-    readonly transcript: FieldRef<"interviews", 'String'>
-    readonly feedback: FieldRef<"interviews", 'Json'>
-    readonly duration: FieldRef<"interviews", 'Int'>
-    readonly created_at: FieldRef<"interviews", 'DateTime'>
-    readonly updated_at: FieldRef<"interviews", 'DateTime'>
-  }
-    
-
-  // Custom InputTypes
-  /**
-   * interviews findUnique
-   */
-  export type interviewsFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the interviews
-     */
-    select?: interviewsSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the interviews
-     */
-    omit?: interviewsOmit<ExtArgs> | null
-    /**
-     * Filter, which interviews to fetch.
-     */
-    where: interviewsWhereUniqueInput
-  }
-
-  /**
-   * interviews findUniqueOrThrow
-   */
-  export type interviewsFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the interviews
-     */
-    select?: interviewsSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the interviews
-     */
-    omit?: interviewsOmit<ExtArgs> | null
-    /**
-     * Filter, which interviews to fetch.
-     */
-    where: interviewsWhereUniqueInput
-  }
-
-  /**
-   * interviews findFirst
-   */
-  export type interviewsFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the interviews
-     */
-    select?: interviewsSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the interviews
-     */
-    omit?: interviewsOmit<ExtArgs> | null
-    /**
-     * Filter, which interviews to fetch.
-     */
-    where?: interviewsWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of interviews to fetch.
-     */
-    orderBy?: interviewsOrderByWithRelationInput | interviewsOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for searching for interviews.
-     */
-    cursor?: interviewsWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` interviews from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` interviews.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
-     * Filter by unique combinations of interviews.
-     */
-    distinct?: InterviewsScalarFieldEnum | InterviewsScalarFieldEnum[]
-  }
-
-  /**
-   * interviews findFirstOrThrow
-   */
-  export type interviewsFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the interviews
-     */
-    select?: interviewsSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the interviews
-     */
-    omit?: interviewsOmit<ExtArgs> | null
-    /**
-     * Filter, which interviews to fetch.
-     */
-    where?: interviewsWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of interviews to fetch.
-     */
-    orderBy?: interviewsOrderByWithRelationInput | interviewsOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for searching for interviews.
-     */
-    cursor?: interviewsWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` interviews from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` interviews.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
-     * Filter by unique combinations of interviews.
-     */
-    distinct?: InterviewsScalarFieldEnum | InterviewsScalarFieldEnum[]
-  }
-
-  /**
-   * interviews findMany
-   */
-  export type interviewsFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the interviews
-     */
-    select?: interviewsSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the interviews
-     */
-    omit?: interviewsOmit<ExtArgs> | null
-    /**
-     * Filter, which interviews to fetch.
-     */
-    where?: interviewsWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of interviews to fetch.
-     */
-    orderBy?: interviewsOrderByWithRelationInput | interviewsOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for listing interviews.
-     */
-    cursor?: interviewsWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` interviews from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` interviews.
-     */
-    skip?: number
-    distinct?: InterviewsScalarFieldEnum | InterviewsScalarFieldEnum[]
-  }
-
-  /**
-   * interviews create
-   */
-  export type interviewsCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the interviews
-     */
-    select?: interviewsSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the interviews
-     */
-    omit?: interviewsOmit<ExtArgs> | null
-    /**
-     * The data needed to create a interviews.
-     */
-    data: XOR<interviewsCreateInput, interviewsUncheckedCreateInput>
-  }
-
-  /**
-   * interviews createMany
-   */
-  export type interviewsCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * The data used to create many interviews.
-     */
-    data: interviewsCreateManyInput | interviewsCreateManyInput[]
-    skipDuplicates?: boolean
-  }
-
-  /**
-   * interviews createManyAndReturn
-   */
-  export type interviewsCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the interviews
-     */
-    select?: interviewsSelectCreateManyAndReturn<ExtArgs> | null
-    /**
-     * Omit specific fields from the interviews
-     */
-    omit?: interviewsOmit<ExtArgs> | null
-    /**
-     * The data used to create many interviews.
-     */
-    data: interviewsCreateManyInput | interviewsCreateManyInput[]
-    skipDuplicates?: boolean
-  }
-
-  /**
-   * interviews update
-   */
-  export type interviewsUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the interviews
-     */
-    select?: interviewsSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the interviews
-     */
-    omit?: interviewsOmit<ExtArgs> | null
-    /**
-     * The data needed to update a interviews.
-     */
-    data: XOR<interviewsUpdateInput, interviewsUncheckedUpdateInput>
-    /**
-     * Choose, which interviews to update.
-     */
-    where: interviewsWhereUniqueInput
-  }
-
-  /**
-   * interviews updateMany
-   */
-  export type interviewsUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * The data used to update interviews.
-     */
-    data: XOR<interviewsUpdateManyMutationInput, interviewsUncheckedUpdateManyInput>
-    /**
-     * Filter which interviews to update
-     */
-    where?: interviewsWhereInput
-    /**
-     * Limit how many interviews to update.
-     */
-    limit?: number
-  }
-
-  /**
-   * interviews updateManyAndReturn
-   */
-  export type interviewsUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the interviews
-     */
-    select?: interviewsSelectUpdateManyAndReturn<ExtArgs> | null
-    /**
-     * Omit specific fields from the interviews
-     */
-    omit?: interviewsOmit<ExtArgs> | null
-    /**
-     * The data used to update interviews.
-     */
-    data: XOR<interviewsUpdateManyMutationInput, interviewsUncheckedUpdateManyInput>
-    /**
-     * Filter which interviews to update
-     */
-    where?: interviewsWhereInput
-    /**
-     * Limit how many interviews to update.
-     */
-    limit?: number
-  }
-
-  /**
-   * interviews upsert
-   */
-  export type interviewsUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the interviews
-     */
-    select?: interviewsSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the interviews
-     */
-    omit?: interviewsOmit<ExtArgs> | null
-    /**
-     * The filter to search for the interviews to update in case it exists.
-     */
-    where: interviewsWhereUniqueInput
-    /**
-     * In case the interviews found by the `where` argument doesn't exist, create a new interviews with this data.
-     */
-    create: XOR<interviewsCreateInput, interviewsUncheckedCreateInput>
-    /**
-     * In case the interviews was found with the provided `where` argument, update it with this data.
-     */
-    update: XOR<interviewsUpdateInput, interviewsUncheckedUpdateInput>
-  }
-
-  /**
-   * interviews delete
-   */
-  export type interviewsDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the interviews
-     */
-    select?: interviewsSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the interviews
-     */
-    omit?: interviewsOmit<ExtArgs> | null
-    /**
-     * Filter which interviews to delete.
-     */
-    where: interviewsWhereUniqueInput
-  }
-
-  /**
-   * interviews deleteMany
-   */
-  export type interviewsDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Filter which interviews to delete
-     */
-    where?: interviewsWhereInput
-    /**
-     * Limit how many interviews to delete.
-     */
-    limit?: number
-  }
-
-  /**
-   * interviews without action
-   */
-  export type interviewsDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the interviews
-     */
-    select?: interviewsSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the interviews
-     */
-    omit?: interviewsOmit<ExtArgs> | null
-  }
-
-
-  /**
    * Enums
    */
 
@@ -8622,12 +7476,8 @@ export namespace Prisma {
 
   export const UserScalarFieldEnum: {
     id: 'id',
-    email: 'email',
-    name: 'name',
-    image: 'image',
     role: 'role',
     credits: 'credits',
-    isPremium: 'isPremium',
     resumeJobTitle: 'resumeJobTitle',
     resumeSkills: 'resumeSkills',
     resumeExperience: 'resumeExperience',
@@ -8639,11 +7489,15 @@ export namespace Prisma {
     acceptedTermsAt: 'acceptedTermsAt',
     acceptedPrivacyAt: 'acceptedPrivacyAt',
     dataRetentionOverride: 'dataRetentionOverride',
-    stripeCustomerId: 'stripeCustomerId',
-    premiumSubscriptionId: 'premiumSubscriptionId',
-    premiumExpiresAt: 'premiumExpiresAt',
     createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
+    updatedAt: 'updatedAt',
+    premiumExpiresAt: 'premiumExpiresAt',
+    premiumSubscriptionId: 'premiumSubscriptionId',
+    stripeCustomerId: 'stripeCustomerId',
+    isPremium: 'isPremium',
+    email: 'email',
+    image: 'image',
+    name: 'name'
   };
 
   export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
@@ -8715,19 +7569,6 @@ export namespace Prisma {
   };
 
   export type UsageEventScalarFieldEnum = (typeof UsageEventScalarFieldEnum)[keyof typeof UsageEventScalarFieldEnum]
-
-
-  export const InterviewsScalarFieldEnum: {
-    id: 'id',
-    user_id: 'user_id',
-    transcript: 'transcript',
-    feedback: 'feedback',
-    duration: 'duration',
-    created_at: 'created_at',
-    updated_at: 'updated_at'
-  };
-
-  export type InterviewsScalarFieldEnum = (typeof InterviewsScalarFieldEnum)[keyof typeof InterviewsScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -8819,13 +7660,6 @@ export namespace Prisma {
 
 
   /**
-   * Reference to a field of type 'Boolean'
-   */
-  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
-    
-
-
-  /**
    * Reference to a field of type 'DateTime'
    */
   export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
@@ -8836,6 +7670,13 @@ export namespace Prisma {
    * Reference to a field of type 'DateTime[]'
    */
   export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'Boolean'
+   */
+  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 
@@ -8879,20 +7720,6 @@ export namespace Prisma {
    */
   export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
     
-
-
-  /**
-   * Reference to a field of type 'BigInt'
-   */
-  export type BigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt'>
-    
-
-
-  /**
-   * Reference to a field of type 'BigInt[]'
-   */
-  export type ListBigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt[]'>
-    
   /**
    * Deep Input Types
    */
@@ -8903,12 +7730,8 @@ export namespace Prisma {
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
     id?: StringFilter<"User"> | string
-    email?: StringNullableFilter<"User"> | string | null
-    name?: StringNullableFilter<"User"> | string | null
-    image?: StringNullableFilter<"User"> | string | null
     role?: EnumUserRoleFilter<"User"> | $Enums.UserRole
     credits?: DecimalFilter<"User"> | Decimal | DecimalJsLike | number | string
-    isPremium?: BoolFilter<"User"> | boolean
     resumeJobTitle?: StringNullableFilter<"User"> | string | null
     resumeSkills?: StringNullableFilter<"User"> | string | null
     resumeExperience?: StringNullableFilter<"User"> | string | null
@@ -8920,24 +7743,24 @@ export namespace Prisma {
     acceptedTermsAt?: DateTimeNullableFilter<"User"> | Date | string | null
     acceptedPrivacyAt?: DateTimeNullableFilter<"User"> | Date | string | null
     dataRetentionOverride?: BoolNullableFilter<"User"> | boolean | null
-    stripeCustomerId?: StringNullableFilter<"User"> | string | null
-    premiumSubscriptionId?: StringNullableFilter<"User"> | string | null
-    premiumExpiresAt?: DateTimeNullableFilter<"User"> | Date | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
-    interviewSessions?: InterviewSessionListRelationFilter
+    premiumExpiresAt?: DateTimeNullableFilter<"User"> | Date | string | null
+    premiumSubscriptionId?: StringNullableFilter<"User"> | string | null
+    stripeCustomerId?: StringNullableFilter<"User"> | string | null
+    isPremium?: BoolFilter<"User"> | boolean
+    email?: StringNullableFilter<"User"> | string | null
+    image?: StringNullableFilter<"User"> | string | null
+    name?: StringNullableFilter<"User"> | string | null
     feedbacks?: FeedbackListRelationFilter
+    interviewSessions?: InterviewSessionListRelationFilter
     usageEvents?: UsageEventListRelationFilter
   }
 
   export type UserOrderByWithRelationInput = {
     id?: SortOrder
-    email?: SortOrderInput | SortOrder
-    name?: SortOrderInput | SortOrder
-    image?: SortOrderInput | SortOrder
     role?: SortOrder
     credits?: SortOrder
-    isPremium?: SortOrder
     resumeJobTitle?: SortOrderInput | SortOrder
     resumeSkills?: SortOrderInput | SortOrder
     resumeExperience?: SortOrderInput | SortOrder
@@ -8949,29 +7772,30 @@ export namespace Prisma {
     acceptedTermsAt?: SortOrderInput | SortOrder
     acceptedPrivacyAt?: SortOrderInput | SortOrder
     dataRetentionOverride?: SortOrderInput | SortOrder
-    stripeCustomerId?: SortOrderInput | SortOrder
-    premiumSubscriptionId?: SortOrderInput | SortOrder
-    premiumExpiresAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
-    interviewSessions?: InterviewSessionOrderByRelationAggregateInput
+    premiumExpiresAt?: SortOrderInput | SortOrder
+    premiumSubscriptionId?: SortOrderInput | SortOrder
+    stripeCustomerId?: SortOrderInput | SortOrder
+    isPremium?: SortOrder
+    email?: SortOrderInput | SortOrder
+    image?: SortOrderInput | SortOrder
+    name?: SortOrderInput | SortOrder
     feedbacks?: FeedbackOrderByRelationAggregateInput
+    interviewSessions?: InterviewSessionOrderByRelationAggregateInput
     usageEvents?: UsageEventOrderByRelationAggregateInput
   }
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    email?: string
-    stripeCustomerId?: string
     premiumSubscriptionId?: string
+    stripeCustomerId?: string
+    email?: string
     AND?: UserWhereInput | UserWhereInput[]
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
-    name?: StringNullableFilter<"User"> | string | null
-    image?: StringNullableFilter<"User"> | string | null
     role?: EnumUserRoleFilter<"User"> | $Enums.UserRole
     credits?: DecimalFilter<"User"> | Decimal | DecimalJsLike | number | string
-    isPremium?: BoolFilter<"User"> | boolean
     resumeJobTitle?: StringNullableFilter<"User"> | string | null
     resumeSkills?: StringNullableFilter<"User"> | string | null
     resumeExperience?: StringNullableFilter<"User"> | string | null
@@ -8983,22 +7807,21 @@ export namespace Prisma {
     acceptedTermsAt?: DateTimeNullableFilter<"User"> | Date | string | null
     acceptedPrivacyAt?: DateTimeNullableFilter<"User"> | Date | string | null
     dataRetentionOverride?: BoolNullableFilter<"User"> | boolean | null
-    premiumExpiresAt?: DateTimeNullableFilter<"User"> | Date | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
-    interviewSessions?: InterviewSessionListRelationFilter
+    premiumExpiresAt?: DateTimeNullableFilter<"User"> | Date | string | null
+    isPremium?: BoolFilter<"User"> | boolean
+    image?: StringNullableFilter<"User"> | string | null
+    name?: StringNullableFilter<"User"> | string | null
     feedbacks?: FeedbackListRelationFilter
+    interviewSessions?: InterviewSessionListRelationFilter
     usageEvents?: UsageEventListRelationFilter
-  }, "id" | "email" | "stripeCustomerId" | "premiumSubscriptionId">
+  }, "id" | "id" | "premiumSubscriptionId" | "stripeCustomerId" | "email">
 
   export type UserOrderByWithAggregationInput = {
     id?: SortOrder
-    email?: SortOrderInput | SortOrder
-    name?: SortOrderInput | SortOrder
-    image?: SortOrderInput | SortOrder
     role?: SortOrder
     credits?: SortOrder
-    isPremium?: SortOrder
     resumeJobTitle?: SortOrderInput | SortOrder
     resumeSkills?: SortOrderInput | SortOrder
     resumeExperience?: SortOrderInput | SortOrder
@@ -9010,11 +7833,15 @@ export namespace Prisma {
     acceptedTermsAt?: SortOrderInput | SortOrder
     acceptedPrivacyAt?: SortOrderInput | SortOrder
     dataRetentionOverride?: SortOrderInput | SortOrder
-    stripeCustomerId?: SortOrderInput | SortOrder
-    premiumSubscriptionId?: SortOrderInput | SortOrder
-    premiumExpiresAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    premiumExpiresAt?: SortOrderInput | SortOrder
+    premiumSubscriptionId?: SortOrderInput | SortOrder
+    stripeCustomerId?: SortOrderInput | SortOrder
+    isPremium?: SortOrder
+    email?: SortOrderInput | SortOrder
+    image?: SortOrderInput | SortOrder
+    name?: SortOrderInput | SortOrder
     _count?: UserCountOrderByAggregateInput
     _avg?: UserAvgOrderByAggregateInput
     _max?: UserMaxOrderByAggregateInput
@@ -9027,12 +7854,8 @@ export namespace Prisma {
     OR?: UserScalarWhereWithAggregatesInput[]
     NOT?: UserScalarWhereWithAggregatesInput | UserScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"User"> | string
-    email?: StringNullableWithAggregatesFilter<"User"> | string | null
-    name?: StringNullableWithAggregatesFilter<"User"> | string | null
-    image?: StringNullableWithAggregatesFilter<"User"> | string | null
     role?: EnumUserRoleWithAggregatesFilter<"User"> | $Enums.UserRole
     credits?: DecimalWithAggregatesFilter<"User"> | Decimal | DecimalJsLike | number | string
-    isPremium?: BoolWithAggregatesFilter<"User"> | boolean
     resumeJobTitle?: StringNullableWithAggregatesFilter<"User"> | string | null
     resumeSkills?: StringNullableWithAggregatesFilter<"User"> | string | null
     resumeExperience?: StringNullableWithAggregatesFilter<"User"> | string | null
@@ -9044,11 +7867,15 @@ export namespace Prisma {
     acceptedTermsAt?: DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
     acceptedPrivacyAt?: DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
     dataRetentionOverride?: BoolNullableWithAggregatesFilter<"User"> | boolean | null
-    stripeCustomerId?: StringNullableWithAggregatesFilter<"User"> | string | null
-    premiumSubscriptionId?: StringNullableWithAggregatesFilter<"User"> | string | null
-    premiumExpiresAt?: DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
+    premiumExpiresAt?: DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
+    premiumSubscriptionId?: StringNullableWithAggregatesFilter<"User"> | string | null
+    stripeCustomerId?: StringNullableWithAggregatesFilter<"User"> | string | null
+    isPremium?: BoolWithAggregatesFilter<"User"> | boolean
+    email?: StringNullableWithAggregatesFilter<"User"> | string | null
+    image?: StringNullableWithAggregatesFilter<"User"> | string | null
+    name?: StringNullableWithAggregatesFilter<"User"> | string | null
   }
 
   export type InterviewSessionWhereInput = {
@@ -9072,9 +7899,9 @@ export namespace Prisma {
     expiresAt?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
     createdAt?: DateTimeFilter<"InterviewSession"> | Date | string
     updatedAt?: DateTimeFilter<"InterviewSession"> | Date | string
+    feedback?: XOR<FeedbackNullableScalarRelationFilter, FeedbackWhereInput> | null
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
     transcripts?: TranscriptListRelationFilter
-    feedback?: XOR<FeedbackNullableScalarRelationFilter, FeedbackWhereInput> | null
   }
 
   export type InterviewSessionOrderByWithRelationInput = {
@@ -9095,9 +7922,9 @@ export namespace Prisma {
     expiresAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    feedback?: FeedbackOrderByWithRelationInput
     user?: UserOrderByWithRelationInput
     transcripts?: TranscriptOrderByRelationAggregateInput
-    feedback?: FeedbackOrderByWithRelationInput
   }
 
   export type InterviewSessionWhereUniqueInput = Prisma.AtLeast<{
@@ -9121,9 +7948,9 @@ export namespace Prisma {
     expiresAt?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
     createdAt?: DateTimeFilter<"InterviewSession"> | Date | string
     updatedAt?: DateTimeFilter<"InterviewSession"> | Date | string
+    feedback?: XOR<FeedbackNullableScalarRelationFilter, FeedbackWhereInput> | null
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
     transcripts?: TranscriptListRelationFilter
-    feedback?: XOR<FeedbackNullableScalarRelationFilter, FeedbackWhereInput> | null
   }, "id" | "webrtcSessionId" | "openaiSessionId">
 
   export type InterviewSessionOrderByWithAggregationInput = {
@@ -9406,78 +8233,10 @@ export namespace Prisma {
     updatedAt?: DateTimeWithAggregatesFilter<"UsageEvent"> | Date | string
   }
 
-  export type interviewsWhereInput = {
-    AND?: interviewsWhereInput | interviewsWhereInput[]
-    OR?: interviewsWhereInput[]
-    NOT?: interviewsWhereInput | interviewsWhereInput[]
-    id?: BigIntFilter<"interviews"> | bigint | number
-    user_id?: UuidFilter<"interviews"> | string
-    transcript?: StringNullableFilter<"interviews"> | string | null
-    feedback?: JsonNullableFilter<"interviews">
-    duration?: IntNullableFilter<"interviews"> | number | null
-    created_at?: DateTimeNullableFilter<"interviews"> | Date | string | null
-    updated_at?: DateTimeNullableFilter<"interviews"> | Date | string | null
-  }
-
-  export type interviewsOrderByWithRelationInput = {
-    id?: SortOrder
-    user_id?: SortOrder
-    transcript?: SortOrderInput | SortOrder
-    feedback?: SortOrderInput | SortOrder
-    duration?: SortOrderInput | SortOrder
-    created_at?: SortOrderInput | SortOrder
-    updated_at?: SortOrderInput | SortOrder
-  }
-
-  export type interviewsWhereUniqueInput = Prisma.AtLeast<{
-    id?: bigint | number
-    AND?: interviewsWhereInput | interviewsWhereInput[]
-    OR?: interviewsWhereInput[]
-    NOT?: interviewsWhereInput | interviewsWhereInput[]
-    user_id?: UuidFilter<"interviews"> | string
-    transcript?: StringNullableFilter<"interviews"> | string | null
-    feedback?: JsonNullableFilter<"interviews">
-    duration?: IntNullableFilter<"interviews"> | number | null
-    created_at?: DateTimeNullableFilter<"interviews"> | Date | string | null
-    updated_at?: DateTimeNullableFilter<"interviews"> | Date | string | null
-  }, "id">
-
-  export type interviewsOrderByWithAggregationInput = {
-    id?: SortOrder
-    user_id?: SortOrder
-    transcript?: SortOrderInput | SortOrder
-    feedback?: SortOrderInput | SortOrder
-    duration?: SortOrderInput | SortOrder
-    created_at?: SortOrderInput | SortOrder
-    updated_at?: SortOrderInput | SortOrder
-    _count?: interviewsCountOrderByAggregateInput
-    _avg?: interviewsAvgOrderByAggregateInput
-    _max?: interviewsMaxOrderByAggregateInput
-    _min?: interviewsMinOrderByAggregateInput
-    _sum?: interviewsSumOrderByAggregateInput
-  }
-
-  export type interviewsScalarWhereWithAggregatesInput = {
-    AND?: interviewsScalarWhereWithAggregatesInput | interviewsScalarWhereWithAggregatesInput[]
-    OR?: interviewsScalarWhereWithAggregatesInput[]
-    NOT?: interviewsScalarWhereWithAggregatesInput | interviewsScalarWhereWithAggregatesInput[]
-    id?: BigIntWithAggregatesFilter<"interviews"> | bigint | number
-    user_id?: UuidWithAggregatesFilter<"interviews"> | string
-    transcript?: StringNullableWithAggregatesFilter<"interviews"> | string | null
-    feedback?: JsonNullableWithAggregatesFilter<"interviews">
-    duration?: IntNullableWithAggregatesFilter<"interviews"> | number | null
-    created_at?: DateTimeNullableWithAggregatesFilter<"interviews"> | Date | string | null
-    updated_at?: DateTimeNullableWithAggregatesFilter<"interviews"> | Date | string | null
-  }
-
   export type UserCreateInput = {
     id: string
-    email?: string | null
-    name?: string | null
-    image?: string | null
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
-    isPremium?: boolean
     resumeJobTitle?: string | null
     resumeSkills?: string | null
     resumeExperience?: string | null
@@ -9489,24 +8248,24 @@ export namespace Prisma {
     acceptedTermsAt?: Date | string | null
     acceptedPrivacyAt?: Date | string | null
     dataRetentionOverride?: boolean | null
-    stripeCustomerId?: string | null
-    premiumSubscriptionId?: string | null
-    premiumExpiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    interviewSessions?: InterviewSessionCreateNestedManyWithoutUserInput
+    premiumExpiresAt?: Date | string | null
+    premiumSubscriptionId?: string | null
+    stripeCustomerId?: string | null
+    isPremium?: boolean
+    email?: string | null
+    image?: string | null
+    name?: string | null
     feedbacks?: FeedbackCreateNestedManyWithoutUserInput
+    interviewSessions?: InterviewSessionCreateNestedManyWithoutUserInput
     usageEvents?: UsageEventCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateInput = {
     id: string
-    email?: string | null
-    name?: string | null
-    image?: string | null
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
-    isPremium?: boolean
     resumeJobTitle?: string | null
     resumeSkills?: string | null
     resumeExperience?: string | null
@@ -9518,24 +8277,24 @@ export namespace Prisma {
     acceptedTermsAt?: Date | string | null
     acceptedPrivacyAt?: Date | string | null
     dataRetentionOverride?: boolean | null
-    stripeCustomerId?: string | null
-    premiumSubscriptionId?: string | null
-    premiumExpiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    interviewSessions?: InterviewSessionUncheckedCreateNestedManyWithoutUserInput
+    premiumExpiresAt?: Date | string | null
+    premiumSubscriptionId?: string | null
+    stripeCustomerId?: string | null
+    isPremium?: boolean
+    email?: string | null
+    image?: string | null
+    name?: string | null
     feedbacks?: FeedbackUncheckedCreateNestedManyWithoutUserInput
+    interviewSessions?: InterviewSessionUncheckedCreateNestedManyWithoutUserInput
     usageEvents?: UsageEventUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
-    image?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    isPremium?: BoolFieldUpdateOperationsInput | boolean
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
     resumeSkills?: NullableStringFieldUpdateOperationsInput | string | null
     resumeExperience?: NullableStringFieldUpdateOperationsInput | string | null
@@ -9547,24 +8306,24 @@ export namespace Prisma {
     acceptedTermsAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     acceptedPrivacyAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     dataRetentionOverride?: NullableBoolFieldUpdateOperationsInput | boolean | null
-    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    interviewSessions?: InterviewSessionUpdateManyWithoutUserNestedInput
+    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
+    isPremium?: BoolFieldUpdateOperationsInput | boolean
+    email?: NullableStringFieldUpdateOperationsInput | string | null
+    image?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: NullableStringFieldUpdateOperationsInput | string | null
     feedbacks?: FeedbackUpdateManyWithoutUserNestedInput
+    interviewSessions?: InterviewSessionUpdateManyWithoutUserNestedInput
     usageEvents?: UsageEventUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
-    image?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    isPremium?: BoolFieldUpdateOperationsInput | boolean
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
     resumeSkills?: NullableStringFieldUpdateOperationsInput | string | null
     resumeExperience?: NullableStringFieldUpdateOperationsInput | string | null
@@ -9576,24 +8335,24 @@ export namespace Prisma {
     acceptedTermsAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     acceptedPrivacyAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     dataRetentionOverride?: NullableBoolFieldUpdateOperationsInput | boolean | null
-    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    interviewSessions?: InterviewSessionUncheckedUpdateManyWithoutUserNestedInput
+    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
+    isPremium?: BoolFieldUpdateOperationsInput | boolean
+    email?: NullableStringFieldUpdateOperationsInput | string | null
+    image?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: NullableStringFieldUpdateOperationsInput | string | null
     feedbacks?: FeedbackUncheckedUpdateManyWithoutUserNestedInput
+    interviewSessions?: InterviewSessionUncheckedUpdateManyWithoutUserNestedInput
     usageEvents?: UsageEventUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserCreateManyInput = {
     id: string
-    email?: string | null
-    name?: string | null
-    image?: string | null
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
-    isPremium?: boolean
     resumeJobTitle?: string | null
     resumeSkills?: string | null
     resumeExperience?: string | null
@@ -9605,21 +8364,21 @@ export namespace Prisma {
     acceptedTermsAt?: Date | string | null
     acceptedPrivacyAt?: Date | string | null
     dataRetentionOverride?: boolean | null
-    stripeCustomerId?: string | null
-    premiumSubscriptionId?: string | null
-    premiumExpiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    premiumExpiresAt?: Date | string | null
+    premiumSubscriptionId?: string | null
+    stripeCustomerId?: string | null
+    isPremium?: boolean
+    email?: string | null
+    image?: string | null
+    name?: string | null
   }
 
   export type UserUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
-    image?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    isPremium?: BoolFieldUpdateOperationsInput | boolean
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
     resumeSkills?: NullableStringFieldUpdateOperationsInput | string | null
     resumeExperience?: NullableStringFieldUpdateOperationsInput | string | null
@@ -9631,21 +8390,21 @@ export namespace Prisma {
     acceptedTermsAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     acceptedPrivacyAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     dataRetentionOverride?: NullableBoolFieldUpdateOperationsInput | boolean | null
-    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
+    isPremium?: BoolFieldUpdateOperationsInput | boolean
+    email?: NullableStringFieldUpdateOperationsInput | string | null
+    image?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type UserUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
-    image?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    isPremium?: BoolFieldUpdateOperationsInput | boolean
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
     resumeSkills?: NullableStringFieldUpdateOperationsInput | string | null
     resumeExperience?: NullableStringFieldUpdateOperationsInput | string | null
@@ -9657,11 +8416,15 @@ export namespace Prisma {
     acceptedTermsAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     acceptedPrivacyAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     dataRetentionOverride?: NullableBoolFieldUpdateOperationsInput | boolean | null
-    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
+    isPremium?: BoolFieldUpdateOperationsInput | boolean
+    email?: NullableStringFieldUpdateOperationsInput | string | null
+    image?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type InterviewSessionCreateInput = {
@@ -9681,9 +8444,9 @@ export namespace Prisma {
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    feedback?: FeedbackCreateNestedOneWithoutSessionInput
     user: UserCreateNestedOneWithoutInterviewSessionsInput
     transcripts?: TranscriptCreateNestedManyWithoutSessionInput
-    feedback?: FeedbackCreateNestedOneWithoutSessionInput
   }
 
   export type InterviewSessionUncheckedCreateInput = {
@@ -9704,8 +8467,8 @@ export namespace Prisma {
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    transcripts?: TranscriptUncheckedCreateNestedManyWithoutSessionInput
     feedback?: FeedbackUncheckedCreateNestedOneWithoutSessionInput
+    transcripts?: TranscriptUncheckedCreateNestedManyWithoutSessionInput
   }
 
   export type InterviewSessionUpdateInput = {
@@ -9725,9 +8488,9 @@ export namespace Prisma {
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    feedback?: FeedbackUpdateOneWithoutSessionNestedInput
     user?: UserUpdateOneRequiredWithoutInterviewSessionsNestedInput
     transcripts?: TranscriptUpdateManyWithoutSessionNestedInput
-    feedback?: FeedbackUpdateOneWithoutSessionNestedInput
   }
 
   export type InterviewSessionUncheckedUpdateInput = {
@@ -9748,8 +8511,8 @@ export namespace Prisma {
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    transcripts?: TranscriptUncheckedUpdateManyWithoutSessionNestedInput
     feedback?: FeedbackUncheckedUpdateOneWithoutSessionNestedInput
+    transcripts?: TranscriptUncheckedUpdateManyWithoutSessionNestedInput
   }
 
   export type InterviewSessionCreateManyInput = {
@@ -10059,76 +8822,6 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type interviewsCreateInput = {
-    id?: bigint | number
-    user_id: string
-    transcript?: string | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    duration?: number | null
-    created_at?: Date | string | null
-    updated_at?: Date | string | null
-  }
-
-  export type interviewsUncheckedCreateInput = {
-    id?: bigint | number
-    user_id: string
-    transcript?: string | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    duration?: number | null
-    created_at?: Date | string | null
-    updated_at?: Date | string | null
-  }
-
-  export type interviewsUpdateInput = {
-    id?: BigIntFieldUpdateOperationsInput | bigint | number
-    user_id?: StringFieldUpdateOperationsInput | string
-    transcript?: NullableStringFieldUpdateOperationsInput | string | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    duration?: NullableIntFieldUpdateOperationsInput | number | null
-    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  }
-
-  export type interviewsUncheckedUpdateInput = {
-    id?: BigIntFieldUpdateOperationsInput | bigint | number
-    user_id?: StringFieldUpdateOperationsInput | string
-    transcript?: NullableStringFieldUpdateOperationsInput | string | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    duration?: NullableIntFieldUpdateOperationsInput | number | null
-    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  }
-
-  export type interviewsCreateManyInput = {
-    id?: bigint | number
-    user_id: string
-    transcript?: string | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    duration?: number | null
-    created_at?: Date | string | null
-    updated_at?: Date | string | null
-  }
-
-  export type interviewsUpdateManyMutationInput = {
-    id?: BigIntFieldUpdateOperationsInput | bigint | number
-    user_id?: StringFieldUpdateOperationsInput | string
-    transcript?: NullableStringFieldUpdateOperationsInput | string | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    duration?: NullableIntFieldUpdateOperationsInput | number | null
-    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  }
-
-  export type interviewsUncheckedUpdateManyInput = {
-    id?: BigIntFieldUpdateOperationsInput | bigint | number
-    user_id?: StringFieldUpdateOperationsInput | string
-    transcript?: NullableStringFieldUpdateOperationsInput | string | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    duration?: NullableIntFieldUpdateOperationsInput | number | null
-    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  }
-
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -10142,21 +8835,6 @@ export namespace Prisma {
     endsWith?: string | StringFieldRefInput<$PrismaModel>
     mode?: QueryMode
     not?: NestedStringFilter<$PrismaModel> | string
-  }
-
-  export type StringNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringNullableFilter<$PrismaModel> | string | null
   }
 
   export type EnumUserRoleFilter<$PrismaModel = never> = {
@@ -10177,9 +8855,19 @@ export namespace Prisma {
     not?: NestedDecimalFilter<$PrismaModel> | Decimal | DecimalJsLike | number | string
   }
 
-  export type BoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
+  export type StringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
   }
 
   export type DateTimeNullableFilter<$PrismaModel = never> = {
@@ -10209,16 +8897,21 @@ export namespace Prisma {
     not?: NestedDateTimeFilter<$PrismaModel> | Date | string
   }
 
-  export type InterviewSessionListRelationFilter = {
-    every?: InterviewSessionWhereInput
-    some?: InterviewSessionWhereInput
-    none?: InterviewSessionWhereInput
+  export type BoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
   }
 
   export type FeedbackListRelationFilter = {
     every?: FeedbackWhereInput
     some?: FeedbackWhereInput
     none?: FeedbackWhereInput
+  }
+
+  export type InterviewSessionListRelationFilter = {
+    every?: InterviewSessionWhereInput
+    some?: InterviewSessionWhereInput
+    none?: InterviewSessionWhereInput
   }
 
   export type UsageEventListRelationFilter = {
@@ -10232,11 +8925,11 @@ export namespace Prisma {
     nulls?: NullsOrder
   }
 
-  export type InterviewSessionOrderByRelationAggregateInput = {
+  export type FeedbackOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
-  export type FeedbackOrderByRelationAggregateInput = {
+  export type InterviewSessionOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -10246,12 +8939,8 @@ export namespace Prisma {
 
   export type UserCountOrderByAggregateInput = {
     id?: SortOrder
-    email?: SortOrder
-    name?: SortOrder
-    image?: SortOrder
     role?: SortOrder
     credits?: SortOrder
-    isPremium?: SortOrder
     resumeJobTitle?: SortOrder
     resumeSkills?: SortOrder
     resumeExperience?: SortOrder
@@ -10263,11 +8952,15 @@ export namespace Prisma {
     acceptedTermsAt?: SortOrder
     acceptedPrivacyAt?: SortOrder
     dataRetentionOverride?: SortOrder
-    stripeCustomerId?: SortOrder
-    premiumSubscriptionId?: SortOrder
-    premiumExpiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    premiumExpiresAt?: SortOrder
+    premiumSubscriptionId?: SortOrder
+    stripeCustomerId?: SortOrder
+    isPremium?: SortOrder
+    email?: SortOrder
+    image?: SortOrder
+    name?: SortOrder
   }
 
   export type UserAvgOrderByAggregateInput = {
@@ -10276,12 +8969,8 @@ export namespace Prisma {
 
   export type UserMaxOrderByAggregateInput = {
     id?: SortOrder
-    email?: SortOrder
-    name?: SortOrder
-    image?: SortOrder
     role?: SortOrder
     credits?: SortOrder
-    isPremium?: SortOrder
     resumeJobTitle?: SortOrder
     resumeSkills?: SortOrder
     resumeExperience?: SortOrder
@@ -10293,21 +8982,21 @@ export namespace Prisma {
     acceptedTermsAt?: SortOrder
     acceptedPrivacyAt?: SortOrder
     dataRetentionOverride?: SortOrder
-    stripeCustomerId?: SortOrder
-    premiumSubscriptionId?: SortOrder
-    premiumExpiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    premiumExpiresAt?: SortOrder
+    premiumSubscriptionId?: SortOrder
+    stripeCustomerId?: SortOrder
+    isPremium?: SortOrder
+    email?: SortOrder
+    image?: SortOrder
+    name?: SortOrder
   }
 
   export type UserMinOrderByAggregateInput = {
     id?: SortOrder
-    email?: SortOrder
-    name?: SortOrder
-    image?: SortOrder
     role?: SortOrder
     credits?: SortOrder
-    isPremium?: SortOrder
     resumeJobTitle?: SortOrder
     resumeSkills?: SortOrder
     resumeExperience?: SortOrder
@@ -10319,11 +9008,15 @@ export namespace Prisma {
     acceptedTermsAt?: SortOrder
     acceptedPrivacyAt?: SortOrder
     dataRetentionOverride?: SortOrder
-    stripeCustomerId?: SortOrder
-    premiumSubscriptionId?: SortOrder
-    premiumExpiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    premiumExpiresAt?: SortOrder
+    premiumSubscriptionId?: SortOrder
+    stripeCustomerId?: SortOrder
+    isPremium?: SortOrder
+    email?: SortOrder
+    image?: SortOrder
+    name?: SortOrder
   }
 
   export type UserSumOrderByAggregateInput = {
@@ -10346,24 +9039,6 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedStringFilter<$PrismaModel>
     _max?: NestedStringFilter<$PrismaModel>
-  }
-
-  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedStringNullableFilter<$PrismaModel>
-    _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
   export type EnumUserRoleWithAggregatesFilter<$PrismaModel = never> = {
@@ -10392,12 +9067,22 @@ export namespace Prisma {
     _max?: NestedDecimalFilter<$PrismaModel>
   }
 
-  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
+  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
   export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -10435,6 +9120,14 @@ export namespace Prisma {
     _min?: NestedDateTimeFilter<$PrismaModel>
     _max?: NestedDateTimeFilter<$PrismaModel>
   }
+
+  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
+  }
   export type JsonNullableFilter<$PrismaModel = never> =
     | PatchUndefined<
         Either<Required<JsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>,
@@ -10470,6 +9163,11 @@ export namespace Prisma {
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
 
+  export type FeedbackNullableScalarRelationFilter = {
+    is?: FeedbackWhereInput | null
+    isNot?: FeedbackWhereInput | null
+  }
+
   export type UserScalarRelationFilter = {
     is?: UserWhereInput
     isNot?: UserWhereInput
@@ -10479,11 +9177,6 @@ export namespace Prisma {
     every?: TranscriptWhereInput
     some?: TranscriptWhereInput
     none?: TranscriptWhereInput
-  }
-
-  export type FeedbackNullableScalarRelationFilter = {
-    is?: FeedbackWhereInput | null
-    isNot?: FeedbackWhereInput | null
   }
 
   export type TranscriptOrderByRelationAggregateInput = {
@@ -10759,96 +9452,11 @@ export namespace Prisma {
     updatedAt?: SortOrder
   }
 
-  export type BigIntFilter<$PrismaModel = never> = {
-    equals?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    in?: bigint[] | number[] | ListBigIntFieldRefInput<$PrismaModel>
-    notIn?: bigint[] | number[] | ListBigIntFieldRefInput<$PrismaModel>
-    lt?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    lte?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    gt?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    gte?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    not?: NestedBigIntFilter<$PrismaModel> | bigint | number
-  }
-
-  export type UuidFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel>
-    in?: string[] | ListStringFieldRefInput<$PrismaModel>
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel>
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedUuidFilter<$PrismaModel> | string
-  }
-
-  export type interviewsCountOrderByAggregateInput = {
-    id?: SortOrder
-    user_id?: SortOrder
-    transcript?: SortOrder
-    feedback?: SortOrder
-    duration?: SortOrder
-    created_at?: SortOrder
-    updated_at?: SortOrder
-  }
-
-  export type interviewsAvgOrderByAggregateInput = {
-    id?: SortOrder
-    duration?: SortOrder
-  }
-
-  export type interviewsMaxOrderByAggregateInput = {
-    id?: SortOrder
-    user_id?: SortOrder
-    transcript?: SortOrder
-    duration?: SortOrder
-    created_at?: SortOrder
-    updated_at?: SortOrder
-  }
-
-  export type interviewsMinOrderByAggregateInput = {
-    id?: SortOrder
-    user_id?: SortOrder
-    transcript?: SortOrder
-    duration?: SortOrder
-    created_at?: SortOrder
-    updated_at?: SortOrder
-  }
-
-  export type interviewsSumOrderByAggregateInput = {
-    id?: SortOrder
-    duration?: SortOrder
-  }
-
-  export type BigIntWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    in?: bigint[] | number[] | ListBigIntFieldRefInput<$PrismaModel>
-    notIn?: bigint[] | number[] | ListBigIntFieldRefInput<$PrismaModel>
-    lt?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    lte?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    gt?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    gte?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    not?: NestedBigIntWithAggregatesFilter<$PrismaModel> | bigint | number
-    _count?: NestedIntFilter<$PrismaModel>
-    _avg?: NestedFloatFilter<$PrismaModel>
-    _sum?: NestedBigIntFilter<$PrismaModel>
-    _min?: NestedBigIntFilter<$PrismaModel>
-    _max?: NestedBigIntFilter<$PrismaModel>
-  }
-
-  export type UuidWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel>
-    in?: string[] | ListStringFieldRefInput<$PrismaModel>
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel>
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedUuidWithAggregatesFilter<$PrismaModel> | string
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedStringFilter<$PrismaModel>
-    _max?: NestedStringFilter<$PrismaModel>
+  export type FeedbackCreateNestedManyWithoutUserInput = {
+    create?: XOR<FeedbackCreateWithoutUserInput, FeedbackUncheckedCreateWithoutUserInput> | FeedbackCreateWithoutUserInput[] | FeedbackUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: FeedbackCreateOrConnectWithoutUserInput | FeedbackCreateOrConnectWithoutUserInput[]
+    createMany?: FeedbackCreateManyUserInputEnvelope
+    connect?: FeedbackWhereUniqueInput | FeedbackWhereUniqueInput[]
   }
 
   export type InterviewSessionCreateNestedManyWithoutUserInput = {
@@ -10858,13 +9466,6 @@ export namespace Prisma {
     connect?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
   }
 
-  export type FeedbackCreateNestedManyWithoutUserInput = {
-    create?: XOR<FeedbackCreateWithoutUserInput, FeedbackUncheckedCreateWithoutUserInput> | FeedbackCreateWithoutUserInput[] | FeedbackUncheckedCreateWithoutUserInput[]
-    connectOrCreate?: FeedbackCreateOrConnectWithoutUserInput | FeedbackCreateOrConnectWithoutUserInput[]
-    createMany?: FeedbackCreateManyUserInputEnvelope
-    connect?: FeedbackWhereUniqueInput | FeedbackWhereUniqueInput[]
-  }
-
   export type UsageEventCreateNestedManyWithoutUserInput = {
     create?: XOR<UsageEventCreateWithoutUserInput, UsageEventUncheckedCreateWithoutUserInput> | UsageEventCreateWithoutUserInput[] | UsageEventUncheckedCreateWithoutUserInput[]
     connectOrCreate?: UsageEventCreateOrConnectWithoutUserInput | UsageEventCreateOrConnectWithoutUserInput[]
@@ -10872,18 +9473,18 @@ export namespace Prisma {
     connect?: UsageEventWhereUniqueInput | UsageEventWhereUniqueInput[]
   }
 
-  export type InterviewSessionUncheckedCreateNestedManyWithoutUserInput = {
-    create?: XOR<InterviewSessionCreateWithoutUserInput, InterviewSessionUncheckedCreateWithoutUserInput> | InterviewSessionCreateWithoutUserInput[] | InterviewSessionUncheckedCreateWithoutUserInput[]
-    connectOrCreate?: InterviewSessionCreateOrConnectWithoutUserInput | InterviewSessionCreateOrConnectWithoutUserInput[]
-    createMany?: InterviewSessionCreateManyUserInputEnvelope
-    connect?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
-  }
-
   export type FeedbackUncheckedCreateNestedManyWithoutUserInput = {
     create?: XOR<FeedbackCreateWithoutUserInput, FeedbackUncheckedCreateWithoutUserInput> | FeedbackCreateWithoutUserInput[] | FeedbackUncheckedCreateWithoutUserInput[]
     connectOrCreate?: FeedbackCreateOrConnectWithoutUserInput | FeedbackCreateOrConnectWithoutUserInput[]
     createMany?: FeedbackCreateManyUserInputEnvelope
     connect?: FeedbackWhereUniqueInput | FeedbackWhereUniqueInput[]
+  }
+
+  export type InterviewSessionUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<InterviewSessionCreateWithoutUserInput, InterviewSessionUncheckedCreateWithoutUserInput> | InterviewSessionCreateWithoutUserInput[] | InterviewSessionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: InterviewSessionCreateOrConnectWithoutUserInput | InterviewSessionCreateOrConnectWithoutUserInput[]
+    createMany?: InterviewSessionCreateManyUserInputEnvelope
+    connect?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
   }
 
   export type UsageEventUncheckedCreateNestedManyWithoutUserInput = {
@@ -10895,10 +9496,6 @@ export namespace Prisma {
 
   export type StringFieldUpdateOperationsInput = {
     set?: string
-  }
-
-  export type NullableStringFieldUpdateOperationsInput = {
-    set?: string | null
   }
 
   export type EnumUserRoleFieldUpdateOperationsInput = {
@@ -10913,8 +9510,8 @@ export namespace Prisma {
     divide?: Decimal | DecimalJsLike | number | string
   }
 
-  export type BoolFieldUpdateOperationsInput = {
-    set?: boolean
+  export type NullableStringFieldUpdateOperationsInput = {
+    set?: string | null
   }
 
   export type NullableDateTimeFieldUpdateOperationsInput = {
@@ -10929,18 +9526,8 @@ export namespace Prisma {
     set?: Date | string
   }
 
-  export type InterviewSessionUpdateManyWithoutUserNestedInput = {
-    create?: XOR<InterviewSessionCreateWithoutUserInput, InterviewSessionUncheckedCreateWithoutUserInput> | InterviewSessionCreateWithoutUserInput[] | InterviewSessionUncheckedCreateWithoutUserInput[]
-    connectOrCreate?: InterviewSessionCreateOrConnectWithoutUserInput | InterviewSessionCreateOrConnectWithoutUserInput[]
-    upsert?: InterviewSessionUpsertWithWhereUniqueWithoutUserInput | InterviewSessionUpsertWithWhereUniqueWithoutUserInput[]
-    createMany?: InterviewSessionCreateManyUserInputEnvelope
-    set?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
-    disconnect?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
-    delete?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
-    connect?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
-    update?: InterviewSessionUpdateWithWhereUniqueWithoutUserInput | InterviewSessionUpdateWithWhereUniqueWithoutUserInput[]
-    updateMany?: InterviewSessionUpdateManyWithWhereWithoutUserInput | InterviewSessionUpdateManyWithWhereWithoutUserInput[]
-    deleteMany?: InterviewSessionScalarWhereInput | InterviewSessionScalarWhereInput[]
+  export type BoolFieldUpdateOperationsInput = {
+    set?: boolean
   }
 
   export type FeedbackUpdateManyWithoutUserNestedInput = {
@@ -10957,6 +9544,20 @@ export namespace Prisma {
     deleteMany?: FeedbackScalarWhereInput | FeedbackScalarWhereInput[]
   }
 
+  export type InterviewSessionUpdateManyWithoutUserNestedInput = {
+    create?: XOR<InterviewSessionCreateWithoutUserInput, InterviewSessionUncheckedCreateWithoutUserInput> | InterviewSessionCreateWithoutUserInput[] | InterviewSessionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: InterviewSessionCreateOrConnectWithoutUserInput | InterviewSessionCreateOrConnectWithoutUserInput[]
+    upsert?: InterviewSessionUpsertWithWhereUniqueWithoutUserInput | InterviewSessionUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: InterviewSessionCreateManyUserInputEnvelope
+    set?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
+    disconnect?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
+    delete?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
+    connect?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
+    update?: InterviewSessionUpdateWithWhereUniqueWithoutUserInput | InterviewSessionUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: InterviewSessionUpdateManyWithWhereWithoutUserInput | InterviewSessionUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: InterviewSessionScalarWhereInput | InterviewSessionScalarWhereInput[]
+  }
+
   export type UsageEventUpdateManyWithoutUserNestedInput = {
     create?: XOR<UsageEventCreateWithoutUserInput, UsageEventUncheckedCreateWithoutUserInput> | UsageEventCreateWithoutUserInput[] | UsageEventUncheckedCreateWithoutUserInput[]
     connectOrCreate?: UsageEventCreateOrConnectWithoutUserInput | UsageEventCreateOrConnectWithoutUserInput[]
@@ -10969,20 +9570,6 @@ export namespace Prisma {
     update?: UsageEventUpdateWithWhereUniqueWithoutUserInput | UsageEventUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: UsageEventUpdateManyWithWhereWithoutUserInput | UsageEventUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: UsageEventScalarWhereInput | UsageEventScalarWhereInput[]
-  }
-
-  export type InterviewSessionUncheckedUpdateManyWithoutUserNestedInput = {
-    create?: XOR<InterviewSessionCreateWithoutUserInput, InterviewSessionUncheckedCreateWithoutUserInput> | InterviewSessionCreateWithoutUserInput[] | InterviewSessionUncheckedCreateWithoutUserInput[]
-    connectOrCreate?: InterviewSessionCreateOrConnectWithoutUserInput | InterviewSessionCreateOrConnectWithoutUserInput[]
-    upsert?: InterviewSessionUpsertWithWhereUniqueWithoutUserInput | InterviewSessionUpsertWithWhereUniqueWithoutUserInput[]
-    createMany?: InterviewSessionCreateManyUserInputEnvelope
-    set?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
-    disconnect?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
-    delete?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
-    connect?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
-    update?: InterviewSessionUpdateWithWhereUniqueWithoutUserInput | InterviewSessionUpdateWithWhereUniqueWithoutUserInput[]
-    updateMany?: InterviewSessionUpdateManyWithWhereWithoutUserInput | InterviewSessionUpdateManyWithWhereWithoutUserInput[]
-    deleteMany?: InterviewSessionScalarWhereInput | InterviewSessionScalarWhereInput[]
   }
 
   export type FeedbackUncheckedUpdateManyWithoutUserNestedInput = {
@@ -10999,6 +9586,20 @@ export namespace Prisma {
     deleteMany?: FeedbackScalarWhereInput | FeedbackScalarWhereInput[]
   }
 
+  export type InterviewSessionUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<InterviewSessionCreateWithoutUserInput, InterviewSessionUncheckedCreateWithoutUserInput> | InterviewSessionCreateWithoutUserInput[] | InterviewSessionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: InterviewSessionCreateOrConnectWithoutUserInput | InterviewSessionCreateOrConnectWithoutUserInput[]
+    upsert?: InterviewSessionUpsertWithWhereUniqueWithoutUserInput | InterviewSessionUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: InterviewSessionCreateManyUserInputEnvelope
+    set?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
+    disconnect?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
+    delete?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
+    connect?: InterviewSessionWhereUniqueInput | InterviewSessionWhereUniqueInput[]
+    update?: InterviewSessionUpdateWithWhereUniqueWithoutUserInput | InterviewSessionUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: InterviewSessionUpdateManyWithWhereWithoutUserInput | InterviewSessionUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: InterviewSessionScalarWhereInput | InterviewSessionScalarWhereInput[]
+  }
+
   export type UsageEventUncheckedUpdateManyWithoutUserNestedInput = {
     create?: XOR<UsageEventCreateWithoutUserInput, UsageEventUncheckedCreateWithoutUserInput> | UsageEventCreateWithoutUserInput[] | UsageEventUncheckedCreateWithoutUserInput[]
     connectOrCreate?: UsageEventCreateOrConnectWithoutUserInput | UsageEventCreateOrConnectWithoutUserInput[]
@@ -11011,6 +9612,12 @@ export namespace Prisma {
     update?: UsageEventUpdateWithWhereUniqueWithoutUserInput | UsageEventUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: UsageEventUpdateManyWithWhereWithoutUserInput | UsageEventUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: UsageEventScalarWhereInput | UsageEventScalarWhereInput[]
+  }
+
+  export type FeedbackCreateNestedOneWithoutSessionInput = {
+    create?: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput>
+    connectOrCreate?: FeedbackCreateOrConnectWithoutSessionInput
+    connect?: FeedbackWhereUniqueInput
   }
 
   export type UserCreateNestedOneWithoutInterviewSessionsInput = {
@@ -11026,7 +9633,7 @@ export namespace Prisma {
     connect?: TranscriptWhereUniqueInput | TranscriptWhereUniqueInput[]
   }
 
-  export type FeedbackCreateNestedOneWithoutSessionInput = {
+  export type FeedbackUncheckedCreateNestedOneWithoutSessionInput = {
     create?: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput>
     connectOrCreate?: FeedbackCreateOrConnectWithoutSessionInput
     connect?: FeedbackWhereUniqueInput
@@ -11039,18 +9646,22 @@ export namespace Prisma {
     connect?: TranscriptWhereUniqueInput | TranscriptWhereUniqueInput[]
   }
 
-  export type FeedbackUncheckedCreateNestedOneWithoutSessionInput = {
-    create?: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput>
-    connectOrCreate?: FeedbackCreateOrConnectWithoutSessionInput
-    connect?: FeedbackWhereUniqueInput
-  }
-
   export type NullableIntFieldUpdateOperationsInput = {
     set?: number | null
     increment?: number
     decrement?: number
     multiply?: number
     divide?: number
+  }
+
+  export type FeedbackUpdateOneWithoutSessionNestedInput = {
+    create?: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput>
+    connectOrCreate?: FeedbackCreateOrConnectWithoutSessionInput
+    upsert?: FeedbackUpsertWithoutSessionInput
+    disconnect?: FeedbackWhereInput | boolean
+    delete?: FeedbackWhereInput | boolean
+    connect?: FeedbackWhereUniqueInput
+    update?: XOR<XOR<FeedbackUpdateToOneWithWhereWithoutSessionInput, FeedbackUpdateWithoutSessionInput>, FeedbackUncheckedUpdateWithoutSessionInput>
   }
 
   export type UserUpdateOneRequiredWithoutInterviewSessionsNestedInput = {
@@ -11075,7 +9686,7 @@ export namespace Prisma {
     deleteMany?: TranscriptScalarWhereInput | TranscriptScalarWhereInput[]
   }
 
-  export type FeedbackUpdateOneWithoutSessionNestedInput = {
+  export type FeedbackUncheckedUpdateOneWithoutSessionNestedInput = {
     create?: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput>
     connectOrCreate?: FeedbackCreateOrConnectWithoutSessionInput
     upsert?: FeedbackUpsertWithoutSessionInput
@@ -11097,16 +9708,6 @@ export namespace Prisma {
     update?: TranscriptUpdateWithWhereUniqueWithoutSessionInput | TranscriptUpdateWithWhereUniqueWithoutSessionInput[]
     updateMany?: TranscriptUpdateManyWithWhereWithoutSessionInput | TranscriptUpdateManyWithWhereWithoutSessionInput[]
     deleteMany?: TranscriptScalarWhereInput | TranscriptScalarWhereInput[]
-  }
-
-  export type FeedbackUncheckedUpdateOneWithoutSessionNestedInput = {
-    create?: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput>
-    connectOrCreate?: FeedbackCreateOrConnectWithoutSessionInput
-    upsert?: FeedbackUpsertWithoutSessionInput
-    disconnect?: FeedbackWhereInput | boolean
-    delete?: FeedbackWhereInput | boolean
-    connect?: FeedbackWhereUniqueInput
-    update?: XOR<XOR<FeedbackUpdateToOneWithWhereWithoutSessionInput, FeedbackUpdateWithoutSessionInput>, FeedbackUncheckedUpdateWithoutSessionInput>
   }
 
   export type InterviewSessionCreateNestedOneWithoutTranscriptsInput = {
@@ -11175,14 +9776,6 @@ export namespace Prisma {
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutUsageEventsInput, UserUpdateWithoutUsageEventsInput>, UserUncheckedUpdateWithoutUsageEventsInput>
   }
 
-  export type BigIntFieldUpdateOperationsInput = {
-    set?: bigint | number
-    increment?: bigint | number
-    decrement?: bigint | number
-    multiply?: bigint | number
-    divide?: bigint | number
-  }
-
   export type NestedStringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -11195,20 +9788,6 @@ export namespace Prisma {
     startsWith?: string | StringFieldRefInput<$PrismaModel>
     endsWith?: string | StringFieldRefInput<$PrismaModel>
     not?: NestedStringFilter<$PrismaModel> | string
-  }
-
-  export type NestedStringNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedStringNullableFilter<$PrismaModel> | string | null
   }
 
   export type NestedEnumUserRoleFilter<$PrismaModel = never> = {
@@ -11229,9 +9808,18 @@ export namespace Prisma {
     not?: NestedDecimalFilter<$PrismaModel> | Decimal | DecimalJsLike | number | string
   }
 
-  export type NestedBoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
+  export type NestedStringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
   }
 
   export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
@@ -11259,6 +9847,11 @@ export namespace Prisma {
     gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     not?: NestedDateTimeFilter<$PrismaModel> | Date | string
+  }
+
+  export type NestedBoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
   }
 
   export type NestedStringWithAggregatesFilter<$PrismaModel = never> = {
@@ -11289,34 +9882,6 @@ export namespace Prisma {
     not?: NestedIntFilter<$PrismaModel> | number
   }
 
-  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedStringNullableFilter<$PrismaModel>
-    _max?: NestedStringNullableFilter<$PrismaModel>
-  }
-
-  export type NestedIntNullableFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntNullableFilter<$PrismaModel> | number | null
-  }
-
   export type NestedEnumUserRoleWithAggregatesFilter<$PrismaModel = never> = {
     equals?: $Enums.UserRole | EnumUserRoleFieldRefInput<$PrismaModel>
     in?: $Enums.UserRole[] | ListEnumUserRoleFieldRefInput<$PrismaModel>
@@ -11343,12 +9908,32 @@ export namespace Prisma {
     _max?: NestedDecimalFilter<$PrismaModel>
   }
 
-  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
+  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
+  export type NestedIntNullableFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
 
   export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -11385,6 +9970,14 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedDateTimeFilter<$PrismaModel>
     _max?: NestedDateTimeFilter<$PrismaModel>
+  }
+
+  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
   }
   export type NestedJsonNullableFilter<$PrismaModel = never> =
     | PatchUndefined<
@@ -11453,121 +10046,6 @@ export namespace Prisma {
     _max?: NestedFloatNullableFilter<$PrismaModel>
   }
 
-  export type NestedBigIntFilter<$PrismaModel = never> = {
-    equals?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    in?: bigint[] | number[] | ListBigIntFieldRefInput<$PrismaModel>
-    notIn?: bigint[] | number[] | ListBigIntFieldRefInput<$PrismaModel>
-    lt?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    lte?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    gt?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    gte?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    not?: NestedBigIntFilter<$PrismaModel> | bigint | number
-  }
-
-  export type NestedUuidFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel>
-    in?: string[] | ListStringFieldRefInput<$PrismaModel>
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel>
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedUuidFilter<$PrismaModel> | string
-  }
-
-  export type NestedBigIntWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    in?: bigint[] | number[] | ListBigIntFieldRefInput<$PrismaModel>
-    notIn?: bigint[] | number[] | ListBigIntFieldRefInput<$PrismaModel>
-    lt?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    lte?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    gt?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    gte?: bigint | number | BigIntFieldRefInput<$PrismaModel>
-    not?: NestedBigIntWithAggregatesFilter<$PrismaModel> | bigint | number
-    _count?: NestedIntFilter<$PrismaModel>
-    _avg?: NestedFloatFilter<$PrismaModel>
-    _sum?: NestedBigIntFilter<$PrismaModel>
-    _min?: NestedBigIntFilter<$PrismaModel>
-    _max?: NestedBigIntFilter<$PrismaModel>
-  }
-
-  export type NestedFloatFilter<$PrismaModel = never> = {
-    equals?: number | FloatFieldRefInput<$PrismaModel>
-    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
-    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
-    lt?: number | FloatFieldRefInput<$PrismaModel>
-    lte?: number | FloatFieldRefInput<$PrismaModel>
-    gt?: number | FloatFieldRefInput<$PrismaModel>
-    gte?: number | FloatFieldRefInput<$PrismaModel>
-    not?: NestedFloatFilter<$PrismaModel> | number
-  }
-
-  export type NestedUuidWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel>
-    in?: string[] | ListStringFieldRefInput<$PrismaModel>
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel>
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedUuidWithAggregatesFilter<$PrismaModel> | string
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedStringFilter<$PrismaModel>
-    _max?: NestedStringFilter<$PrismaModel>
-  }
-
-  export type InterviewSessionCreateWithoutUserInput = {
-    id: string
-    jobTitle: string
-    resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
-    company?: string | null
-    interviewType?: string | null
-    jdContext?: string | null
-    webrtcSessionId?: string | null
-    openaiSessionId?: string | null
-    fallbackMode?: boolean
-    startedAt?: Date | string
-    endedAt?: Date | string | null
-    durationSeconds?: number | null
-    audioUrl?: string | null
-    expiresAt?: Date | string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    transcripts?: TranscriptCreateNestedManyWithoutSessionInput
-    feedback?: FeedbackCreateNestedOneWithoutSessionInput
-  }
-
-  export type InterviewSessionUncheckedCreateWithoutUserInput = {
-    id: string
-    jobTitle: string
-    resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
-    company?: string | null
-    interviewType?: string | null
-    jdContext?: string | null
-    webrtcSessionId?: string | null
-    openaiSessionId?: string | null
-    fallbackMode?: boolean
-    startedAt?: Date | string
-    endedAt?: Date | string | null
-    durationSeconds?: number | null
-    audioUrl?: string | null
-    expiresAt?: Date | string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    transcripts?: TranscriptUncheckedCreateNestedManyWithoutSessionInput
-    feedback?: FeedbackUncheckedCreateNestedOneWithoutSessionInput
-  }
-
-  export type InterviewSessionCreateOrConnectWithoutUserInput = {
-    where: InterviewSessionWhereUniqueInput
-    create: XOR<InterviewSessionCreateWithoutUserInput, InterviewSessionUncheckedCreateWithoutUserInput>
-  }
-
-  export type InterviewSessionCreateManyUserInputEnvelope = {
-    data: InterviewSessionCreateManyUserInput | InterviewSessionCreateManyUserInput[]
-    skipDuplicates?: boolean
-  }
-
   export type FeedbackCreateWithoutUserInput = {
     id: string
     summary: string
@@ -11604,6 +10082,58 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type InterviewSessionCreateWithoutUserInput = {
+    id: string
+    jobTitle: string
+    resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
+    company?: string | null
+    interviewType?: string | null
+    jdContext?: string | null
+    webrtcSessionId?: string | null
+    openaiSessionId?: string | null
+    fallbackMode?: boolean
+    startedAt?: Date | string
+    endedAt?: Date | string | null
+    durationSeconds?: number | null
+    audioUrl?: string | null
+    expiresAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    feedback?: FeedbackCreateNestedOneWithoutSessionInput
+    transcripts?: TranscriptCreateNestedManyWithoutSessionInput
+  }
+
+  export type InterviewSessionUncheckedCreateWithoutUserInput = {
+    id: string
+    jobTitle: string
+    resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
+    company?: string | null
+    interviewType?: string | null
+    jdContext?: string | null
+    webrtcSessionId?: string | null
+    openaiSessionId?: string | null
+    fallbackMode?: boolean
+    startedAt?: Date | string
+    endedAt?: Date | string | null
+    durationSeconds?: number | null
+    audioUrl?: string | null
+    expiresAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    feedback?: FeedbackUncheckedCreateNestedOneWithoutSessionInput
+    transcripts?: TranscriptUncheckedCreateNestedManyWithoutSessionInput
+  }
+
+  export type InterviewSessionCreateOrConnectWithoutUserInput = {
+    where: InterviewSessionWhereUniqueInput
+    create: XOR<InterviewSessionCreateWithoutUserInput, InterviewSessionUncheckedCreateWithoutUserInput>
+  }
+
+  export type InterviewSessionCreateManyUserInputEnvelope = {
+    data: InterviewSessionCreateManyUserInput | InterviewSessionCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
   export type UsageEventCreateWithoutUserInput = {
     id: string
     eventType: string
@@ -11630,6 +10160,39 @@ export namespace Prisma {
   export type UsageEventCreateManyUserInputEnvelope = {
     data: UsageEventCreateManyUserInput | UsageEventCreateManyUserInput[]
     skipDuplicates?: boolean
+  }
+
+  export type FeedbackUpsertWithWhereUniqueWithoutUserInput = {
+    where: FeedbackWhereUniqueInput
+    update: XOR<FeedbackUpdateWithoutUserInput, FeedbackUncheckedUpdateWithoutUserInput>
+    create: XOR<FeedbackCreateWithoutUserInput, FeedbackUncheckedCreateWithoutUserInput>
+  }
+
+  export type FeedbackUpdateWithWhereUniqueWithoutUserInput = {
+    where: FeedbackWhereUniqueInput
+    data: XOR<FeedbackUpdateWithoutUserInput, FeedbackUncheckedUpdateWithoutUserInput>
+  }
+
+  export type FeedbackUpdateManyWithWhereWithoutUserInput = {
+    where: FeedbackScalarWhereInput
+    data: XOR<FeedbackUpdateManyMutationInput, FeedbackUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type FeedbackScalarWhereInput = {
+    AND?: FeedbackScalarWhereInput | FeedbackScalarWhereInput[]
+    OR?: FeedbackScalarWhereInput[]
+    NOT?: FeedbackScalarWhereInput | FeedbackScalarWhereInput[]
+    id?: StringFilter<"Feedback"> | string
+    sessionId?: StringFilter<"Feedback"> | string
+    userId?: StringFilter<"Feedback"> | string
+    summary?: StringFilter<"Feedback"> | string
+    strengths?: StringNullableFilter<"Feedback"> | string | null
+    areasForImprovement?: StringNullableFilter<"Feedback"> | string | null
+    fillerWordCount?: IntNullableFilter<"Feedback"> | number | null
+    transcriptScore?: FloatNullableFilter<"Feedback"> | number | null
+    expiresAt?: DateTimeNullableFilter<"Feedback"> | Date | string | null
+    createdAt?: DateTimeFilter<"Feedback"> | Date | string
+    updatedAt?: DateTimeFilter<"Feedback"> | Date | string
   }
 
   export type InterviewSessionUpsertWithWhereUniqueWithoutUserInput = {
@@ -11671,39 +10234,6 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"InterviewSession"> | Date | string
   }
 
-  export type FeedbackUpsertWithWhereUniqueWithoutUserInput = {
-    where: FeedbackWhereUniqueInput
-    update: XOR<FeedbackUpdateWithoutUserInput, FeedbackUncheckedUpdateWithoutUserInput>
-    create: XOR<FeedbackCreateWithoutUserInput, FeedbackUncheckedCreateWithoutUserInput>
-  }
-
-  export type FeedbackUpdateWithWhereUniqueWithoutUserInput = {
-    where: FeedbackWhereUniqueInput
-    data: XOR<FeedbackUpdateWithoutUserInput, FeedbackUncheckedUpdateWithoutUserInput>
-  }
-
-  export type FeedbackUpdateManyWithWhereWithoutUserInput = {
-    where: FeedbackScalarWhereInput
-    data: XOR<FeedbackUpdateManyMutationInput, FeedbackUncheckedUpdateManyWithoutUserInput>
-  }
-
-  export type FeedbackScalarWhereInput = {
-    AND?: FeedbackScalarWhereInput | FeedbackScalarWhereInput[]
-    OR?: FeedbackScalarWhereInput[]
-    NOT?: FeedbackScalarWhereInput | FeedbackScalarWhereInput[]
-    id?: StringFilter<"Feedback"> | string
-    sessionId?: StringFilter<"Feedback"> | string
-    userId?: StringFilter<"Feedback"> | string
-    summary?: StringFilter<"Feedback"> | string
-    strengths?: StringNullableFilter<"Feedback"> | string | null
-    areasForImprovement?: StringNullableFilter<"Feedback"> | string | null
-    fillerWordCount?: IntNullableFilter<"Feedback"> | number | null
-    transcriptScore?: FloatNullableFilter<"Feedback"> | number | null
-    expiresAt?: DateTimeNullableFilter<"Feedback"> | Date | string | null
-    createdAt?: DateTimeFilter<"Feedback"> | Date | string
-    updatedAt?: DateTimeFilter<"Feedback"> | Date | string
-  }
-
   export type UsageEventUpsertWithWhereUniqueWithoutUserInput = {
     where: UsageEventWhereUniqueInput
     update: XOR<UsageEventUpdateWithoutUserInput, UsageEventUncheckedUpdateWithoutUserInput>
@@ -11733,14 +10263,41 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"UsageEvent"> | Date | string
   }
 
+  export type FeedbackCreateWithoutSessionInput = {
+    id: string
+    summary: string
+    strengths?: string | null
+    areasForImprovement?: string | null
+    fillerWordCount?: number | null
+    transcriptScore?: number | null
+    expiresAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutFeedbacksInput
+  }
+
+  export type FeedbackUncheckedCreateWithoutSessionInput = {
+    id: string
+    userId: string
+    summary: string
+    strengths?: string | null
+    areasForImprovement?: string | null
+    fillerWordCount?: number | null
+    transcriptScore?: number | null
+    expiresAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type FeedbackCreateOrConnectWithoutSessionInput = {
+    where: FeedbackWhereUniqueInput
+    create: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput>
+  }
+
   export type UserCreateWithoutInterviewSessionsInput = {
     id: string
-    email?: string | null
-    name?: string | null
-    image?: string | null
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
-    isPremium?: boolean
     resumeJobTitle?: string | null
     resumeSkills?: string | null
     resumeExperience?: string | null
@@ -11752,23 +10309,23 @@ export namespace Prisma {
     acceptedTermsAt?: Date | string | null
     acceptedPrivacyAt?: Date | string | null
     dataRetentionOverride?: boolean | null
-    stripeCustomerId?: string | null
-    premiumSubscriptionId?: string | null
-    premiumExpiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    premiumExpiresAt?: Date | string | null
+    premiumSubscriptionId?: string | null
+    stripeCustomerId?: string | null
+    isPremium?: boolean
+    email?: string | null
+    image?: string | null
+    name?: string | null
     feedbacks?: FeedbackCreateNestedManyWithoutUserInput
     usageEvents?: UsageEventCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutInterviewSessionsInput = {
     id: string
-    email?: string | null
-    name?: string | null
-    image?: string | null
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
-    isPremium?: boolean
     resumeJobTitle?: string | null
     resumeSkills?: string | null
     resumeExperience?: string | null
@@ -11780,11 +10337,15 @@ export namespace Prisma {
     acceptedTermsAt?: Date | string | null
     acceptedPrivacyAt?: Date | string | null
     dataRetentionOverride?: boolean | null
-    stripeCustomerId?: string | null
-    premiumSubscriptionId?: string | null
-    premiumExpiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    premiumExpiresAt?: Date | string | null
+    premiumSubscriptionId?: string | null
+    stripeCustomerId?: string | null
+    isPremium?: boolean
+    email?: string | null
+    image?: string | null
+    name?: string | null
     feedbacks?: FeedbackUncheckedCreateNestedManyWithoutUserInput
     usageEvents?: UsageEventUncheckedCreateNestedManyWithoutUserInput
   }
@@ -11826,135 +10387,6 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
-  export type FeedbackCreateWithoutSessionInput = {
-    id: string
-    summary: string
-    strengths?: string | null
-    areasForImprovement?: string | null
-    fillerWordCount?: number | null
-    transcriptScore?: number | null
-    expiresAt?: Date | string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    user: UserCreateNestedOneWithoutFeedbacksInput
-  }
-
-  export type FeedbackUncheckedCreateWithoutSessionInput = {
-    id: string
-    userId: string
-    summary: string
-    strengths?: string | null
-    areasForImprovement?: string | null
-    fillerWordCount?: number | null
-    transcriptScore?: number | null
-    expiresAt?: Date | string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
-  export type FeedbackCreateOrConnectWithoutSessionInput = {
-    where: FeedbackWhereUniqueInput
-    create: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput>
-  }
-
-  export type UserUpsertWithoutInterviewSessionsInput = {
-    update: XOR<UserUpdateWithoutInterviewSessionsInput, UserUncheckedUpdateWithoutInterviewSessionsInput>
-    create: XOR<UserCreateWithoutInterviewSessionsInput, UserUncheckedCreateWithoutInterviewSessionsInput>
-    where?: UserWhereInput
-  }
-
-  export type UserUpdateToOneWithWhereWithoutInterviewSessionsInput = {
-    where?: UserWhereInput
-    data: XOR<UserUpdateWithoutInterviewSessionsInput, UserUncheckedUpdateWithoutInterviewSessionsInput>
-  }
-
-  export type UserUpdateWithoutInterviewSessionsInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
-    image?: NullableStringFieldUpdateOperationsInput | string | null
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
-    credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    isPremium?: BoolFieldUpdateOperationsInput | boolean
-    resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
-    resumeSkills?: NullableStringFieldUpdateOperationsInput | string | null
-    resumeExperience?: NullableStringFieldUpdateOperationsInput | string | null
-    resumeEducation?: NullableStringFieldUpdateOperationsInput | string | null
-    resumeAchievements?: NullableStringFieldUpdateOperationsInput | string | null
-    resumeFileUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    jobSearchStage?: NullableStringFieldUpdateOperationsInput | string | null
-    linkedinUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    acceptedTermsAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    acceptedPrivacyAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    dataRetentionOverride?: NullableBoolFieldUpdateOperationsInput | boolean | null
-    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    feedbacks?: FeedbackUpdateManyWithoutUserNestedInput
-    usageEvents?: UsageEventUpdateManyWithoutUserNestedInput
-  }
-
-  export type UserUncheckedUpdateWithoutInterviewSessionsInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
-    image?: NullableStringFieldUpdateOperationsInput | string | null
-    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
-    credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    isPremium?: BoolFieldUpdateOperationsInput | boolean
-    resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
-    resumeSkills?: NullableStringFieldUpdateOperationsInput | string | null
-    resumeExperience?: NullableStringFieldUpdateOperationsInput | string | null
-    resumeEducation?: NullableStringFieldUpdateOperationsInput | string | null
-    resumeAchievements?: NullableStringFieldUpdateOperationsInput | string | null
-    resumeFileUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    jobSearchStage?: NullableStringFieldUpdateOperationsInput | string | null
-    linkedinUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    acceptedTermsAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    acceptedPrivacyAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    dataRetentionOverride?: NullableBoolFieldUpdateOperationsInput | boolean | null
-    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    feedbacks?: FeedbackUncheckedUpdateManyWithoutUserNestedInput
-    usageEvents?: UsageEventUncheckedUpdateManyWithoutUserNestedInput
-  }
-
-  export type TranscriptUpsertWithWhereUniqueWithoutSessionInput = {
-    where: TranscriptWhereUniqueInput
-    update: XOR<TranscriptUpdateWithoutSessionInput, TranscriptUncheckedUpdateWithoutSessionInput>
-    create: XOR<TranscriptCreateWithoutSessionInput, TranscriptUncheckedCreateWithoutSessionInput>
-  }
-
-  export type TranscriptUpdateWithWhereUniqueWithoutSessionInput = {
-    where: TranscriptWhereUniqueInput
-    data: XOR<TranscriptUpdateWithoutSessionInput, TranscriptUncheckedUpdateWithoutSessionInput>
-  }
-
-  export type TranscriptUpdateManyWithWhereWithoutSessionInput = {
-    where: TranscriptScalarWhereInput
-    data: XOR<TranscriptUpdateManyMutationInput, TranscriptUncheckedUpdateManyWithoutSessionInput>
-  }
-
-  export type TranscriptScalarWhereInput = {
-    AND?: TranscriptScalarWhereInput | TranscriptScalarWhereInput[]
-    OR?: TranscriptScalarWhereInput[]
-    NOT?: TranscriptScalarWhereInput | TranscriptScalarWhereInput[]
-    id?: StringFilter<"Transcript"> | string
-    sessionId?: StringFilter<"Transcript"> | string
-    role?: StringFilter<"Transcript"> | string
-    content?: StringFilter<"Transcript"> | string
-    confidence?: FloatNullableFilter<"Transcript"> | number | null
-    timestamp?: DateTimeFilter<"Transcript"> | Date | string
-    expiresAt?: DateTimeNullableFilter<"Transcript"> | Date | string | null
-    createdAt?: DateTimeFilter<"Transcript"> | Date | string
-    updatedAt?: DateTimeFilter<"Transcript"> | Date | string
-  }
-
   export type FeedbackUpsertWithoutSessionInput = {
     update: XOR<FeedbackUpdateWithoutSessionInput, FeedbackUncheckedUpdateWithoutSessionInput>
     create: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput>
@@ -11992,6 +10424,104 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type UserUpsertWithoutInterviewSessionsInput = {
+    update: XOR<UserUpdateWithoutInterviewSessionsInput, UserUncheckedUpdateWithoutInterviewSessionsInput>
+    create: XOR<UserCreateWithoutInterviewSessionsInput, UserUncheckedCreateWithoutInterviewSessionsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutInterviewSessionsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutInterviewSessionsInput, UserUncheckedUpdateWithoutInterviewSessionsInput>
+  }
+
+  export type UserUpdateWithoutInterviewSessionsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeSkills?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeExperience?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeEducation?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeAchievements?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeFileUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    jobSearchStage?: NullableStringFieldUpdateOperationsInput | string | null
+    linkedinUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    acceptedTermsAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    acceptedPrivacyAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    dataRetentionOverride?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
+    isPremium?: BoolFieldUpdateOperationsInput | boolean
+    email?: NullableStringFieldUpdateOperationsInput | string | null
+    image?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: NullableStringFieldUpdateOperationsInput | string | null
+    feedbacks?: FeedbackUpdateManyWithoutUserNestedInput
+    usageEvents?: UsageEventUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutInterviewSessionsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeSkills?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeExperience?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeEducation?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeAchievements?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeFileUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    jobSearchStage?: NullableStringFieldUpdateOperationsInput | string | null
+    linkedinUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    acceptedTermsAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    acceptedPrivacyAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    dataRetentionOverride?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
+    isPremium?: BoolFieldUpdateOperationsInput | boolean
+    email?: NullableStringFieldUpdateOperationsInput | string | null
+    image?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: NullableStringFieldUpdateOperationsInput | string | null
+    feedbacks?: FeedbackUncheckedUpdateManyWithoutUserNestedInput
+    usageEvents?: UsageEventUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type TranscriptUpsertWithWhereUniqueWithoutSessionInput = {
+    where: TranscriptWhereUniqueInput
+    update: XOR<TranscriptUpdateWithoutSessionInput, TranscriptUncheckedUpdateWithoutSessionInput>
+    create: XOR<TranscriptCreateWithoutSessionInput, TranscriptUncheckedCreateWithoutSessionInput>
+  }
+
+  export type TranscriptUpdateWithWhereUniqueWithoutSessionInput = {
+    where: TranscriptWhereUniqueInput
+    data: XOR<TranscriptUpdateWithoutSessionInput, TranscriptUncheckedUpdateWithoutSessionInput>
+  }
+
+  export type TranscriptUpdateManyWithWhereWithoutSessionInput = {
+    where: TranscriptScalarWhereInput
+    data: XOR<TranscriptUpdateManyMutationInput, TranscriptUncheckedUpdateManyWithoutSessionInput>
+  }
+
+  export type TranscriptScalarWhereInput = {
+    AND?: TranscriptScalarWhereInput | TranscriptScalarWhereInput[]
+    OR?: TranscriptScalarWhereInput[]
+    NOT?: TranscriptScalarWhereInput | TranscriptScalarWhereInput[]
+    id?: StringFilter<"Transcript"> | string
+    sessionId?: StringFilter<"Transcript"> | string
+    role?: StringFilter<"Transcript"> | string
+    content?: StringFilter<"Transcript"> | string
+    confidence?: FloatNullableFilter<"Transcript"> | number | null
+    timestamp?: DateTimeFilter<"Transcript"> | Date | string
+    expiresAt?: DateTimeNullableFilter<"Transcript"> | Date | string | null
+    createdAt?: DateTimeFilter<"Transcript"> | Date | string
+    updatedAt?: DateTimeFilter<"Transcript"> | Date | string
+  }
+
   export type InterviewSessionCreateWithoutTranscriptsInput = {
     id: string
     jobTitle: string
@@ -12009,8 +10539,8 @@ export namespace Prisma {
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    user: UserCreateNestedOneWithoutInterviewSessionsInput
     feedback?: FeedbackCreateNestedOneWithoutSessionInput
+    user: UserCreateNestedOneWithoutInterviewSessionsInput
   }
 
   export type InterviewSessionUncheckedCreateWithoutTranscriptsInput = {
@@ -12067,8 +10597,8 @@ export namespace Prisma {
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    user?: UserUpdateOneRequiredWithoutInterviewSessionsNestedInput
     feedback?: FeedbackUpdateOneWithoutSessionNestedInput
+    user?: UserUpdateOneRequiredWithoutInterviewSessionsNestedInput
   }
 
   export type InterviewSessionUncheckedUpdateWithoutTranscriptsInput = {
@@ -12141,12 +10671,8 @@ export namespace Prisma {
 
   export type UserCreateWithoutFeedbacksInput = {
     id: string
-    email?: string | null
-    name?: string | null
-    image?: string | null
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
-    isPremium?: boolean
     resumeJobTitle?: string | null
     resumeSkills?: string | null
     resumeExperience?: string | null
@@ -12158,23 +10684,23 @@ export namespace Prisma {
     acceptedTermsAt?: Date | string | null
     acceptedPrivacyAt?: Date | string | null
     dataRetentionOverride?: boolean | null
-    stripeCustomerId?: string | null
-    premiumSubscriptionId?: string | null
-    premiumExpiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    premiumExpiresAt?: Date | string | null
+    premiumSubscriptionId?: string | null
+    stripeCustomerId?: string | null
+    isPremium?: boolean
+    email?: string | null
+    image?: string | null
+    name?: string | null
     interviewSessions?: InterviewSessionCreateNestedManyWithoutUserInput
     usageEvents?: UsageEventCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutFeedbacksInput = {
     id: string
-    email?: string | null
-    name?: string | null
-    image?: string | null
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
-    isPremium?: boolean
     resumeJobTitle?: string | null
     resumeSkills?: string | null
     resumeExperience?: string | null
@@ -12186,11 +10712,15 @@ export namespace Prisma {
     acceptedTermsAt?: Date | string | null
     acceptedPrivacyAt?: Date | string | null
     dataRetentionOverride?: boolean | null
-    stripeCustomerId?: string | null
-    premiumSubscriptionId?: string | null
-    premiumExpiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    premiumExpiresAt?: Date | string | null
+    premiumSubscriptionId?: string | null
+    stripeCustomerId?: string | null
+    isPremium?: boolean
+    email?: string | null
+    image?: string | null
+    name?: string | null
     interviewSessions?: InterviewSessionUncheckedCreateNestedManyWithoutUserInput
     usageEvents?: UsageEventUncheckedCreateNestedManyWithoutUserInput
   }
@@ -12266,12 +10796,8 @@ export namespace Prisma {
 
   export type UserUpdateWithoutFeedbacksInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
-    image?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    isPremium?: BoolFieldUpdateOperationsInput | boolean
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
     resumeSkills?: NullableStringFieldUpdateOperationsInput | string | null
     resumeExperience?: NullableStringFieldUpdateOperationsInput | string | null
@@ -12283,23 +10809,23 @@ export namespace Prisma {
     acceptedTermsAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     acceptedPrivacyAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     dataRetentionOverride?: NullableBoolFieldUpdateOperationsInput | boolean | null
-    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
+    isPremium?: BoolFieldUpdateOperationsInput | boolean
+    email?: NullableStringFieldUpdateOperationsInput | string | null
+    image?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: NullableStringFieldUpdateOperationsInput | string | null
     interviewSessions?: InterviewSessionUpdateManyWithoutUserNestedInput
     usageEvents?: UsageEventUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutFeedbacksInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
-    image?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    isPremium?: BoolFieldUpdateOperationsInput | boolean
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
     resumeSkills?: NullableStringFieldUpdateOperationsInput | string | null
     resumeExperience?: NullableStringFieldUpdateOperationsInput | string | null
@@ -12311,23 +10837,23 @@ export namespace Prisma {
     acceptedTermsAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     acceptedPrivacyAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     dataRetentionOverride?: NullableBoolFieldUpdateOperationsInput | boolean | null
-    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
+    isPremium?: BoolFieldUpdateOperationsInput | boolean
+    email?: NullableStringFieldUpdateOperationsInput | string | null
+    image?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: NullableStringFieldUpdateOperationsInput | string | null
     interviewSessions?: InterviewSessionUncheckedUpdateManyWithoutUserNestedInput
     usageEvents?: UsageEventUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserCreateWithoutUsageEventsInput = {
     id: string
-    email?: string | null
-    name?: string | null
-    image?: string | null
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
-    isPremium?: boolean
     resumeJobTitle?: string | null
     resumeSkills?: string | null
     resumeExperience?: string | null
@@ -12339,23 +10865,23 @@ export namespace Prisma {
     acceptedTermsAt?: Date | string | null
     acceptedPrivacyAt?: Date | string | null
     dataRetentionOverride?: boolean | null
-    stripeCustomerId?: string | null
-    premiumSubscriptionId?: string | null
-    premiumExpiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    interviewSessions?: InterviewSessionCreateNestedManyWithoutUserInput
+    premiumExpiresAt?: Date | string | null
+    premiumSubscriptionId?: string | null
+    stripeCustomerId?: string | null
+    isPremium?: boolean
+    email?: string | null
+    image?: string | null
+    name?: string | null
     feedbacks?: FeedbackCreateNestedManyWithoutUserInput
+    interviewSessions?: InterviewSessionCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutUsageEventsInput = {
     id: string
-    email?: string | null
-    name?: string | null
-    image?: string | null
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
-    isPremium?: boolean
     resumeJobTitle?: string | null
     resumeSkills?: string | null
     resumeExperience?: string | null
@@ -12367,13 +10893,17 @@ export namespace Prisma {
     acceptedTermsAt?: Date | string | null
     acceptedPrivacyAt?: Date | string | null
     dataRetentionOverride?: boolean | null
-    stripeCustomerId?: string | null
-    premiumSubscriptionId?: string | null
-    premiumExpiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    interviewSessions?: InterviewSessionUncheckedCreateNestedManyWithoutUserInput
+    premiumExpiresAt?: Date | string | null
+    premiumSubscriptionId?: string | null
+    stripeCustomerId?: string | null
+    isPremium?: boolean
+    email?: string | null
+    image?: string | null
+    name?: string | null
     feedbacks?: FeedbackUncheckedCreateNestedManyWithoutUserInput
+    interviewSessions?: InterviewSessionUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutUsageEventsInput = {
@@ -12394,12 +10924,8 @@ export namespace Prisma {
 
   export type UserUpdateWithoutUsageEventsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
-    image?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    isPremium?: BoolFieldUpdateOperationsInput | boolean
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
     resumeSkills?: NullableStringFieldUpdateOperationsInput | string | null
     resumeExperience?: NullableStringFieldUpdateOperationsInput | string | null
@@ -12411,23 +10937,23 @@ export namespace Prisma {
     acceptedTermsAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     acceptedPrivacyAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     dataRetentionOverride?: NullableBoolFieldUpdateOperationsInput | boolean | null
-    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    interviewSessions?: InterviewSessionUpdateManyWithoutUserNestedInput
+    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
+    isPremium?: BoolFieldUpdateOperationsInput | boolean
+    email?: NullableStringFieldUpdateOperationsInput | string | null
+    image?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: NullableStringFieldUpdateOperationsInput | string | null
     feedbacks?: FeedbackUpdateManyWithoutUserNestedInput
+    interviewSessions?: InterviewSessionUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutUsageEventsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
-    image?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    isPremium?: BoolFieldUpdateOperationsInput | boolean
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
     resumeSkills?: NullableStringFieldUpdateOperationsInput | string | null
     resumeExperience?: NullableStringFieldUpdateOperationsInput | string | null
@@ -12439,13 +10965,30 @@ export namespace Prisma {
     acceptedTermsAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     acceptedPrivacyAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     dataRetentionOverride?: NullableBoolFieldUpdateOperationsInput | boolean | null
-    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
-    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    interviewSessions?: InterviewSessionUncheckedUpdateManyWithoutUserNestedInput
+    premiumExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    premiumSubscriptionId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
+    isPremium?: BoolFieldUpdateOperationsInput | boolean
+    email?: NullableStringFieldUpdateOperationsInput | string | null
+    image?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: NullableStringFieldUpdateOperationsInput | string | null
     feedbacks?: FeedbackUncheckedUpdateManyWithoutUserNestedInput
+    interviewSessions?: InterviewSessionUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type FeedbackCreateManyUserInput = {
+    id: string
+    sessionId: string
+    summary: string
+    strengths?: string | null
+    areasForImprovement?: string | null
+    fillerWordCount?: number | null
+    transcriptScore?: number | null
+    expiresAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
   }
 
   export type InterviewSessionCreateManyUserInput = {
@@ -12467,19 +11010,6 @@ export namespace Prisma {
     updatedAt?: Date | string
   }
 
-  export type FeedbackCreateManyUserInput = {
-    id: string
-    sessionId: string
-    summary: string
-    strengths?: string | null
-    areasForImprovement?: string | null
-    fillerWordCount?: number | null
-    transcriptScore?: number | null
-    expiresAt?: Date | string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
   export type UsageEventCreateManyUserInput = {
     id: string
     eventType: string
@@ -12487,67 +11017,6 @@ export namespace Prisma {
     occurredAt?: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
-  }
-
-  export type InterviewSessionUpdateWithoutUserInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    jobTitle?: StringFieldUpdateOperationsInput | string
-    resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
-    company?: NullableStringFieldUpdateOperationsInput | string | null
-    interviewType?: NullableStringFieldUpdateOperationsInput | string | null
-    jdContext?: NullableStringFieldUpdateOperationsInput | string | null
-    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
-    openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
-    fallbackMode?: BoolFieldUpdateOperationsInput | boolean
-    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
-    audioUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    transcripts?: TranscriptUpdateManyWithoutSessionNestedInput
-    feedback?: FeedbackUpdateOneWithoutSessionNestedInput
-  }
-
-  export type InterviewSessionUncheckedUpdateWithoutUserInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    jobTitle?: StringFieldUpdateOperationsInput | string
-    resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
-    company?: NullableStringFieldUpdateOperationsInput | string | null
-    interviewType?: NullableStringFieldUpdateOperationsInput | string | null
-    jdContext?: NullableStringFieldUpdateOperationsInput | string | null
-    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
-    openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
-    fallbackMode?: BoolFieldUpdateOperationsInput | boolean
-    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
-    audioUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    transcripts?: TranscriptUncheckedUpdateManyWithoutSessionNestedInput
-    feedback?: FeedbackUncheckedUpdateOneWithoutSessionNestedInput
-  }
-
-  export type InterviewSessionUncheckedUpdateManyWithoutUserInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    jobTitle?: StringFieldUpdateOperationsInput | string
-    resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
-    company?: NullableStringFieldUpdateOperationsInput | string | null
-    interviewType?: NullableStringFieldUpdateOperationsInput | string | null
-    jdContext?: NullableStringFieldUpdateOperationsInput | string | null
-    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
-    openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
-    fallbackMode?: BoolFieldUpdateOperationsInput | boolean
-    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
-    audioUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type FeedbackUpdateWithoutUserInput = {
@@ -12584,6 +11053,67 @@ export namespace Prisma {
     areasForImprovement?: NullableStringFieldUpdateOperationsInput | string | null
     fillerWordCount?: NullableIntFieldUpdateOperationsInput | number | null
     transcriptScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type InterviewSessionUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    jobTitle?: StringFieldUpdateOperationsInput | string
+    resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
+    company?: NullableStringFieldUpdateOperationsInput | string | null
+    interviewType?: NullableStringFieldUpdateOperationsInput | string | null
+    jdContext?: NullableStringFieldUpdateOperationsInput | string | null
+    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    fallbackMode?: BoolFieldUpdateOperationsInput | boolean
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    audioUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    feedback?: FeedbackUpdateOneWithoutSessionNestedInput
+    transcripts?: TranscriptUpdateManyWithoutSessionNestedInput
+  }
+
+  export type InterviewSessionUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    jobTitle?: StringFieldUpdateOperationsInput | string
+    resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
+    company?: NullableStringFieldUpdateOperationsInput | string | null
+    interviewType?: NullableStringFieldUpdateOperationsInput | string | null
+    jdContext?: NullableStringFieldUpdateOperationsInput | string | null
+    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    fallbackMode?: BoolFieldUpdateOperationsInput | boolean
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    audioUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    feedback?: FeedbackUncheckedUpdateOneWithoutSessionNestedInput
+    transcripts?: TranscriptUncheckedUpdateManyWithoutSessionNestedInput
+  }
+
+  export type InterviewSessionUncheckedUpdateManyWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    jobTitle?: StringFieldUpdateOperationsInput | string
+    resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
+    company?: NullableStringFieldUpdateOperationsInput | string | null
+    interviewType?: NullableStringFieldUpdateOperationsInput | string | null
+    jdContext?: NullableStringFieldUpdateOperationsInput | string | null
+    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    fallbackMode?: BoolFieldUpdateOperationsInput | boolean
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
+    audioUrl?: NullableStringFieldUpdateOperationsInput | string | null
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
