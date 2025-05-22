@@ -4,9 +4,11 @@ Beta
 
 ==============================
 
-Learn how to manage Realtime speech-to-speech conversations.
+Learn how to manage Realtime speech-to-speech conversations with WebRTC.
 
-Once you have connected to the Realtime API through either [WebRTC](/docs/guides/realtime-webrtc) or [WebSocket](/docs/guides/realtime-websocket), you can call a Realtime model (such as [gpt-4o-realtime-preview](/docs/models/gpt-4o-realtime-preview)) to have speech-to-speech conversations. Doing so will require you to **send client events** to initiate actions, and **listen for server events** to respond to actions taken by the Realtime API.
+**🚨 VocaHire Architecture**: This codebase uses **WebRTC exclusively** for all OpenAI Realtime API communication. WebSocket implementations have been removed to eliminate conflicts and optimize for low-latency audio.
+
+VocaHire connects to the Realtime API through **WebRTC only** to call a Realtime model (gpt-4o-realtime-preview) for natural speech-to-speech conversations. This requires **sending client events** via RTCDataChannel and **listening for server events** for real-time responses.
 
 This guide will walk through the event flows required to use model capabilities like audio and text generation and function calling, and how to think about the state of a Realtime Session.
 
@@ -21,13 +23,20 @@ A Realtime Session is a stateful interaction between the model and a connected c
 *   A **Conversation**, which represents user input Items and model output Items generated during the current session.
 *   **Responses**, which are model-generated audio or text Items that are added to the Conversation.
 
-**Input audio buffer and WebSockets**
+**Audio Handling with WebRTC (VocaHire Implementation)**
 
-If you are using WebRTC, much of the media handling required to send and receive audio from the model is assisted by WebRTC APIs.
+VocaHire uses **WebRTC exclusively**, which provides several advantages:
 
-  
+- **Direct Audio Streaming**: WebRTC handles audio encoding/decoding automatically via RTP
+- **Lower Latency**: UDP-based transport vs TCP overhead of WebSockets  
+- **No Base64 Encoding**: Audio streams directly without JSON serialization overhead
+- **Better Quality**: Optimized for real-time media with automatic quality adaptation
 
-If you are using WebSockets for audio, you will need to manually interact with the **input audio buffer** by sending audio to the server, sent with JSON events with base64-encoded audio.
+**Implementation Details:**
+- Audio streams via `RTCPeerConnection.addTrack()` for microphone input
+- AI responses received via `pc.ontrack` event handler  
+- JSON events (transcripts, commands) sent via `RTCDataChannel`
+- Session management handled by `useRealtimeInterviewSession` hook
 
 All these components together make up a Realtime Session. You will use client events to update the state of the session, and listen for server events to react to state changes within the session.
 
