@@ -72,11 +72,13 @@ export function useTermsAgreement(userId: string | undefined) {
   const agreeToTerms = () => {
     if (!userId || !isMounted) return
     
+    console.log('User accepting terms:', userId)
     const key = `agreedToTerms_${userId}`
     safeLocalStorageSet(key, "true")
     
     setHasAgreedToTerms(true)
     setShowTermsModal(false)
+    console.log('Terms accepted, modal should close')
   }
 
   return {
