@@ -10,6 +10,7 @@ import Link from "next/link";
 import type { ResumeData } from "@/components/resume-input";
 // import { Navbar } from "@/components/navbar"; // Navbar is in parent server component
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Loader2 } from "lucide-react";
 import SessionLayout from "@/components/SessionLayout";
 import { loadStripe } from "@stripe/stripe-js";
 import { useToast } from "@/hooks/use-toast";
@@ -62,6 +63,8 @@ export default function InterviewPageClient({
   const [hasResumeData, setHasResumeData] = useState<boolean>(false);
   const [skipResume, setSkipResume] = useState(initialSkipResume);
   const [currentView, setCurrentView] = useState<"interview" | "profile">("interview");
+  const [interviewActive, setInterviewActive] = useState(false);
+  const [creatingSession, setCreatingSession] = useState(false);
 
   // Local state for modals
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
@@ -189,6 +192,7 @@ export default function InterviewPageClient({
       if (typeof window !== 'undefined') {
         localStorage.setItem("vocahire_interview_messages", JSON.stringify(messages));
       }
+      setInterviewActive(false); // Reset the interview state
       router.push("/feedback");
     },
     [router]
@@ -202,11 +206,21 @@ export default function InterviewPageClient({
     }
   };
 
-  const startInterview = () => {
+  const startInterview = async () => {
     setIsConfirmStartModalOpen(false);
-    console.log("Interview started logic triggered");
-    // Actual interview start logic will be handled by InterviewRoom based on its props/state
-    refetchUserData();
+    setCreatingSession(true);
+    
+    try {
+      // This will trigger the InterviewRoom to initialize and connect
+      setInterviewActive(true);
+      console.log("Interview session starting...");
+      await refetchUserData();
+    } catch (error) {
+      console.error("Error starting interview:", error);
+      setInterviewActive(false);
+    } finally {
+      setCreatingSession(false);
+    }
   };
 
   // Debug logging for loading states
@@ -325,32 +339,43 @@ export default function InterviewPageClient({
               </Card>
             )}
 
-            {/* Start Interview Button Logic */}
-            { (isPremium || (credits !== null && Number(credits) > 0)) ? (
-                <div className="mt-8">
-                     <Button
-                        onClick={handleStartInterviewAttempt}
-                        className="w-full max-w-md mx-auto flex justify-center py-3 text-lg bg-green-500 hover:bg-green-600"
-                        disabled={isUserDataLoading} // Use isUserDataLoading
-                    >
-                        Start Mock Interview
-                    </Button>
-                     <InterviewRoom
-                        jobTitle={jobTitle}
-                        onComplete={handleInterviewComplete}
-                        resumeData={resumeData}
-                        credits={credits}
-                        isCreditsLoading={isUserDataLoading} // Pass isUserDataLoading
-                        onBuyCredits={handlePurchaseCreditsClick}
-                        refetchCredits={refetchUserData} // Pass refetchUserData from hook
-                     />
-                </div>
+            {/* Interview interface - only show when active */}
+            {interviewActive ? (
+              <div className="mt-8">
+                <InterviewRoom
+                  jobTitle={jobTitle}
+                  onComplete={handleInterviewComplete}
+                  resumeData={resumeData}
+                  credits={credits}
+                  isCreditsLoading={isUserDataLoading}
+                  onBuyCredits={handlePurchaseCreditsClick}
+                  refetchCredits={refetchUserData}
+                  autoStart={true}
+                />
+              </div>
+            ) : (isPremium || (credits !== null && Number(credits) > 0)) ? (
+              <div className="mt-8">
+                <Button
+                  onClick={handleStartInterviewAttempt}
+                  className="w-full max-w-md mx-auto flex justify-center py-3 text-lg bg-green-500 hover:bg-green-600"
+                  disabled={isUserDataLoading || creatingSession}
+                >
+                  {creatingSession ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Starting Interview...
+                    </>
+                  ) : (
+                    "Start Mock Interview"
+                  )}
+                </Button>
+              </div>
             ) : !isUserDataLoading && credits !== null && Number(credits) <= 0 && !isPremium ? (
-                <div className="text-center text-gray-600 dark:text-gray-400 mt-6">
-                    Please upgrade to a premium subscription to access unlimited AI interviews. 
-                    <p className="mt-2 text-sm">VocahireCredits are intended as top-ups for premium subscribers.</p>
-                </div>
-            ) : null }
+              <div className="text-center text-gray-600 dark:text-gray-400 mt-6">
+                Please upgrade to a premium subscription to access unlimited AI interviews. 
+                <p className="mt-2 text-sm">VocahireCredits are intended as top-ups for premium subscribers.</p>
+              </div>
+            ) : null}
           </SessionLayout>
         </TabsContent>
 

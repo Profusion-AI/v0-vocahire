@@ -33,6 +33,7 @@ interface InterviewRoomProps {
   isCreditsLoading?: boolean
   onBuyCredits?: () => void
   refetchCredits?: () => Promise<void>
+  autoStart?: boolean
 }
 
 export default function InterviewRoom({
@@ -43,6 +44,7 @@ export default function InterviewRoom({
   isCreditsLoading,
   onBuyCredits,
   refetchCredits,
+  autoStart = false,
 }: InterviewRoomProps) {
   // Debug render count
   renderCount++
@@ -980,6 +982,14 @@ export default function InterviewRoom({
     // Start the real-time interview with WebRTC
     startInterviewWithRetry()
   }, [startInterviewWithRetry])
+
+  // Auto-start effect when autoStart prop is true
+  useEffect(() => {
+    if (autoStart && status === "idle" && !isActive) {
+      console.log("Auto-starting interview due to autoStart prop")
+      handleStartInterview()
+    }
+  }, [autoStart, status, isActive, handleStartInterview])
 
   // Function to handle interview completion
   const handleInterviewComplete = useCallback(() => {
