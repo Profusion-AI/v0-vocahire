@@ -33,6 +33,13 @@ export async function POST(request: Request) {
     console.log(`DEBUG: Using ephemeral token (client_secret) for Authorization: Bearer ${token.substring(0, 10)}...`)
 
     // Send the SDP offer to OpenAI using the ephemeral token as the Bearer token
+    // Add timeout to prevent Vercel function timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.error("WebRTC SDP exchange timeout after 15 seconds");
+      controller.abort();
+    }, 15000); // 15 second timeout
+
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -41,7 +48,10 @@ export async function POST(request: Request) {
         "OpenAI-Beta": "realtime", // Include this header for beta features
       },
       body: sdp, // Send the raw SDP offer
+      signal: controller.signal
     })
+    
+    clearTimeout(timeoutId);
 
     console.log(`OpenAI SDP POST response status: ${response.status}`)
 

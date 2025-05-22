@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
         select: { credits: true, isPremium: true },
       }),
       new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database query timeout')), 25000) // Increased from 10s to 25s for Vercel cold starts
+        setTimeout(() => reject(new Error('Database query timeout')), 12000) // 12s timeout to stay under Vercel's 15s limit
       )
     ]).catch(error => {
       perfLog("DATABASE_QUERY_ERROR", { error: error.message });
@@ -175,9 +175,9 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       perfLog("OPENAI_SESSION_TIMEOUT");
-      console.log("OpenAI session creation timeout after 45 seconds");
+      console.log("OpenAI session creation timeout after 20 seconds");
       controller.abort();
-    }, 45000); // 45 second timeout to handle Vercel cold starts and potential API delays
+    }, 20000); // 20 second timeout to stay well under Vercel function limits
     
     let openaiResponse;
     try {

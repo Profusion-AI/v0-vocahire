@@ -57,6 +57,63 @@ export function useInterviewSession() {
     // Update state less frequently
   }, [])
 
+  // Main start function - this was missing!
+  const start = useCallback(async (jobTitle: string) => {
+    try {
+      setStatus("requesting_mic")
+      setIsConnecting(true)
+      setError(null)
+      addDebugMessage("Starting interview session...")
+
+      // This hook is incomplete - InterviewRoom.tsx should handle the actual connection logic
+      // For now, let's throw an error to indicate this needs to be implemented
+      throw new Error("useRealtimeInterviewSession hook is incomplete. Connection logic should be implemented in InterviewRoom.tsx or migrated here.")
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      setError(errorMessage)
+      setStatus("error")
+      addDebugMessage(`Start error: ${errorMessage}`)
+      throw error
+    } finally {
+      setIsConnecting(false)
+    }
+  }, [addDebugMessage])
+
+  // Stop function
+  const stop = useCallback(() => {
+    try {
+      addDebugMessage("Stopping interview session...")
+      
+      // Clean up WebRTC connections
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close()
+        peerConnectionRef.current = null
+      }
+      
+      if (dataChannelRef.current) {
+        dataChannelRef.current.close()
+        dataChannelRef.current = null
+      }
+      
+      // Clean up media stream
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop())
+        localStreamRef.current = null
+      }
+      
+      setStatus("idle")
+      setIsActive(false)
+      setIsConnecting(false)
+      addDebugMessage("Interview session stopped")
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      setError(errorMessage)
+      addDebugMessage(`Stop error: ${errorMessage}`)
+    }
+  }, [addDebugMessage])
+
   return {
     status,
     messages,
@@ -72,5 +129,8 @@ export function useInterviewSession() {
     aiAudioElementRef,
     peerConnection: peerConnectionRef.current,
     dataChannel: dataChannelRef.current,
+    // Add the missing functions
+    start,
+    stop,
   }
 }

@@ -117,9 +117,9 @@ export async function GET(request: NextRequest) {
         return null;
       }
     ),
-    // Increased timeout from 10s to 25s to handle Vercel cold starts
+    // 12s timeout to stay under Vercel's 15s function limit
     new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database query timeout')), 25000)
+      setTimeout(() => reject(new Error('Database query timeout')), 12000)
     )
   ]).catch(error => {
     perfLog("DATABASE_QUERY_ERROR", { error: error.message });
