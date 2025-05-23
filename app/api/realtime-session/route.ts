@@ -245,7 +245,7 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
     let sessionData: any
     try {
       // First verify the model is available
-      const model = "gpt-4o-realtime-preview" // Use the correct model name
+      const model = "gpt-4o-mini-realtime-preview" // Use the mini model for cost efficiency
       
       const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
         method: 'POST',

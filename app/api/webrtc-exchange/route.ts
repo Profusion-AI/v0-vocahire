@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
     // Create the URL for the OpenAI WebRTC Realtime API
     // For WebRTC, we need to use the correct endpoint with model parameter
-    const modelToUse = model || "gpt-4o-realtime-preview"
+    const modelToUse = model || "gpt-4o-mini-realtime-preview"
     const url = `https://api.openai.com/v1/realtime?model=${modelToUse}`
 
     console.log(`DEBUG: Using WebRTC SDP exchange URL: ${url}`)
