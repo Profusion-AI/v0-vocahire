@@ -263,10 +263,6 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
             threshold: 0.5,
             prefix_padding_ms: 300,
             silence_duration_ms: 200
-          },
-          input_audio_transcription: {
-            enabled: true,
-            model: "whisper-1"
           }
         }),
         signal: controller.signal
