@@ -39,7 +39,7 @@ async function getTopUsersByInterviewsServerSide() {
 
   // Merge counts into user objects
   // Ensure every returned object has id, name, and interviewSessionCount
-  return userIds.map((userId) => {
+  return userIds.map((userId: string) => {
     const user = users.find((u) => u.id === userId);
     const session = topSessions.find((s: { userId: string }) => s.userId === userId);
     return {

@@ -65,6 +65,7 @@
     "react-hook-form": "^7.54.1",
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.0",
+    "redis": "^5.1.0",
     "sonner": "^1.7.1",
     "stripe": "^18.1.0",
     "svix": "^1.65.0",
