@@ -225,7 +225,7 @@ export function useRealtimeInterviewSession() {
           sessionId: sessionData.id,
           token: sessionData.token,
           sdp: pc.localDescription!.sdp,
-          model: "gpt-4o-realtime-preview"
+          model: "gpt-4o-realtime-preview-2024-12-17"
         }),
       })
 

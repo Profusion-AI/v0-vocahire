@@ -10,11 +10,31 @@ const MINIMUM_CREDITS_REQUIRED = 0.50
 const INTERVIEW_COST = 1.00
 const INITIAL_CREDITS_GRANT = 3.00
 
-// Optimized database query with direct Prisma call
+// Optimized database query with connection warming and caching
 async function getUserCredentialsOptimized(userId: string) {
   const startTime = Date.now()
   
   try {
+    // Try to get from cache first if available
+    try {
+      const { getCachedUserCredentials } = await import("@/lib/user-cache")
+      const cached = await getCachedUserCredentials(userId)
+      if (cached) {
+        console.log(`[DB Query] Cache hit for user ${userId} - ${Date.now() - startTime}ms`)
+        return {
+          id: cached.id,
+          credits: cached.credits,
+          isPremium: cached.isPremium
+        }
+      }
+    } catch (cacheError) {
+      console.warn("[DB Query] Cache unavailable, proceeding with direct query:", cacheError)
+    }
+    
+    // Warm database connection before query
+    const { warmDatabaseConnection } = await import("@/lib/prisma")
+    await warmDatabaseConnection()
+    
     // Direct database query with minimal fields
     const user = await prisma.$queryRaw<Array<{
       id: string
@@ -41,6 +61,12 @@ async function getUserCredentialsOptimized(userId: string) {
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
   const requestId = `req_${startTime}_${Math.random().toString(36).substr(2, 9)}`
+  
+  // Enhanced logging with more details
+  console.log(`\n=== REALTIME SESSION REQUEST START [${requestId}] ===`)
+  console.log(`Timestamp: ${new Date().toISOString()}`)
+  console.log(`Environment: ${process.env.NODE_ENV}`)
+  console.log(`Vercel: ${process.env.VERCEL ? 'Yes' : 'No'}`)
   
   const perfLog = (phase: string, data?: any) => {
     const elapsed = Date.now() - startTime
@@ -88,13 +114,35 @@ export async function POST(request: NextRequest) {
     let user: { credits: number; isPremium: boolean } | null = null
     
     try {
-      // Set aggressive timeout for database query
-      user = await Promise.race([
-        getUserCredentialsOptimized(userId),
-        new Promise<null>((_, reject) => 
-          setTimeout(() => reject(new Error('Database timeout')), 5000) // 5s timeout
-        )
-      ])
+      // Set reasonable timeout for database query with retry
+      const maxDbRetries = 2
+      let dbRetryCount = 0
+      let lastDbError: Error | null = null
+      
+      while (dbRetryCount < maxDbRetries && !user) {
+        try {
+          user = await Promise.race([
+            getUserCredentialsOptimized(userId),
+            new Promise<null>((_, reject) => 
+              setTimeout(() => reject(new Error('Database timeout')), 8000) // 8s timeout (increased from 5s)
+            )
+          ])
+          break // Success, exit retry loop
+        } catch (error) {
+          lastDbError = error as Error
+          dbRetryCount++
+          perfLog(`DB_QUERY_RETRY_${dbRetryCount}`, { error: String(error) })
+          
+          if (dbRetryCount < maxDbRetries) {
+            // Wait briefly before retry
+            await new Promise(resolve => setTimeout(resolve, 500 * dbRetryCount))
+          }
+        }
+      }
+      
+      if (!user && lastDbError) {
+        throw lastDbError
+      }
     } catch (error) {
       perfLog("DB_QUERY_ERROR", { error: String(error) })
       
@@ -103,7 +151,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ 
           error: "Database connection timeout",
           message: "The service is temporarily unavailable. Please try again in a few moments.",
-          retryAfter: 5
+          retryAfter: 5,
+          requestId
         }, { status: 503 })
       }
       
@@ -111,7 +160,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ 
         error: "Service temporarily unavailable",
         message: "Unable to verify account status. Please try again.",
-        retryAfter: 3
+        retryAfter: 3,
+        requestId
       }, { status: 503 })
     }
     
@@ -119,7 +169,8 @@ export async function POST(request: NextRequest) {
       perfLog("USER_NOT_FOUND")
       return NextResponse.json({ 
         error: "Account not found",
-        message: "Please ensure you are logged in. If you just created an account, please wait a moment."
+        message: "Please ensure you are logged in. If you just created an account, please wait a moment.",
+        requestId
       }, { status: 404 })
     }
     
@@ -179,20 +230,34 @@ Your role:
 Begin by greeting the candidate and asking them to introduce themselves briefly.`
     
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 15000) // 15s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 20000) // 20s timeout (increased from 15s)
     
     let sessionData: any
     try {
+      // First verify the model is available
+      const model = "gpt-4o-realtime-preview-2024-12-17" // Use the latest stable version
+      
       const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
-          'OpenAI-Beta': 'realtime',
+          'OpenAI-Beta': 'realtime=v1',
         },
         body: JSON.stringify({
-          model: "gpt-4o-realtime-preview",
-          instructions
+          model,
+          voice: "alloy",
+          instructions,
+          turn_detection: {
+            type: "server_vad",
+            threshold: 0.5,
+            prefix_padding_ms: 300,
+            silence_duration_ms: 200
+          },
+          input_audio_transcription: {
+            enabled: true,
+            model: "whisper-1"
+          }
         }),
         signal: controller.signal
       })
@@ -215,25 +280,41 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
       if (error instanceof Error && error.name === 'AbortError') {
         return NextResponse.json({ 
           error: "Session creation timeout",
-          message: "OpenAI API is taking too long to respond. Please try again."
+          message: "OpenAI API is taking too long to respond. Please try again.",
+          requestId
         }, { status: 504 })
       }
       
+      // Log more details about the error
+      console.error(`[${requestId}] OpenAI API Error Details:`, {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      })
+      
       return NextResponse.json({ 
         error: "Failed to create interview session",
-        message: "External API error. Please try again."
+        message: "External API error. Please try again.",
+        requestId
       }, { status: 502 })
     }
     
     // 9. Deduct credits (non-blocking for better UX)
     if (!user.isPremium) {
       perfLog("CREDIT_DEDUCTION_START")
-      // Fire and forget credit deduction
+      // Fire and forget credit deduction with cache invalidation
       prisma.$executeRaw`
         UPDATE "User" 
         SET credits = credits - ${INTERVIEW_COST}
         WHERE id = ${userId} AND credits >= ${INTERVIEW_COST}
-      `.catch(error => {
+      `.then(async () => {
+        // Invalidate cache after credit deduction
+        try {
+          const { invalidateUserCache } = await import("@/lib/user-cache")
+          await invalidateUserCache(userId)
+        } catch (cacheError) {
+          console.warn("Failed to invalidate user cache:", cacheError)
+        }
+      }).catch(error => {
         console.error("Failed to deduct credits:", error)
       })
     }
@@ -244,14 +325,18 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
       incrementRateLimit(userId, RATE_LIMIT_CONFIGS.REALTIME_SESSION).catch(console.error)
     })
     
-    perfLog("REQUEST_COMPLETE", { totalTime: Date.now() - startTime })
+    const totalTime = Date.now() - startTime
+    perfLog("REQUEST_COMPLETE", { totalTime })
+    console.log(`=== REALTIME SESSION REQUEST END [${requestId}] - Total: ${totalTime}ms ===\n`)
     
     return NextResponse.json({ 
       success: true,
       id: sessionData.id,
       token: sessionData.client_secret?.value,
       expires_at: sessionData.client_secret?.expires_at,
-      session: sessionData
+      session: sessionData,
+      requestId,
+      processingTime: totalTime
     })
     
   } catch (error) {
