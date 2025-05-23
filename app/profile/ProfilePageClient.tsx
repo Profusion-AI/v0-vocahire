@@ -183,6 +183,7 @@ export default function ProfilePageClient({
       <ProfileSettingsForm
         initialProfileData={currentProfileData}
         onProfileSaveSuccess={handleProfileSaveSuccess}
+        onDataChanged={refetchUserData}
       />
 
       <PurchaseCreditsModal

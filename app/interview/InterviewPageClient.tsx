@@ -461,6 +461,7 @@ export default function InterviewPageClient({
               <ProfileSettingsForm 
                 initialProfileData={profileDataForForm} 
                 onProfileSaveSuccess={handleProfileSaveSuccess}
+                onDataChanged={refetchUserData}
               />
             </div>
           </SessionLayout>

@@ -5,6 +5,7 @@ import { prisma, withDatabaseFallback, isUsingFallbackDb } from "@/lib/prisma"
 import { Prisma, UserRole } from "@prisma/client"
 import { z } from "zod"
 import { getConsistentCreditValue, createPrismaDecimal } from "@/lib/prisma-types"
+import { invalidateUserCache, prefetchUserCredentials } from "@/lib/user-cache"
 import * as Sentry from "@sentry/nextjs"
 
 // Helper function to create consistent fallback user objects
@@ -506,7 +507,37 @@ export async function PATCH(request: NextRequest) {
         ...updatedUser,
         credits: getConsistentCreditValue(userWithCredits.credits)
       };
+      
+      // Invalidate and refresh cache after successful update
+      try {
+        await invalidateUserCache(auth.userId);
+        console.log(`[UserUpdate] Cache invalidated for user ${auth.userId}`);
+        
+        // Pre-fetch updated credentials to warm cache
+        await prefetchUserCredentials(auth.userId);
+        console.log(`[UserUpdate] Credentials pre-fetched for user ${auth.userId}`);
+      } catch (cacheError) {
+        console.error('[UserUpdate] Cache operation failed:', cacheError);
+        // Don't fail the request if cache operations fail
+      }
+      
       return NextResponse.json(responseUser);
+    }
+    
+    // Handle case where updatedUser doesn't have credits field
+    if (updatedUser && typeof updatedUser === 'object') {
+      // Still invalidate and refresh cache for successful updates without credits
+      try {
+        await invalidateUserCache(auth.userId);
+        console.log(`[UserUpdate] Cache invalidated for user ${auth.userId}`);
+        
+        // Pre-fetch updated credentials to warm cache
+        await prefetchUserCredentials(auth.userId);
+        console.log(`[UserUpdate] Credentials pre-fetched for user ${auth.userId}`);
+      } catch (cacheError) {
+        console.error('[UserUpdate] Cache operation failed:', cacheError);
+        // Don't fail the request if cache operations fail
+      }
     }
     
     return NextResponse.json(updatedUser);

@@ -33,9 +33,10 @@ export type ProfileFormData = z.infer<typeof profileFormSchema>;
 interface ProfileSettingsFormProps {
   initialProfileData: ProfileFormData;
   onProfileSaveSuccess?: (updatedData: ProfileFormData) => void; // Optional callback
+  onDataChanged?: () => void; // Callback to trigger parent data refetch
 }
 
-export function ProfileSettingsForm({ initialProfileData, onProfileSaveSuccess }: ProfileSettingsFormProps) {
+export function ProfileSettingsForm({ initialProfileData, onProfileSaveSuccess, onDataChanged }: ProfileSettingsFormProps) {
   const [isSaving, setIsSaving] = useState(false);
 
   const form = useForm<ProfileFormData>({
@@ -68,6 +69,12 @@ export function ProfileSettingsForm({ initialProfileData, onProfileSaveSuccess }
             linkedinUrl: updatedProfile.linkedinUrl || values.linkedinUrl,
         });
         toast.success("Profile saved!");
+        
+        // Trigger parent data refetch to get updated user info
+        if (onDataChanged) {
+          onDataChanged();
+        }
+        
         if (onProfileSaveSuccess) {
           // Pass only ProfileFormData compatible fields
           onProfileSaveSuccess({
