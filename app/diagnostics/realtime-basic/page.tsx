@@ -56,7 +56,7 @@ export default function RealtimeBasicTestPage() {
         const data = JSON.parse(text)
         setResponse(data)
         setResponseIsJson(true)
-      } catch (e) {
+      } catch (_e) {
         // Not JSON, likely HTML
         setResponse(text)
         setResponseIsJson(false)

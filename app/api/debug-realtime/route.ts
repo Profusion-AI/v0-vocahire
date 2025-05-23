@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { testRealtimeAccess, fetchRealtimeModels } from "@/lib/openai-realtime"
 
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
   console.log("=== DEBUG REALTIME SESSION API CALL ===")
 
   try {

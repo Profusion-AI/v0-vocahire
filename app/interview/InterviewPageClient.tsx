@@ -140,7 +140,7 @@ export default function InterviewPageClient({
     if (initialJobTitle !== jobTitle && !resumeData?.jobTitle) {
       setJobTitle(initialJobTitle);
     }
-  }, [initialJobTitle, resumeData?.jobTitle]);
+  }, [initialJobTitle, resumeData?.jobTitle, jobTitle]);
   
   // Display a notification when fallback database is being used
   useEffect(() => {

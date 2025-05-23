@@ -61,6 +61,35 @@ export default function DirectWebRTCTest() {
     }
   }, [addLog])
 
+  // Helper function to play audio
+  const playAudio = useCallback(
+    (audioData: ArrayBuffer) => {
+      try {
+        // Create a blob from the audio data
+        const blob = new Blob([audioData], { type: "audio/wav" })
+        const url = URL.createObjectURL(blob)
+
+        // Create an audio element if it doesn't exist
+        if (!audioRef.current) {
+          const audio = new Audio()
+          audio.onended = () => {
+            URL.revokeObjectURL(audio.src) // Clean up the blob URL
+          }
+          audioRef.current = audio
+        }
+
+        // Set the source and play
+        audioRef.current.src = url
+        audioRef.current.play().catch((err) => {
+          addLog(`Error playing audio: ${err}`)
+        })
+      } catch (err) {
+        addLog(`Error processing audio data: ${err instanceof Error ? err.message : String(err)}`)
+      }
+    },
+    [addLog],
+  )
+
   const setupWebRTC = useCallback(
     async (sessionId: string, token: string) => {
       try {
@@ -217,7 +246,7 @@ export default function DirectWebRTCTest() {
         throw error
       }
     },
-    [addLog],
+    [addLog, playAudio],
   )
 
   const startTest = useCallback(async () => {
@@ -274,34 +303,6 @@ export default function DirectWebRTCTest() {
     setToken(null)
   }, [])
 
-  // Helper function to play audio
-  const playAudio = useCallback(
-    (audioData: ArrayBuffer) => {
-      try {
-        // Create a blob from the audio data
-        const blob = new Blob([audioData], { type: "audio/wav" })
-        const url = URL.createObjectURL(blob)
-
-        // Create an audio element if it doesn't exist
-        if (!audioRef.current) {
-          const audio = new Audio()
-          audio.onended = () => {
-            URL.revokeObjectURL(audio.src) // Clean up the blob URL
-          }
-          audioRef.current = audio
-        }
-
-        // Set the source and play
-        audioRef.current.src = url
-        audioRef.current.play().catch((err) => {
-          addLog(`Error playing audio: ${err}`)
-        })
-      } catch (err) {
-        addLog(`Error processing audio data: ${err instanceof Error ? err.message : String(err)}`)
-      }
-    },
-    [addLog],
-  )
 
   // Helper function to convert base64 to ArrayBuffer
   function base64ToArrayBuffer(base64: string): ArrayBuffer {

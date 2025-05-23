@@ -77,16 +77,16 @@ export async function GET() {
     try {
       realtimeData = JSON.parse(realtimeResponseText)
       isJson = true
-    } catch (e) {
+    } catch (_e) {
       realtimeData = realtimeResponseText
     }
 
-    const realtimeApiResult = {
-      status: realtimeResponse.status,
-      statusText: realtimeResponse.statusText,
-      isJson,
-      response: isJson ? realtimeData : realtimeResponseText.substring(0, 500),
-    }
+    // const realtimeApiResult = {
+    //   status: realtimeResponse.status,
+    //   statusText: realtimeResponse.statusText,
+    //   isJson,
+    //   response: isJson ? realtimeData : realtimeResponseText.substring(0, 500),
+    // }
 
     console.log("Running comprehensive OpenAI Realtime diagnostic...")
     const diagnosticResults = await runOpenAIRealtimeDiagnostic()

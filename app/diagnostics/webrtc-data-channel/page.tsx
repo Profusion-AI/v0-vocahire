@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -302,7 +302,7 @@ export default function WebRTCDataChannelTest() {
     return bytes.buffer
   }
 
-  const cleanup = () => {
+  const cleanup = useCallback(() => {
     // Close data channel
     if (dataChannelRef.current) {
       try {
@@ -335,13 +335,13 @@ export default function WebRTCDataChannelTest() {
 
     setConnected(false)
     setStatus("idle")
-  }
+  }, [])
 
   useEffect(() => {
     return () => {
       cleanup()
     }
-  }, [])
+  }, [cleanup])
 
   return (
     <div className="container mx-auto py-8">

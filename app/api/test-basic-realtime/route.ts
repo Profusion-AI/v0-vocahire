@@ -19,7 +19,7 @@ export async function POST(request: Request) {
         model: body?.model,
         voice: body?.voice,
       })
-    } catch (error) {
+    } catch (_error) {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
     }
 
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
         },
         { status: response.ok ? 200 : response.status },
       )
-    } catch (e) {
+    } catch (_e) {
       // Not JSON, likely HTML
       console.log(`Response is not JSON (likely HTML). First 200 chars: ${responseText.substring(0, 200)}`)
 

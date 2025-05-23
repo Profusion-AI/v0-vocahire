@@ -48,7 +48,7 @@ export default function InterviewRoom({
       console.log("Auto-starting interview due to autoStart prop")
       handleStartInterview()
     }
-  }, [autoStart, status])
+  }, [autoStart, status]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle session creation with parent notification
   const handleStartInterview = useCallback(async () => {

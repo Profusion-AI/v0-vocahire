@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { AlertCircle, CheckCircle2 } from "lucide-react"
 
 export default function RealtimeDebugPage() {
-  const [apiKey, setApiKey] = useState("")
+  // const [apiKey, setApiKey] = useState("")
   const [jobTitle, setJobTitle] = useState("Software Engineer")
   const [sessionId, setSessionId] = useState("")
   const [token, setToken] = useState("")
