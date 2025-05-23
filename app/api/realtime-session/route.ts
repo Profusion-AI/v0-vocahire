@@ -281,7 +281,23 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
       }
       
       sessionData = await response.json()
-      perfLog("OPENAI_SESSION_COMPLETE", { sessionId: sessionData.id })
+      perfLog("OPENAI_SESSION_COMPLETE", { 
+        sessionId: sessionData.id,
+        hasClientSecret: !!sessionData.client_secret,
+        clientSecretValue: sessionData.client_secret?.value ? "present" : "missing"
+      })
+      
+      // Log the structure of the response for debugging
+      console.log(`[${requestId}] OpenAI session response structure:`, {
+        id: sessionData.id,
+        object: sessionData.object,
+        model: sessionData.model,
+        expires_at: sessionData.expires_at,
+        client_secret: sessionData.client_secret ? {
+          value: "REDACTED",
+          expires_at: sessionData.client_secret.expires_at
+        } : null
+      })
       
     } catch (error) {
       clearTimeout(timeoutId)
@@ -308,25 +324,34 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
       }, { status: 502 })
     }
     
-    // 9. Deduct credits (non-blocking for better UX)
+    // 9. Deduct credits synchronously to ensure it happens
     if (!user.isPremium) {
       perfLog("CREDIT_DEDUCTION_START")
-      // Fire and forget credit deduction with cache invalidation
-      prisma.$executeRaw`
-        UPDATE "User" 
-        SET credits = credits - ${INTERVIEW_COST}
-        WHERE id = ${userId} AND credits >= ${INTERVIEW_COST}
-      `.then(async () => {
-        // Invalidate cache after credit deduction
-        try {
-          const { invalidateUserCache } = await import("@/lib/user-cache")
-          await invalidateUserCache(userId)
-        } catch (cacheError) {
-          console.warn("Failed to invalidate user cache:", cacheError)
+      try {
+        const updateResult = await prisma.$executeRaw`
+          UPDATE "User" 
+          SET credits = credits - ${INTERVIEW_COST}
+          WHERE id = ${userId} AND credits >= ${INTERVIEW_COST}
+        `
+        
+        if (updateResult === 0) {
+          console.error("Failed to deduct credits - no rows updated")
+          // Don't fail the request, but log the issue
+        } else {
+          perfLog("CREDIT_DEDUCTION_SUCCESS", { rowsUpdated: updateResult })
+          
+          // Invalidate cache after successful credit deduction
+          try {
+            const { invalidateUserCache } = await import("@/lib/user-cache")
+            await invalidateUserCache(userId)
+          } catch (cacheError) {
+            console.warn("Failed to invalidate user cache:", cacheError)
+          }
         }
-      }).catch(error => {
+      } catch (error) {
         console.error("Failed to deduct credits:", error)
-      })
+        // Don't fail the request, but log the issue
+      }
     }
     
     // 10. Track usage (non-blocking)
