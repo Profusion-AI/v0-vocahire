@@ -33,6 +33,20 @@ export function TermsModal({ open, onOpenChange, onAgree }: TermsModalProps) {
         contentRef.current.scrollTop = 0
       }
 
+      // Check if content is already fully visible after a short delay
+      setTimeout(() => {
+        if (contentRef.current) {
+          const { scrollHeight, clientHeight } = contentRef.current
+          // If content fits without scrolling, auto-enable the button
+          if (scrollHeight <= clientHeight + 10) {
+            setHasScrolledToBottom(true)
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Content fits without scrolling, auto-enabling accept button')
+            }
+          }
+        }
+      }, 100)
+
       // Show checkbox fallback after 10 seconds if user hasn't scrolled
       const timer = setTimeout(() => {
         if (!hasScrolledToBottom) {
@@ -49,33 +63,52 @@ export function TermsModal({ open, onOpenChange, onAgree }: TermsModalProps) {
 
     const { scrollTop, scrollHeight, clientHeight } = contentRef.current
 
+    // More forgiving detection - consider "at bottom" if within 50px
+    const threshold = 50
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight
+
     // Multiple detection methods for better reliability
     const isAtBottom =
-      scrollHeight - scrollTop - clientHeight <= 20 || // Original method
-      scrollTop + clientHeight >= scrollHeight - 5 ||   // Alternative calculation
-      Math.abs(scrollHeight - scrollTop - clientHeight) < 20 // Absolute difference
+      distanceFromBottom <= threshold || // Within threshold pixels of bottom
+      scrollTop + clientHeight >= scrollHeight - 10 ||   // Alternative calculation
+      Math.abs(distanceFromBottom) < threshold // Absolute difference
 
     if (isAtBottom) {
       setHasScrolledToBottom(true)
+    }
+
+    // Log for debugging only in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Scroll detection:', {
+        distanceFromBottom,
+        isAtBottom,
+        scrollHeight,
+        scrollTop,
+        clientHeight
+      })
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[600px] h-[80vh] max-h-[600px] flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6">
           <DialogTitle>VocaHire Coach Terms of Service</DialogTitle>
           <DialogDescription>Last updated: May 6, 2024</DialogDescription>
         </DialogHeader>
 
-        <div className="mt-4 mb-4 text-sm text-muted-foreground">
-          Please read through our Terms of Service and scroll to the bottom to accept.
+        <div className="px-6 py-2 text-sm text-muted-foreground flex items-center justify-between">
+          <span>Please read through our Terms of Service and scroll to the bottom to accept.</span>
+          {!hasScrolledToBottom && (
+            <span className="animate-bounce text-xs">↓ Scroll down</span>
+          )}
         </div>
 
         <div
           ref={contentRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto border rounded-md min-h-0"
+          className="flex-1 overflow-y-auto border-y min-h-0"
+          style={{ maxHeight: 'calc(80vh - 200px)' }}
         >
           <div className="text-sm space-y-4 p-4">
             <p>
@@ -256,7 +289,7 @@ export function TermsModal({ open, onOpenChange, onAgree }: TermsModalProps) {
           </div>
         )}
 
-        <DialogFooter className="pt-4 mt-4 flex-col gap-4">
+        <DialogFooter className="px-6 pb-6 pt-4 flex-col gap-4 border-t">
           {showCheckboxFallback && !hasScrolledToBottom && (
             <div className="flex items-center space-x-2 w-full">
               <input
