@@ -218,10 +218,20 @@ export default function InterviewPageClient({
   );
   
   const handleStartInterviewAttempt = () => {
-    if (!isPremium && credits !== null && Number(credits) > 0) {
+    // For new users with 0 credits, they'll get 3 free credits when session starts
+    const effectiveCredits = Number(credits) === 0 ? 3 : Number(credits);
+    
+    if (!isPremium && credits !== null && effectiveCredits >= 0.5) {
       setIsConfirmStartModalOpen(true);
-    } else if (isPremium || (credits !== null && Number(credits) > 0)) {
+    } else if (isPremium || (credits !== null && effectiveCredits >= 0.5)) {
       startInterview();
+    } else {
+      // Show error if somehow they don't have enough credits
+      toast({
+        title: "Insufficient Credits",
+        description: "You need at least 0.50 VocahireCredits to start an interview.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -273,6 +283,11 @@ export default function InterviewPageClient({
       });
       // Reset interview state on error
       setInterviewActive(false);
+    } else if (!isCreating && !error) {
+      // Session creation completed successfully
+      // Refetch user data to get updated credits
+      console.log("Session created successfully, refetching user data...");
+      refetchUserData();
     }
   };
 
@@ -284,7 +299,10 @@ export default function InterviewPageClient({
     skipResume,
     currentView,
     user: !!user,
-    credits
+    credits,
+    isPremium,
+    interviewActive,
+    creatingSession
   })
 
   if (isLoadingResume || isUserDataLoading) { // Check both resume and user data loading
@@ -363,7 +381,7 @@ export default function InterviewPageClient({
               </div>
             ) : isUserDataLoading ? ( // Use isUserDataLoading from the hook
                 <div className="text-center my-6"><Skeleton className="h-8 w-48 inline-block" /></div>
-            ) : credits !== null && Number(credits) > 0 ? (
+            ) : credits !== null && Number(credits) >= 0.5 ? (
               <div className="text-center my-6">
                 <p className="text-lg">
                   You have <span className="font-bold text-indigo-600 dark:text-indigo-400">{typeof credits === 'number' ? credits.toFixed(2) : Number(credits).toFixed(2)}</span> VocahireCredits remaining.
@@ -372,19 +390,33 @@ export default function InterviewPageClient({
                   Purchase More VocahireCredits
                 </Button>
               </div>
-            ) : ( // This covers credits === 0 or credits === null (and not premium, not loading)
+            ) : credits !== null && Number(credits) === 0 ? (
+              // New users with 0 credits will get 3 free credits when starting interview
+              <div className="text-center my-6">
+                <Card className="max-w-lg mx-auto shadow-lg border-2 border-indigo-500 dark:border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20">
+                  <CardHeader className="text-center">
+                    <CardTitle className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">Welcome to VocaHire!</CardTitle>
+                    <CardDescription className="text-indigo-500 dark:text-indigo-300 mt-1">
+                      New users receive 3 free VocahireCredits to get started
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-gray-700 dark:text-gray-300">
+                    <p className="mb-4">Your first 3 interview sessions are on us! Each interview costs 1 VocahireCredit.</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">After your free credits, you can purchase more or upgrade to premium for unlimited access.</p>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : ( // This covers credits < 0.5 but not 0, or null credits
               <Card className="max-w-lg mx-auto my-8 shadow-xl border-2 border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20">
                 <CardHeader className="text-center">
-                  <CardTitle className="text-2xl font-bold text-red-600 dark:text-red-400">Premium Access Required</CardTitle>
+                  <CardTitle className="text-2xl font-bold text-red-600 dark:text-red-400">Insufficient VocahireCredits</CardTitle>
                   <CardDescription className="text-red-500 dark:text-red-300 mt-1">
-                    Upgrade to a premium subscription for unlimited AI interviews.
+                    You need at least 0.50 VocahireCredits to start an interview.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col sm:flex-row gap-3 p-6">
                   <Button onClick={handleUpgradeToPremium} className="w-full sm:w-auto flex-1 bg-purple-600 hover:bg-purple-700">Upgrade to Premium</Button>
-                  {credits !== null && Number(credits) === 0 && (
-                    <Button onClick={handlePurchaseCreditsClick} className="w-full sm:w-auto flex-1 bg-indigo-600 hover:bg-indigo-700">Top-up Credits (Premium Only)</Button>
-                  )}
+                  <Button onClick={handlePurchaseCreditsClick} className="w-full sm:w-auto flex-1 bg-indigo-600 hover:bg-indigo-700">Purchase VocahireCredits</Button>
                 </CardContent>
                  <CardFooter className="text-xs text-gray-500 dark:text-gray-400 justify-center">
                     <Link href="/pricing" className="underline hover:text-indigo-500">View Pricing & Plans</Link>
@@ -403,7 +435,7 @@ export default function InterviewPageClient({
                   onSessionCreationStatus={handleSessionCreationStatus}
                 />
               </div>
-            ) : (isPremium || (credits !== null && Number(credits) >= 0.50)) ? (
+            ) : (isPremium || (credits !== null && (Number(credits) >= 0.50 || Number(credits) === 0))) ? (
               <div className="mt-8">
                 <Button
                   onClick={handleStartInterviewAttempt}
@@ -420,7 +452,7 @@ export default function InterviewPageClient({
                   )}
                 </Button>
               </div>
-            ) : !isUserDataLoading && credits !== null && Number(credits) < 0.50 && !isPremium ? (
+            ) : !isUserDataLoading && credits !== null && Number(credits) < 0.50 && Number(credits) !== 0 && !isPremium ? (
               <Card className="max-w-lg mx-auto my-8 shadow-xl border-2 border-amber-500 dark:border-amber-400 bg-amber-50 dark:bg-amber-900/20">
                 <CardHeader className="text-center">
                   <CardTitle className="text-2xl font-bold text-amber-600 dark:text-amber-400">Insufficient VocahireCredits</CardTitle>
@@ -479,7 +511,11 @@ export default function InterviewPageClient({
             <DialogHeader>
               <DialogTitle>Confirm Start Interview</DialogTitle>
               <DialogDescription>
-                Starting this interview will use 1.00 VocahireCredits. You will have {credits !== null && credits > 0 ? (Number(credits) - 1).toFixed(2) : '0.00'} VocahireCredits remaining. Do you want to proceed?
+                {Number(credits) === 0 ? (
+                  <>As a new user, you'll receive 3 free VocahireCredits when you start your first interview. This interview will use 1 of those credits, leaving you with 2.00 VocahireCredits. Do you want to proceed?</>
+                ) : (
+                  <>Starting this interview will use 1.00 VocahireCredits. You will have {(Number(credits) - 1).toFixed(2)} VocahireCredits remaining. Do you want to proceed?</>
+                )}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
