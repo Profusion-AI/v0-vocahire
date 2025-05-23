@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useCallback } from "react"
+import { useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -42,10 +42,14 @@ export default function InterviewRoom({
     stop: stopSession,
   } = useRealtimeInterviewSession()
 
+  // Track if we've attempted to start to prevent loops
+  const hasAttemptedStart = useRef(false)
+  
   // Auto-start effect when autoStart prop is true
   useEffect(() => {
-    if (autoStart && status === "idle") {
+    if (autoStart && status === "idle" && !hasAttemptedStart.current) {
       console.log("Auto-starting interview due to autoStart prop")
+      hasAttemptedStart.current = true
       handleStartInterview()
     }
   }, [autoStart, status]) // eslint-disable-line react-hooks/exhaustive-deps

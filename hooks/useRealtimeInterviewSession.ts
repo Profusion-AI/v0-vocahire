@@ -397,16 +397,35 @@ export function useRealtimeInterviewSession() {
       const shouldRetry = retryCount < maxRetries && 
         !errorMessage.includes("authentication") &&
         !errorMessage.includes("Insufficient") &&
+        !errorMessage.includes("API key not configured") &&
+        !errorMessage.includes("Invalid OpenAI API key") &&
         (errorMessage.includes("temporarily unavailable") || 
          errorMessage.includes("timeout") ||
-         errorMessage.includes("taking longer"))
+         errorMessage.includes("taking longer") ||
+         errorMessage.includes("502") ||
+         errorMessage.includes("External API error"))
       
       if (shouldRetry) {
         const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 10000) // 1s, 2s, 4s, max 10s
         addDebugMessage(`Retrying in ${backoffDelay/1000} seconds... (${retryCount + 1}/${maxRetries})`)
+        
+        // Reset to idle state before retry
+        setStatus("idle")
+        setError(null)
+        
         setTimeout(() => {
           setRetryCount(prev => prev + 1)
-          start(jobTitle)
+          // Don't call start directly to avoid loops
+          createSession(jobTitle).then(sessionData => {
+            sessionDataRef.current = sessionData
+            return setupWebRTC(sessionData)
+          }).catch(retryError => {
+            const retryErrorMessage = retryError instanceof Error ? retryError.message : String(retryError)
+            setError(retryErrorMessage)
+            setStatus("error")
+            setIsConnecting(false)
+            addDebugMessage(`Retry ${retryCount + 1} failed: ${retryErrorMessage}`)
+          })
         }, backoffDelay)
       }
       
