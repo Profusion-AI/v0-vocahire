@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface TermsModalProps {
   open: boolean
@@ -18,99 +19,98 @@ interface TermsModalProps {
 }
 
 export function TermsModal({ open, onOpenChange, onAgree }: TermsModalProps) {
-  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false)
-  const [showCheckboxFallback, setShowCheckboxFallback] = useState(false)
+  const [hasReadTerms, setHasReadTerms] = useState(false)
+  const [isScrolledToBottom, setIsScrolledToBottom] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
+  const scrollCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Reset scroll state and fallback checkbox state when modal opens
+  // Reset state when modal opens/closes
   useEffect(() => {
     if (open) {
-      setHasScrolledToBottom(false)
-      setShowCheckboxFallback(false)
-
-      // Reset scroll position when modal opens
-      if (contentRef.current) {
-        contentRef.current.scrollTop = 0
+      setHasReadTerms(false)
+      setIsScrolledToBottom(false)
+      
+      // Start checking scroll position
+      if (scrollCheckIntervalRef.current) {
+        clearInterval(scrollCheckIntervalRef.current)
       }
-
-      // Check if content is already fully visible after a short delay
-      setTimeout(() => {
+      
+      scrollCheckIntervalRef.current = setInterval(() => {
         if (contentRef.current) {
-          const { scrollHeight, clientHeight } = contentRef.current
-          // If content fits without scrolling, auto-enable the button
-          if (scrollHeight <= clientHeight + 10) {
-            setHasScrolledToBottom(true)
-            if (process.env.NODE_ENV === 'development') {
-              console.log('Content fits without scrolling, auto-enabling accept button')
+          const { scrollTop, scrollHeight, clientHeight } = contentRef.current
+          const distanceFromBottom = scrollHeight - scrollTop - clientHeight
+          
+          // Check if scrolled to bottom (within 100px threshold)
+          if (distanceFromBottom < 100) {
+            setIsScrolledToBottom(true)
+            if (scrollCheckIntervalRef.current) {
+              clearInterval(scrollCheckIntervalRef.current)
+              scrollCheckIntervalRef.current = null
             }
           }
         }
-      }, 100)
-
-      // Show checkbox fallback after 10 seconds if user hasn't scrolled
-      const timer = setTimeout(() => {
-        if (!hasScrolledToBottom) {
-          setShowCheckboxFallback(true)
+      }, 250) // Check every 250ms
+      
+      // Also check immediately after content loads
+      setTimeout(() => {
+        if (contentRef.current) {
+          const { scrollHeight, clientHeight } = contentRef.current
+          // If content fits without scrolling, mark as read
+          if (scrollHeight <= clientHeight + 10) {
+            setIsScrolledToBottom(true)
+            if (scrollCheckIntervalRef.current) {
+              clearInterval(scrollCheckIntervalRef.current)
+              scrollCheckIntervalRef.current = null
+            }
+          }
         }
-      }, 10000)
-
-      return () => clearTimeout(timer)
+      }, 500)
+    } else {
+      // Clean up interval when modal closes
+      if (scrollCheckIntervalRef.current) {
+        clearInterval(scrollCheckIntervalRef.current)
+        scrollCheckIntervalRef.current = null
+      }
     }
-  }, [open, hasScrolledToBottom])
+    
+    return () => {
+      if (scrollCheckIntervalRef.current) {
+        clearInterval(scrollCheckIntervalRef.current)
+      }
+    }
+  }, [open])
 
   const handleScroll = () => {
-    if (!contentRef.current) return
-
+    if (!contentRef.current || isScrolledToBottom) return
+    
     const { scrollTop, scrollHeight, clientHeight } = contentRef.current
-
-    // More forgiving detection - consider "at bottom" if within 50px
-    const threshold = 50
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight
-
-    // Multiple detection methods for better reliability
-    const isAtBottom =
-      distanceFromBottom <= threshold || // Within threshold pixels of bottom
-      scrollTop + clientHeight >= scrollHeight - 10 ||   // Alternative calculation
-      Math.abs(distanceFromBottom) < threshold // Absolute difference
-
-    if (isAtBottom) {
-      setHasScrolledToBottom(true)
-    }
-
-    // Log for debugging only in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Scroll detection:', {
-        distanceFromBottom,
-        isAtBottom,
-        scrollHeight,
-        scrollTop,
-        clientHeight
-      })
+    
+    if (distanceFromBottom < 100) {
+      setIsScrolledToBottom(true)
     }
   }
 
+  const canAccept = hasReadTerms || isScrolledToBottom
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] h-[80vh] max-h-[600px] flex flex-col p-0">
-        <DialogHeader className="px-6 pt-6">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col">
+        <DialogHeader>
           <DialogTitle>VocaHire Coach Terms of Service</DialogTitle>
           <DialogDescription>Last updated: May 6, 2024</DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 py-2 text-sm text-muted-foreground flex items-center justify-between">
-          <span>Please read through our Terms of Service and scroll to the bottom to accept.</span>
-          {!hasScrolledToBottom && (
-            <span className="animate-bounce text-xs">↓ Scroll down</span>
-          )}
+        <div className="text-sm text-muted-foreground mb-2">
+          Please read and accept our Terms of Service to continue.
         </div>
 
         <div
           ref={contentRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto border-y min-h-0"
-          style={{ maxHeight: 'calc(80vh - 200px)' }}
+          className="flex-1 overflow-y-auto border rounded-md p-4 min-h-[200px] max-h-[50vh]"
         >
-          <div className="text-sm space-y-4 p-4">
+          <div className="text-sm space-y-4">
             <p>
               Welcome to VocaHire Coach ("we," "us," "our"). These Terms of Service ("Terms") govern your use of our
               AI-powered mock interview platform, available at https://vocahire.com (the "Service"). By accessing or
@@ -274,56 +274,49 @@ export function TermsModal({ open, onOpenChange, onAgree }: TermsModalProps) {
                 agree to these Terms of Service.
               </p>
             </div>
-
-            {/* This empty div helps ensure we can scroll all the way to the bottom */}
-            <div className="h-8"></div>
           </div>
         </div>
 
-        {process.env.NODE_ENV === 'development' && (
-          <div className="text-xs text-gray-500 p-2 bg-gray-100">
-            Debug: scrollTop={contentRef.current?.scrollTop},
-            scrollHeight={contentRef.current?.scrollHeight},
-            clientHeight={contentRef.current?.clientHeight},
-            hasScrolled={hasScrolledToBottom}
+        <div className="mt-4 p-4 bg-muted/50 rounded-md">
+          <div className="flex items-start space-x-3">
+            <Checkbox
+              id="terms-agreement"
+              checked={hasReadTerms}
+              onCheckedChange={(checked) => setHasReadTerms(checked as boolean)}
+              className="mt-0.5"
+            />
+            <label
+              htmlFor="terms-agreement"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              I have read, understood, and agree to the Terms of Service
+            </label>
           </div>
-        )}
+        </div>
 
-        <DialogFooter className="px-6 pb-6 pt-4 flex-col gap-4 border-t">
-          {showCheckboxFallback && !hasScrolledToBottom && (
-            <div className="flex items-center space-x-2 w-full">
-              <input
-                type="checkbox"
-                id="terms-checkbox"
-                onChange={(e) => setHasScrolledToBottom(e.target.checked)}
-                className="h-4 w-4"
-              />
-              <label htmlFor="terms-checkbox" className="text-sm">
-                I have read and agree to the Terms of Service
-              </label>
-            </div>
-          )}
-          <div className="w-full flex flex-col sm:flex-row gap-2 justify-end">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Decline
+          </Button>
+          <Button
+            onClick={() => {
+              if (canAccept) {
                 onAgree()
                 onOpenChange(false)
-              }}
-              disabled={!hasScrolledToBottom}
-              className={hasScrolledToBottom ? "bg-green-600 hover:bg-green-700" : ""}
-            >
-              {hasScrolledToBottom ? "I Accept" : "Please scroll to the bottom"}
-            </Button>
-          </div>
-          {!hasScrolledToBottom && (
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              Please scroll through the entire Terms of Service to enable the accept button
-            </p>
-          )}
+              }
+            }}
+            disabled={!canAccept}
+            className={canAccept ? "bg-green-600 hover:bg-green-700" : ""}
+          >
+            Accept Terms
+          </Button>
         </DialogFooter>
+
+        {!isScrolledToBottom && !hasReadTerms && (
+          <p className="text-xs text-muted-foreground text-center">
+            Please scroll through the terms or check the box to continue
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   )

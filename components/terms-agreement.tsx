@@ -50,20 +50,9 @@ export function TermsAgreement() {
     setShowModal(false) // Keep local state in sync
   }
 
-  // Debug logging to track rendering state
-  console.log('TermsAgreement render state:', {
-    isMounted,
-    isUserLoaded,
-    termsHookIsLoaded,
-    showModal,
-    hookShowTermsModal,
-    hasAgreedToTerms
-  })
-
   // Only prevent rendering during server-side rendering and initial user loading
   // Don't wait for termsHookIsLoaded to prevent blocking after terms acceptance
   if (!isMounted || !isUserLoaded) {
-    console.log('TermsAgreement returning null - not mounted or user not loaded')
     return null
   }
 
