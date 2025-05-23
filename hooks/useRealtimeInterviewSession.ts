@@ -258,10 +258,12 @@ export function useRealtimeInterviewSession() {
     
     switch (data.type) {
       case "conversation.item.created":
-        if (data.item.role === "assistant" && data.item.content) {
+        // Handle both user and assistant items
+        if (data.item && data.item.content) {
           const content = data.item.content[0]?.transcript || data.item.content[0]?.text || ""
-          if (content) {
-            addMessage("assistant", content)
+          if (content && data.item.role) {
+            addMessage(data.item.role, content)
+            addDebugMessage(`${data.item.role} item created: ${content.substring(0, 50)}...`)
           }
         }
         break
@@ -274,6 +276,36 @@ export function useRealtimeInterviewSession() {
       case "input_audio_buffer.speech_stopped":
         setIsUserSpeaking(false)
         addDebugMessage("User stopped speaking")
+        break
+        
+      case "conversation.item.input_audio_transcription.completed":
+        // Handle completed user transcription
+        if (data.transcript) {
+          addMessage("user", data.transcript)
+          addDebugMessage(`User transcript: ${data.transcript}`)
+        }
+        break
+        
+      case "conversation.item.input_audio_transcription.delta":
+        // Handle incremental user transcription (for real-time display)
+        if (data.delta) {
+          setLiveTranscript({ role: "user", content: data.delta })
+        }
+        break
+        
+      case "response.audio_transcript.delta":
+        // Handle assistant transcript delta
+        if (data.delta) {
+          setLiveTranscript({ role: "assistant", content: data.delta })
+        }
+        break
+        
+      case "response.audio_transcript.done":
+        // Handle completed assistant transcript
+        if (data.transcript) {
+          addMessage("assistant", data.transcript)
+          setLiveTranscript(null)
+        }
         break
         
       case "response.audio.delta":
