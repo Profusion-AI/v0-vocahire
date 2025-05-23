@@ -142,19 +142,49 @@ function getValidatedPrismaClient() {
       }
     }
     
-    // Create Prisma client with error logging
+    // Create Prisma client with optimized settings for serverless
+    const dbUrl = process.env.DATABASE_URL || '';
+    let optimizedUrl = dbUrl;
+    
+    try {
+      // Parse connection pool settings from URL or use optimized defaults
+      const url = new URL(dbUrl);
+      const currentPoolSize = url.searchParams.get('connection_limit') || url.searchParams.get('pool_size');
+      const currentPoolTimeout = url.searchParams.get('pool_timeout');
+      
+      // Set optimized pool settings if not already specified
+      if (!currentPoolSize) {
+        url.searchParams.set('connection_limit', '25'); // Increased from default 5
+      }
+      if (!currentPoolTimeout) {
+        url.searchParams.set('pool_timeout', '20'); // Increased from default 10
+      }
+      
+      // Add pgbouncer mode for better connection pooling
+      if (!url.searchParams.has('pgbouncer')) {
+        url.searchParams.set('pgbouncer', 'true');
+      }
+      
+      // Add statement timeout to prevent long-running queries
+      if (!url.searchParams.has('statement_timeout')) {
+        url.searchParams.set('statement_timeout', '30000'); // 30 seconds
+      }
+      
+      optimizedUrl = url.toString();
+      
+      console.log(`[Prisma] Connection pool settings: limit=${currentPoolSize || 25}, timeout=${currentPoolTimeout || 20}s`);
+    } catch (urlError) {
+      console.warn('[Prisma] Could not parse DATABASE_URL for optimization, using as-is:', urlError);
+    }
+    
     return new PrismaClient({
       errorFormat: 'colorless',
       log: ['error', 'warn', 'info'],
-      // In production, use DATABASE_URL exactly as provided in environment
-      // In development, use the potentially fixed databaseUrl
-      datasources: process.env.NODE_ENV === 'production' 
-        ? undefined // Use environment variable as-is in production
-        : {
-            db: {
-              url: process.env.DATABASE_URL, // Use the potentially modified URL
-            },
-          },
+      datasources: {
+        db: {
+          url: process.env.NODE_ENV === 'production' ? optimizedUrl : process.env.DATABASE_URL,
+        },
+      },
     });
   } catch (error) {
     console.error('Failed to initialize Prisma client:', error instanceof Error ? error.message : String(error));

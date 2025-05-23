@@ -4,6 +4,7 @@ import { checkRateLimit, incrementRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/ra
 import { trackUsage, UsageType } from "@/lib/usage-tracking"
 import { prisma } from "@/lib/prisma"
 import { getOpenAIApiKey } from "@/lib/api-utils"
+import { connectionPoolMonitor } from "@/lib/db-connection-monitor"
 
 // Constants for credits
 const MINIMUM_CREDITS_REQUIRED = 0.50
@@ -109,8 +110,17 @@ export async function POST(request: NextRequest) {
       }, { status: 429 })
     }
     
-    // 6. Fetch user credentials with timeout
-    perfLog("DB_QUERY_START")
+    // 6. Monitor connection pool health before query
+    await connectionPoolMonitor.updateMetrics()
+    const poolHealth = connectionPoolMonitor.isPoolHealthy()
+    const poolUtilization = connectionPoolMonitor.getUtilization()
+    
+    if (!poolHealth) {
+      console.warn(`[${requestId}] Connection pool unhealthy - Utilization: ${poolUtilization}%`)
+    }
+    
+    // 7. Fetch user credentials with timeout
+    perfLog("DB_QUERY_START", { poolUtilization })
     let user: { credits: number; isPremium: boolean } | null = null
     
     try {

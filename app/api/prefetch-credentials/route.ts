@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
 import { prefetchUserCredentials } from "@/lib/user-cache"
 import { warmDatabaseConnection } from "@/lib/prisma"
+import { connectionPoolMonitor } from "@/lib/db-connection-monitor"
 
 /**
  * Pre-fetch user credentials to warm the cache
@@ -17,6 +18,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
+    // Monitor pool health before operations
+    await connectionPoolMonitor.updateMetrics();
+    const poolMetrics = connectionPoolMonitor.getCurrentMetrics();
+    console.log(`[Prefetch] Pool status - Active: ${poolMetrics.activeConnections}/${poolMetrics.poolSize}, Utilization: ${connectionPoolMonitor.getUtilization()}%`);
+    
     // Warm database connection in parallel with credential fetching
     const warmPromise = warmDatabaseConnection().catch(err => {
       console.warn('[Prefetch] Connection warming failed:', err);
@@ -28,10 +34,12 @@ export async function GET(request: NextRequest) {
       return false;
     });
     
-    // Wait for both operations
-    const [connectionWarmed, credentialsPrefetched] = await Promise.all([
-      warmPromise,
-      prefetchPromise
+    // Wait for both operations with timeout
+    const [connectionWarmed, credentialsPrefetched] = await Promise.race([
+      Promise.all([warmPromise, prefetchPromise]),
+      new Promise<[boolean, boolean]>((_, reject) => 
+        setTimeout(() => reject(new Error('Prefetch timeout')), 20000) // 20s timeout
+      )
     ]);
     
     const elapsed = Date.now() - startTime;
