@@ -2,6 +2,24 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 CRITICAL: Working MVP Configuration (January 2025)
+
+**After 100+ build attempts, the following configuration is PROVEN TO WORK. DO NOT MODIFY these settings without thorough testing.**
+
+### Essential Working Components:
+1. **Model**: `gpt-4o-mini-realtime-preview` (exact string required)
+2. **API Headers**: `'OpenAI-Beta': 'realtime=v1'` (note the =v1 format)
+3. **Session Creation**: NO `input_audio_transcription` parameter in the request body
+4. **Credit Deduction**: MUST be synchronous (await the database update)
+5. **Auto-Start Protection**: Use `hasAttemptedStart` ref to prevent loops
+6. **WebRTC Exchange**: Use ephemeral token from session, NOT the API key
+
+### Files That Must Not Be Modified Without Testing:
+- `/app/api/realtime-session/route.ts` - Session creation logic
+- `/app/api/webrtc-exchange/route.ts` - SDP exchange logic
+- `/hooks/useRealtimeInterviewSession.ts` - WebRTC management
+- `/components/InterviewRoom.tsx` - Auto-start protection
+
 ## Project Overview
 
 VocaHire is an AI interview coaching platform that enables users to practice interviews with a real-time voice AI, receive personalized feedback, and improve their skills. The platform is built with Next.js 15 using the App Router pattern, and it includes various services for authentication, database storage, payments, and AI interactions.
@@ -515,6 +533,10 @@ The application uses a sophisticated build strategy optimized for Vercel's serve
 
 ## Interview System Architecture (WebRTC-Only)
 
+### 🚨 CRITICAL: Working Implementation Details (DO NOT MODIFY)
+
+After 100+ build attempts, the following configuration is PROVEN TO WORK. These settings are critical for the full-duplex conversation functionality.
+
 ### OpenAI Realtime API Integration
 
 VocaHire uses **WebRTC exclusively** for all real-time communication with OpenAI's Realtime API:
@@ -527,11 +549,78 @@ VocaHire uses **WebRTC exclusively** for all real-time communication with OpenAI
 - `/hooks/useRealtimeInterviewSession.ts`: Centralized WebRTC session management hook
 - `/components/InterviewRoom.tsx`: Real-time interview interface using WebRTC hook
 
+### 🔴 CRITICAL CONFIGURATION FOR WORKING IMPLEMENTATION
+
+#### 1. OpenAI Model Configuration
+```typescript
+// MUST use this exact model name - other variations will fail
+const model = "gpt-4o-mini-realtime-preview"
+```
+
+#### 2. Session Creation Parameters (app/api/realtime-session/route.ts)
+```typescript
+// WORKING CONFIGURATION - DO NOT ADD input_audio_transcription here!
+const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+    'OpenAI-Beta': 'realtime=v1',
+  },
+  body: JSON.stringify({
+    model,
+    voice: "alloy",
+    instructions,
+    turn_detection: {
+      type: "server_vad",
+      threshold: 0.5,
+      prefix_padding_ms: 300,
+      silence_duration_ms: 200
+    }
+    // DO NOT add input_audio_transcription here - it causes 400 errors
+  }),
+})
+```
+
+#### 3. WebRTC Exchange Configuration (app/api/webrtc-exchange/route.ts)
+```typescript
+// Use ephemeral token from session creation
+const url = `https://api.openai.com/v1/realtime?model=${modelToUse}`
+headers: {
+  "Content-Type": "application/sdp",
+  Authorization: `Bearer ${token}`, // Use ephemeral token, NOT API key
+  "OpenAI-Beta": "realtime=v1",
+}
+```
+
+#### 4. Credit Deduction (MUST be synchronous)
+```typescript
+// Synchronous credit deduction to ensure it happens
+const updateResult = await prisma.$executeRaw`
+  UPDATE "User" 
+  SET credits = credits - ${INTERVIEW_COST}
+  WHERE id = ${userId} AND credits >= ${INTERVIEW_COST}
+`
+```
+
+#### 5. Interview Room Auto-Start Protection
+```typescript
+// Prevent auto-start loops with hasAttemptedStart ref
+const hasAttemptedStart = useRef(false)
+
+useEffect(() => {
+  if (autoStart && status === "idle" && !hasAttemptedStart.current) {
+    hasAttemptedStart.current = true
+    handleStartInterview()
+  }
+}, [autoStart, status])
+```
+
 **WebRTC-Only Session Creation Process:**
 1. User authentication validation via Clerk
 2. VocahireCredits/subscription verification with automatic 3.00 credit grant for new users
 3. OpenAI session creation with enhanced timeout protection (20s limit)
-4. Credit deduction (1.00 VocahireCredits per interview for non-premium users)
+4. Credit deduction (1.00 VocahireCredits per interview for non-premium users) - MUST BE SYNCHRONOUS
 5. WebRTC peer connection setup with ICE servers
 6. SDP offer/answer exchange via backend proxy
 7. Direct WebRTC audio streaming and data channel establishment
@@ -541,7 +630,7 @@ VocaHire uses **WebRTC exclusively** for all real-time communication with OpenAI
 - **Audio Format**: Direct audio streaming without base64 encoding overhead
 - **Data Channel**: RTCDataChannel for JSON events (transcripts, commands, status)
 - **ICE Servers**: STUN/TURN servers for NAT traversal and network resilience
-- **Model**: `gpt-4o-realtime-preview` with server-side Voice Activity Detection
+- **Model**: `gpt-4o-mini-realtime-preview` (cost-efficient model)
 
 ### Interview Flow Architecture
 
@@ -600,12 +689,20 @@ User clicks "Start Interview"
 - ✅ **RESOLVED**: "Connection closed" errors eliminated by removing mixed architecture
 - ✅ **IMPROVED**: Direct WebRTC audio streaming with RTCDataChannel for events
 
+**Critical Fixes That Made It Work (January 2025)**
+- ✅ **Model Name**: Changed from `gpt-4o-realtime-preview-2024-12-17` to `gpt-4o-mini-realtime-preview`
+- ✅ **API Parameters**: Removed `input_audio_transcription` from session creation (caused 400 errors)
+- ✅ **Credit Deduction**: Made synchronous to ensure credits are properly consumed
+- ✅ **Auto-Start Loop**: Added `hasAttemptedStart` ref to prevent infinite retry loops
+- ✅ **Transcript Handling**: Added comprehensive event handlers for all transcription events
+
 **Database Performance & Error Handling (COMPLETED)**
 - ✅ Enhanced timeout handling aligned with Vercel function limits
 - ✅ Specific error codes (503 database, 504 timeout, 502 API) replace generic 500s
 - ✅ Request ID tracking and phase-by-phase performance logging
 - ✅ Comprehensive diagnostic endpoints for production troubleshooting
 - ✅ Database query optimization with proper timeout protection
+- ✅ Synchronous credit deduction with row update verification
 
 **Interview UX & Reliability (COMPLETED)**
 - ✅ Eliminated duplicate "Start Interview" buttons
@@ -630,12 +727,12 @@ User clicks "Start Interview"
 ### OpenAI API Compliance
 
 **Session Configuration:**
-- Model: `gpt-4o-realtime-preview` (updated from `gpt-4o-mini-realtime-preview`)
-- Modalities: `["audio", "text"]` 
+- Model: `gpt-4o-mini-realtime-preview` ⚠️ CRITICAL: Use this exact model name
+- Modalities: Automatically handled by conversation session
 - Voice: `alloy` (professional interviewer voice)
 - Turn Detection: Server VAD with optimized settings
 - Timeout: 20-second request timeout with AbortController (optimized for Vercel)
-- Headers: Required `"OpenAI-Beta": "realtime"` header
+- Headers: Required `"OpenAI-Beta": "realtime=v1"` header (note the =v1 format)
 
 **WebRTC Implementation (WebSocket Removed):**
 - **Authentication**: Ephemeral tokens via `/api/realtime-session`
@@ -643,6 +740,37 @@ User clicks "Start Interview"
 - **Audio Streaming**: Direct WebRTC audio tracks (no PCM16 base64 encoding needed)
 - **Event Handling**: RTCDataChannel for JSON events (session.created, response.audio.delta, etc.)
 - **Connection Management**: Comprehensive error handling with specific error codes
+
+### Transcript Handling for Analysis
+
+**Critical Events to Handle in useRealtimeInterviewSession:**
+```typescript
+// User transcription events
+case "conversation.item.input_audio_transcription.completed":
+  if (data.transcript) {
+    addMessage("user", data.transcript)
+  }
+  break
+
+case "conversation.item.input_audio_transcription.delta":
+  if (data.delta) {
+    setLiveTranscript({ role: "user", content: data.delta })
+  }
+  break
+
+// Assistant transcription events  
+case "response.audio_transcript.delta":
+  if (data.delta) {
+    setLiveTranscript({ role: "assistant", content: data.delta })
+  }
+  break
+
+case "response.audio_transcript.done":
+  if (data.transcript) {
+    addMessage("assistant", data.transcript)
+  }
+  break
+```
 
 ### Error Handling Strategy
 
