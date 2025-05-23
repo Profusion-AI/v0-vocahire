@@ -20,7 +20,6 @@ export function TermsAgreement() {
 
   // Call the hook unconditionally
   const {
-    hasAgreedToTerms,
     showTermsModal: hookShowTermsModal,
     setShowTermsModal: hookSetShowTermsModal,
     agreeToTerms: hookAgreeToTerms,
