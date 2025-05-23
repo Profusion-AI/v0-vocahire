@@ -57,6 +57,9 @@ export function useRealtimeInterviewSession() {
   const debugLogRef = useRef<string>("")
   const [retryCount, setRetryCount] = useState(0)
   const maxRetries = 3
+  
+  // Prevent duplicate session creation attempts
+  const sessionCreationInProgress = useRef(false)
 
   // Add debug message
   const addDebugMessage = useCallback((message: string) => {
@@ -335,6 +338,14 @@ export function useRealtimeInterviewSession() {
 
   // Create session with OpenAI
   const createSession = useCallback(async (jobTitle: string): Promise<SessionData> => {
+    // Prevent duplicate session creation attempts
+    if (sessionCreationInProgress.current) {
+      addDebugMessage("Session creation already in progress, skipping...")
+      throw new Error("Session creation already in progress")
+    }
+    
+    sessionCreationInProgress.current = true
+    
     try {
       setStatus("fetching_token")
       addDebugMessage("Creating OpenAI session...")
@@ -366,7 +377,11 @@ export function useRealtimeInterviewSession() {
         const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
         
         // Handle specific error codes
-        if (response.status === 503) {
+        if (response.status === 429) {
+          // Rate limit exceeded - don't retry
+          const resetIn = errorData.resetIn || 60
+          throw new Error(`RATE_LIMIT_ERROR: Too many interview attempts. Please wait ${Math.ceil(resetIn / 60)} minutes before trying again.`)
+        } else if (response.status === 503) {
           // Service unavailable - likely database timeout
           const retryAfter = errorData.retryAfter || 5
           throw new Error(`Service temporarily unavailable. Please wait ${retryAfter} seconds and try again.`)
@@ -397,6 +412,9 @@ export function useRealtimeInterviewSession() {
     } catch (error) {
       addDebugMessage(`Session creation failed: ${error}`)
       throw error
+    } finally {
+      // Always reset the flag when session creation completes (success or failure)
+      sessionCreationInProgress.current = false
     }
   }, [isLoaded, isSignedIn, getToken, addDebugMessage])
 
@@ -431,6 +449,7 @@ export function useRealtimeInterviewSession() {
         !errorMessage.includes("Insufficient") &&
         !errorMessage.includes("API key not configured") &&
         !errorMessage.includes("Invalid OpenAI API key") &&
+        !errorMessage.includes("RATE_LIMIT_ERROR") && // Don't retry rate limit errors
         (errorMessage.includes("temporarily unavailable") || 
          errorMessage.includes("timeout") ||
          errorMessage.includes("taking longer") ||

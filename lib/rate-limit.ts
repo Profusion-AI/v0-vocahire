@@ -2,7 +2,7 @@ import { getRedisClient } from "./redis"
 
 export const RATE_LIMIT_CONFIGS = {
   REALTIME_SESSION: {
-    limit: 10, // 10 sessions per hour
+    limit: 25, // 25 sessions per hour (increased from 10 for development/testing)
     window: 60 * 60, // 1 hour in seconds
     prefix: "rate_limit:realtime_session:",
   },

@@ -136,7 +136,7 @@ export function useUserData(): UseUserDataReturn {
     }
     
     let lastFetchTime = 0;
-    const REFETCH_COOLDOWN = 5000; // 5 seconds cooldown between refetches
+    const REFETCH_COOLDOWN = 30000; // 30 seconds cooldown between refetches (increased from 5s)
     
     const handleFocus = () => {
       const now = Date.now();

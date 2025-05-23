@@ -5,6 +5,7 @@ import { trackUsage, UsageType } from "@/lib/usage-tracking"
 import { prisma } from "@/lib/prisma"
 import { getOpenAIApiKey } from "@/lib/api-utils"
 import { connectionPoolMonitor } from "@/lib/db-connection-monitor"
+import { withCircuitBreaker } from "@/lib/circuit-breaker"
 
 // Constants for credits
 const MINIMUM_CREDITS_REQUIRED = 0.50
@@ -224,7 +225,7 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // 8. Create OpenAI session with aggressive timeout
+    // 8. Create OpenAI session with circuit breaker protection
     perfLog("OPENAI_SESSION_START")
     
     const instructions = `You are an experienced technical interviewer conducting a mock job interview for a ${jobTitle} position. ${resumeText ? `The candidate has provided this background: ${resumeText.substring(0, 500)}` : ''} 
@@ -239,44 +240,51 @@ Your role:
 
 Begin by greeting the candidate and asking them to introduce themselves briefly.`
     
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 20000) // 20s timeout (increased from 15s)
-    
     let sessionData: any
     try {
-      // First verify the model is available
-      const model = "gpt-4o-mini-realtime-preview" // Use the mini model for cost efficiency
-      
-      const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'OpenAI-Beta': 'realtime=v1',
-        },
-        body: JSON.stringify({
-          model,
-          voice: "alloy",
-          instructions,
-          turn_detection: {
-            type: "server_vad",
-            threshold: 0.5,
-            prefix_padding_ms: 300,
-            silence_duration_ms: 200
+      // Use circuit breaker to protect against OpenAI API failures
+      sessionData = await withCircuitBreaker(async () => {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 20000) // 20s timeout
+        
+        try {
+          // First verify the model is available
+          const model = "gpt-4o-mini-realtime-preview" // Use the mini model for cost efficiency
+          
+          const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+              'OpenAI-Beta': 'realtime=v1',
+            },
+            body: JSON.stringify({
+              model,
+              voice: "alloy",
+              instructions,
+              turn_detection: {
+                type: "server_vad",
+                threshold: 0.5,
+                prefix_padding_ms: 300,
+                silence_duration_ms: 200
+              }
+            }),
+            signal: controller.signal
+          })
+          
+          clearTimeout(timeoutId)
+          
+          if (!response.ok) {
+            const errorText = await response.text()
+            throw new Error(`OpenAI API error: ${response.status} - ${errorText}`)
           }
-        }),
-        signal: controller.signal
-      })
+          
+          return await response.json()
+        } finally {
+          clearTimeout(timeoutId)
+        }
+      }, `openai-realtime-${userId}`) // User-specific circuit breaker
       
-      clearTimeout(timeoutId)
-      perfLog("OPENAI_SESSION_RESPONSE", { status: response.status })
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`)
-      }
-      
-      sessionData = await response.json()
       perfLog("OPENAI_SESSION_COMPLETE", { 
         sessionId: sessionData.id,
         hasClientSecret: !!sessionData.client_secret,
@@ -296,8 +304,16 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
       })
       
     } catch (error) {
-      clearTimeout(timeoutId)
       perfLog("OPENAI_SESSION_ERROR", { error: String(error) })
+      
+      // Handle circuit breaker errors specifically
+      if (String(error).includes("Circuit breaker is OPEN")) {
+        return NextResponse.json({ 
+          error: "Service temporarily unavailable",
+          message: "Too many failed attempts. Please wait a few minutes before trying again.",
+          requestId
+        }, { status: 429 })
+      }
       
       if (error instanceof Error && error.name === 'AbortError') {
         return NextResponse.json({ 
