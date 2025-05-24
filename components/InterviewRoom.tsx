@@ -58,9 +58,6 @@ export default function InterviewRoom({
   // Track if we've attempted to start to prevent loops
   const hasAttemptedStart = useRef(false)
   
-  // Check for interrupted interview on mount
-  const [hasInterruptedInterview, setHasInterruptedInterview] = useState(false)
-  
   // Track if tab is in background
   const [isTabHidden, setIsTabHidden] = useState(false)
   
@@ -71,7 +68,6 @@ export default function InterviewRoom({
         const state = JSON.parse(savedState)
         // Check if it's recent (within last 5 minutes)
         if (Date.now() - state.timestamp < 5 * 60 * 1000) {
-          setHasInterruptedInterview(true)
           // Show notification about interrupted interview
           toast.info(
             "It looks like your previous interview was interrupted. Starting a fresh session.",
