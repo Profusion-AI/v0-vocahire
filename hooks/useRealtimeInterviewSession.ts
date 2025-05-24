@@ -142,9 +142,23 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       pc.onconnectionstatechange = () => {
         addDebugMessage(`WebRTC connection state: ${pc.connectionState}`)
         if (pc.connectionState === "connected") {
-          setStatus("active")
-          setIsActive(true)
-          setIsConnecting(false)
+          // Check if data channel is ready before going active
+          if (dataChannelRef.current?.readyState === "open") {
+            addDebugMessage("Connection established with open data channel - activating")
+            setStatus("active")
+            setIsActive(true)
+            setIsConnecting(false)
+          } else {
+            addDebugMessage("Connected but data channel not ready yet")
+            // Wait a bit for data channel
+            setTimeout(() => {
+              if (dataChannelRef.current?.readyState === "open") {
+                setStatus("active")
+                setIsActive(true)
+                setIsConnecting(false)
+              }
+            }, 1000)
+          }
         } else if (pc.connectionState === "failed") {
           throw new Error("WebRTC connection failed")
         }
@@ -160,6 +174,33 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       dataChannel.onopen = () => {
         addDebugMessage("Data channel opened")
         setStatus("data_channel_open")
+        
+        // CRITICAL: Send session configuration immediately
+        const sessionUpdate = {
+          type: "session.update",
+          session: {
+            instructions: `You are an AI job interview coach. Conduct a mock interview for a ${jobTitle} position. Start by greeting the candidate and asking them to tell you about themselves.`,
+            voice: "alloy",
+            turn_detection: {
+              type: "server_vad",
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 200
+            },
+            modalities: ["text", "audio"]
+          }
+        }
+        
+        dataChannel.send(JSON.stringify(sessionUpdate))
+        addDebugMessage("Sent session configuration")
+        
+        // Force transition to active state after sending config
+        setTimeout(() => {
+          setStatus("active")
+          setIsActive(true)
+          setIsConnecting(false)
+          addDebugMessage("Interview session is now active")
+        }, 500)
       }
       
       dataChannel.onmessage = (event) => {
@@ -272,13 +313,23 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       addDebugMessage(`WebRTC setup failed: ${error}`)
       throw error
     }
-  }, [addDebugMessage, getIceServers, isActive])
+  }, [addDebugMessage, getIceServers, isActive, jobTitle])
 
   // Handle OpenAI message from data channel
   const handleOpenAIMessage = useCallback((data: any) => {
     addDebugMessage(`Received OpenAI message: ${data.type}`)
     
     switch (data.type) {
+      case "session.created":
+        addDebugMessage("Session created successfully")
+        // Ensure we're in active state
+        if (status !== "active") {
+          setStatus("active")
+          setIsActive(true)
+          setIsConnecting(false)
+        }
+        break
+        
       case "conversation.item.created":
         // Handle both user and assistant items
         if (data.item && data.item.content) {
@@ -353,7 +404,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       default:
         addDebugMessage(`Unhandled message type: ${data.type}`)
     }
-  }, [addDebugMessage, addMessage])
+  }, [addDebugMessage, addMessage, status])
 
   // Create session with OpenAI
   const createSession = useCallback(async (jobTitle: string): Promise<SessionData> => {
