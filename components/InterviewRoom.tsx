@@ -63,6 +63,9 @@ export default function InterviewRoom({
   // Track if tab is in background
   const [isTabHidden, setIsTabHidden] = useState(false)
   
+  // Protect against re-renders resetting the start attempt
+  const startAttemptTimeRef = useRef<number | null>(null)
+  
   useEffect(() => {
     const savedState = localStorage.getItem('vocahire_active_interview')
     if (savedState) {
@@ -105,9 +108,14 @@ export default function InterviewRoom({
   
   // Auto-start effect when autoStart prop is true
   useEffect(() => {
-    if (autoStart && status === "idle" && !hasAttemptedStart.current) {
+    // Prevent multiple start attempts within 5 seconds
+    const now = Date.now()
+    const timeSinceLastAttempt = startAttemptTimeRef.current ? now - startAttemptTimeRef.current : Infinity
+    
+    if (autoStart && status === "idle" && !hasAttemptedStart.current && timeSinceLastAttempt > 5000) {
       console.log("Auto-starting interview due to autoStart prop")
       hasAttemptedStart.current = true
+      startAttemptTimeRef.current = now
       handleStartInterview()
     }
   }, [autoStart, status]) // eslint-disable-line react-hooks/exhaustive-deps

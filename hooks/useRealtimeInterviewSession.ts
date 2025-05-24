@@ -558,7 +558,13 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
   const start = useCallback(async (overrideJobTitle?: string) => {
     const effectiveJobTitle = overrideJobTitle || jobTitle
     
-    // Guard against Clerk touch re-renders
+    // Enhanced guard: Check if session is already in progress (not just active)
+    if (sessionStateRef.current.status !== "idle" && sessionStateRef.current.status !== "error") {
+      addDebugMessage(`Session is already in progress (status: ${sessionStateRef.current.status}), ignoring redundant start request.`)
+      return
+    }
+    
+    // Guard against active sessions
     if (sessionStateRef.current.isActive && sessionStateRef.current.sessionData) {
       addDebugMessage("Session already active, ignoring start request (likely from Clerk re-render)")
       return

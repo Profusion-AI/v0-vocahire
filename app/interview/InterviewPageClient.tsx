@@ -77,6 +77,17 @@ export default function InterviewPageClient({
   const [completedLoadingStageIds, setCompletedLoadingStageIds] = useState<string[]>([]);
   const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   const stageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Protect loading state from being reset by re-renders
+  const loadingStateRef = useRef<{
+    isLoadingInProgress: boolean;
+    lastCompletedStages: string[];
+    lastCurrentStage?: string;
+  }>({
+    isLoadingInProgress: false,
+    lastCompletedStages: [],
+    lastCurrentStage: undefined
+  });
 
   // Local state for modals
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
@@ -248,10 +259,15 @@ export default function InterviewPageClient({
   };
 
   const startInterview = async () => {
+    console.log('[InterviewPageClient] Starting interview - initializing loading screen');
     setIsConfirmStartModalOpen(false);
     setCreatingSession(false); // InterviewRoom will handle session creation loading
     
-    // Show loading screen immediately
+    // Show loading screen immediately and mark loading as in progress
+    loadingStateRef.current.isLoadingInProgress = true;
+    loadingStateRef.current.lastCurrentStage = 'mic_check';
+    loadingStateRef.current.lastCompletedStages = [];
+    
     setShowLoadingScreen(true);
     setCurrentLoadingStageId('mic_check');
     setCompletedLoadingStageIds([]);
@@ -264,6 +280,14 @@ export default function InterviewPageClient({
   const handleSessionCreationStatus = (isCreating: boolean, error?: string, status?: string) => {
     setCreatingSession(isCreating);
     
+    // Protect against state resets during loading
+    if (loadingStateRef.current.isLoadingInProgress && !isCreating && !error) {
+      // Loading was in progress and now we're getting a non-creating status without error
+      // This might be a re-render artifact - don't reset the loading state
+      console.log('[InterviewPageClient] Ignoring potential loading state reset during active loading');
+      return;
+    }
+    
     // Clear any existing timeout when status changes
     if (stageTimeoutRef.current) {
       clearTimeout(stageTimeoutRef.current);
@@ -272,6 +296,7 @@ export default function InterviewPageClient({
     
     // Map interview statuses to loading stages
     if (isCreating && status) {
+      loadingStateRef.current.isLoadingInProgress = true;
       setShowLoadingScreen(true);
       
       // Set up auto-advancement after 10 seconds as fallback
@@ -306,23 +331,31 @@ export default function InterviewPageClient({
         case 'requesting_mic':
         case 'testing_api':
           setCurrentLoadingStageId('mic_check');
+          loadingStateRef.current.lastCurrentStage = 'mic_check';
+          loadingStateRef.current.lastCompletedStages = [];
           setupAutoAdvance('session_init', ['mic_check']);
           break;
         case 'fetching_token':
           setCompletedLoadingStageIds(['mic_check']);
           setCurrentLoadingStageId('session_init');
+          loadingStateRef.current.lastCurrentStage = 'session_init';
+          loadingStateRef.current.lastCompletedStages = ['mic_check'];
           setupAutoAdvance('ai_connect', ['mic_check', 'session_init']);
           break;
         case 'creating_offer':
         case 'exchanging_sdp':
           setCompletedLoadingStageIds(['mic_check', 'session_init']);
           setCurrentLoadingStageId('ai_connect');
+          loadingStateRef.current.lastCurrentStage = 'ai_connect';
+          loadingStateRef.current.lastCompletedStages = ['mic_check', 'session_init'];
           setupAutoAdvance('finalizing', ['mic_check', 'session_init', 'ai_connect']);
           break;
         case 'connecting_webrtc':
         case 'data_channel_open':
           setCompletedLoadingStageIds(['mic_check', 'session_init', 'ai_connect']);
           setCurrentLoadingStageId('finalizing');
+          loadingStateRef.current.lastCurrentStage = 'finalizing';
+          loadingStateRef.current.lastCompletedStages = ['mic_check', 'session_init', 'ai_connect'];
           // No auto-advance for final stage, just complete after 10s
           stageTimeoutRef.current = setTimeout(() => {
             setCompletedLoadingStageIds(['mic_check', 'session_init', 'ai_connect', 'finalizing']);
@@ -342,12 +375,16 @@ export default function InterviewPageClient({
             stageTimeoutRef.current = null;
           }
           setCompletedLoadingStageIds(['mic_check', 'session_init', 'ai_connect', 'finalizing']);
+          loadingStateRef.current.lastCompletedStages = ['mic_check', 'session_init', 'ai_connect', 'finalizing'];
           setTimeout(() => {
             setShowLoadingScreen(false);
+            loadingStateRef.current.isLoadingInProgress = false;
             // Clear loading state after transition
             setTimeout(() => {
               setCurrentLoadingStageId(undefined);
               setCompletedLoadingStageIds([]);
+              loadingStateRef.current.lastCurrentStage = undefined;
+              loadingStateRef.current.lastCompletedStages = [];
             }, 300);
           }, 1000); // Show completion state for 1 second
           break;
@@ -356,6 +393,9 @@ export default function InterviewPageClient({
       setShowLoadingScreen(false);
       setCurrentLoadingStageId(undefined);
       setCompletedLoadingStageIds([]);
+      loadingStateRef.current.isLoadingInProgress = false;
+      loadingStateRef.current.lastCurrentStage = undefined;
+      loadingStateRef.current.lastCompletedStages = [];
       // Clear any pending timeout
       if (stageTimeoutRef.current) {
         clearTimeout(stageTimeoutRef.current);
@@ -541,6 +581,12 @@ export default function InterviewPageClient({
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.5 }}
+                      style={{ pointerEvents: loadingStateRef.current.isLoadingInProgress ? 'auto' : 'none' }} // Allow pointer events only during active loading
+                      onClick={(e) => {
+                        // Prevent any click propagation during loading
+                        e.stopPropagation();
+                        e.preventDefault();
+                      }}
                     >
                       <InterviewLoadingScreen
                         stages={loadingStages}
