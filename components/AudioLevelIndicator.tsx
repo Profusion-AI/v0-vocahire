@@ -8,6 +8,10 @@ interface AudioLevelIndicatorProps {
    */
   isActive?: boolean
   /**
+   * Whether the microphone is muted
+   */
+  isMuted?: boolean
+  /**
    * Height of the indicator bars
    */
   height?: number
@@ -35,6 +39,7 @@ interface AudioLevelIndicatorProps {
 
 export function AudioLevelIndicator({
   isActive = true,
+  isMuted = false,
   height = 60,
   barCount = 5,
   showFeedback = true,
@@ -97,13 +102,15 @@ export function AudioLevelIndicator({
             
             // Calculate average volume level
             const average = dataArray.reduce((acc, val) => acc + val, 0) / dataArray.length
-            const normalizedLevel = Math.min(average / 128, 1) // Normalize to 0-1
+            const normalizedLevel = isMuted ? 0 : Math.min(average / 128, 1) // Set to 0 if muted
             
             setAudioLevel(normalizedLevel)
             
             // Update noise feedback
             if (showFeedback) {
-              if (normalizedLevel < 0.05) {
+              if (isMuted) {
+                setNoiseFeedback('Microphone is muted')
+              } else if (normalizedLevel < 0.05) {
                 setNoiseFeedback('No audio detected - Check your microphone')
               } else if (normalizedLevel < 0.2) {
                 setNoiseFeedback('Audio level is good')
@@ -143,7 +150,7 @@ export function AudioLevelIndicator({
         audioContextRef.current.close()
       }
     }
-  }, [isActive, showFeedback, onPermissionDenied, onMicrophoneReady])
+  }, [isActive, isMuted, showFeedback, onPermissionDenied, onMicrophoneReady])
 
   // Determine color based on audio level
   const getBarColor = (barIndex: number, totalBars: number) => {
@@ -165,6 +172,7 @@ export function AudioLevelIndicator({
 
   // Determine feedback text color
   const getFeedbackColor = () => {
+    if (isMuted) return 'text-red-600'
     if (audioLevel < 0.05) return 'text-gray-500'
     if (audioLevel < 0.5) return 'text-green-600'
     if (audioLevel < 0.7) return 'text-yellow-600'
@@ -215,11 +223,11 @@ export function AudioLevelIndicator({
         <div className="flex items-center gap-2">
           <div 
             className={`h-2 w-2 rounded-full transition-all duration-150 ${
-              audioLevel > 0.05 ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+              isMuted ? 'bg-red-500' : audioLevel > 0.05 ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
             }`}
           />
           <span className="text-xs text-gray-600">
-            {audioLevel > 0.05 ? 'Microphone active' : 'Waiting for audio...'}
+            {isMuted ? 'Microphone muted' : audioLevel > 0.05 ? 'Microphone active' : 'Waiting for audio...'}
           </span>
         </div>
       </div>

@@ -64,6 +64,9 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
   const [isUserSpeaking, setIsUserSpeaking] = useState(false)
   const [aiCaptions, setAiCaptions] = useState("")
   const [liveTranscript, setLiveTranscript] = useState<{ role: "user" | "assistant"; content: string } | null>(null)
+  
+  // Mute state
+  const [isMuted, setIsMuted] = useState(false)
 
   // WebRTC refs
   const localStreamRef = useRef<MediaStream | null>(null)
@@ -602,6 +605,28 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
     }
   }, [addDebugMessage])
 
+  // Toggle mute function
+  const toggleMute = useCallback(() => {
+    if (!localStreamRef.current) {
+      addDebugMessage("No local stream to mute/unmute")
+      return
+    }
+
+    const audioTracks = localStreamRef.current.getAudioTracks()
+    if (audioTracks.length === 0) {
+      addDebugMessage("No audio tracks found")
+      return
+    }
+
+    const newMutedState = !isMuted
+    audioTracks.forEach(track => {
+      track.enabled = !newMutedState
+    })
+
+    setIsMuted(newMutedState)
+    addDebugMessage(`Microphone ${newMutedState ? 'muted' : 'unmuted'}`)
+  }, [isMuted, addDebugMessage])
+
   // Send message via data channel
   const sendMessage = useCallback((type: string, data: any = {}) => {
     if (dataChannelRef.current && dataChannelRef.current.readyState === "open") {
@@ -714,10 +739,12 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
     isUserSpeaking,
     aiCaptions,
     liveTranscript,
+    isMuted,
     
     // Functions
     start,
     stop,
+    toggleMute,
     addDebugMessage,
     sendMessage,
     saveInterviewSession,

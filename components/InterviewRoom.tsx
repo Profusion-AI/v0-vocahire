@@ -10,6 +10,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import type { ResumeData } from "@/components/resume-input"
 import { useRealtimeInterviewSession } from "@/hooks/useRealtimeInterviewSession"
 import { AudioLevelIndicator } from "@/components/AudioLevelIndicator"
+import { MicToggle } from "@/components/MicToggle"
 import { toast } from "sonner"
 // import styles from "./InterviewRoom.module.css"
 // Removed ConnectionProgress import as we'll create a simple inline version
@@ -47,8 +48,10 @@ export default function InterviewRoom({
     isActive: _isActive,
     isUserSpeaking,
     aiCaptions,
+    isMuted,
     start: startSession,
     stop: stopSession,
+    toggleMute,
     saveInterviewSession,
   } = useRealtimeInterviewSession({ jobTitle, resumeData })
 
@@ -224,14 +227,25 @@ export default function InterviewRoom({
             </div>
             
             {/* Audio Level Indicator - shown during mic check and after */}
-            {(status === "requesting_mic" || status !== "requesting_mic") && (
-              <div className="mt-4">
-                <AudioLevelIndicator 
-                  isActive={true}
-                  height={40}
-                  barCount={7}
-                  showFeedback={status === "requesting_mic"}
-                  className="mb-4"
+            <div className="mt-4">
+              <AudioLevelIndicator 
+                isActive={true}
+                isMuted={isMuted}
+                height={40}
+                barCount={7}
+                showFeedback={status === "requesting_mic"}
+                className="mb-4"
+              />
+            </div>
+            
+            {/* Mic Toggle - visible after mic access is granted */}
+            {status !== "requesting_mic" && (
+              <div className="flex justify-center mt-4">
+                <MicToggle 
+                  isMuted={isMuted}
+                  onToggle={toggleMute}
+                  showReminder={false}
+                  size="sm"
                 />
               </div>
             )}
@@ -366,11 +380,22 @@ export default function InterviewRoom({
               {/* Audio Level Indicator for active interview */}
               <AudioLevelIndicator 
                 isActive={true}
+                isMuted={isMuted}
                 height={50}
                 barCount={9}
                 showFeedback={false}
                 className="mb-4"
               />
+              
+              {/* Mic Toggle for active interview */}
+              <div className="flex justify-center">
+                <MicToggle 
+                  isMuted={isMuted}
+                  onToggle={toggleMute}
+                  showReminder={true}
+                  size="default"
+                />
+              </div>
               
               <div className="flex items-center justify-center gap-4">
                 <div className={`flex items-center gap-2 ${isUserSpeaking ? 'text-green-600' : 'text-gray-400'}`}>
