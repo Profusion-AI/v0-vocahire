@@ -216,11 +216,17 @@ export default function InterviewRoom({
       
     } finally {
       setIsSaving(false)
+      
+      // Ensure session is properly stopped
+      console.log("Ensuring interview session is fully stopped")
       stopSession()
       
-      if (onComplete) {
-        onComplete(messages)
-      }
+      // Give time for cleanup before notifying completion
+      setTimeout(() => {
+        if (onComplete) {
+          onComplete(messages)
+        }
+      }, 100)
     }
   }, [messages, jobTitle, saveInterviewSession, stopSession, router, onComplete])
 
