@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import InterviewRoom from "@/components/InterviewRoom";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Loader2, Mic, Settings, Bot, Zap } from "lucide-react";
 import { InterviewLoadingScreen } from "@/components/InterviewLoadingScreen";
 import type { LoadingStage } from "@/components/ui/InterviewLoadingIndicator";
+import { motion, AnimatePresence } from "framer-motion";
 import SessionLayout from "@/components/SessionLayout";
 import { loadStripe } from "@stripe/stripe-js";
 import { useToast } from "@/hooks/use-toast";
@@ -75,6 +76,7 @@ export default function InterviewPageClient({
   const [currentLoadingStageId, setCurrentLoadingStageId] = useState<string | undefined>();
   const [completedLoadingStageIds, setCompletedLoadingStageIds] = useState<string[]>([]);
   const [showLoadingScreen, setShowLoadingScreen] = useState(false);
+  const stageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Local state for modals
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
@@ -152,6 +154,15 @@ export default function InterviewPageClient({
       setJobTitle(initialJobTitle);
     }
   }, [initialJobTitle, resumeData?.jobTitle, jobTitle]);
+  
+  // Clean up timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (stageTimeoutRef.current) {
+        clearTimeout(stageTimeoutRef.current);
+      }
+    };
+  }, []);
   
   // Display a notification when fallback database is being used
   useEffect(() => {
@@ -240,7 +251,12 @@ export default function InterviewPageClient({
     setIsConfirmStartModalOpen(false);
     setCreatingSession(false); // InterviewRoom will handle session creation loading
     
-    // Just mount InterviewRoom and let it handle the entire session lifecycle
+    // Show loading screen immediately
+    setShowLoadingScreen(true);
+    setCurrentLoadingStageId('mic_check');
+    setCompletedLoadingStageIds([]);
+    
+    // Mount InterviewRoom and let it handle the entire session lifecycle
     setInterviewActive(true);
     console.log("Mounting InterviewRoom with autoStart...");
   };
@@ -248,38 +264,103 @@ export default function InterviewPageClient({
   const handleSessionCreationStatus = (isCreating: boolean, error?: string, status?: string) => {
     setCreatingSession(isCreating);
     
+    // Clear any existing timeout when status changes
+    if (stageTimeoutRef.current) {
+      clearTimeout(stageTimeoutRef.current);
+      stageTimeoutRef.current = null;
+    }
+    
     // Map interview statuses to loading stages
     if (isCreating && status) {
       setShowLoadingScreen(true);
+      
+      // Set up auto-advancement after 10 seconds as fallback
+      const setupAutoAdvance = (nextStageId: string, completedIds: string[]) => {
+        stageTimeoutRef.current = setTimeout(() => {
+          console.log(`Auto-advancing from ${currentLoadingStageId} to ${nextStageId} after 10s timeout`);
+          setCompletedLoadingStageIds(completedIds);
+          setCurrentLoadingStageId(nextStageId);
+          
+          // Set up next auto-advance
+          const stageIndex = loadingStages.findIndex(s => s.id === nextStageId);
+          if (stageIndex < loadingStages.length - 1) {
+            const nextNextStage = loadingStages[stageIndex + 1];
+            setupAutoAdvance(nextNextStage.id, [...completedIds, nextStageId]);
+          } else {
+            // Final stage reached via timeout
+            stageTimeoutRef.current = setTimeout(() => {
+              setCompletedLoadingStageIds([...completedIds, nextStageId]);
+              setTimeout(() => {
+                setShowLoadingScreen(false);
+                setTimeout(() => {
+                  setCurrentLoadingStageId(undefined);
+                  setCompletedLoadingStageIds([]);
+                }, 300);
+              }, 1000);
+            }, 10000);
+          }
+        }, 10000);
+      };
       
       switch (status) {
         case 'requesting_mic':
         case 'testing_api':
           setCurrentLoadingStageId('mic_check');
+          setupAutoAdvance('session_init', ['mic_check']);
           break;
         case 'fetching_token':
           setCompletedLoadingStageIds(['mic_check']);
           setCurrentLoadingStageId('session_init');
+          setupAutoAdvance('ai_connect', ['mic_check', 'session_init']);
           break;
         case 'creating_offer':
         case 'exchanging_sdp':
           setCompletedLoadingStageIds(['mic_check', 'session_init']);
           setCurrentLoadingStageId('ai_connect');
+          setupAutoAdvance('finalizing', ['mic_check', 'session_init', 'ai_connect']);
           break;
         case 'connecting_webrtc':
         case 'data_channel_open':
           setCompletedLoadingStageIds(['mic_check', 'session_init', 'ai_connect']);
           setCurrentLoadingStageId('finalizing');
+          // No auto-advance for final stage, just complete after 10s
+          stageTimeoutRef.current = setTimeout(() => {
+            setCompletedLoadingStageIds(['mic_check', 'session_init', 'ai_connect', 'finalizing']);
+            setTimeout(() => {
+              setShowLoadingScreen(false);
+              setTimeout(() => {
+                setCurrentLoadingStageId(undefined);
+                setCompletedLoadingStageIds([]);
+              }, 300);
+            }, 1000);
+          }, 10000);
           break;
         case 'active':
+          // Clear any pending timeout
+          if (stageTimeoutRef.current) {
+            clearTimeout(stageTimeoutRef.current);
+            stageTimeoutRef.current = null;
+          }
           setCompletedLoadingStageIds(['mic_check', 'session_init', 'ai_connect', 'finalizing']);
-          setTimeout(() => setShowLoadingScreen(false), 500); // Show completion briefly
+          setTimeout(() => {
+            setShowLoadingScreen(false);
+            // Clear loading state after transition
+            setTimeout(() => {
+              setCurrentLoadingStageId(undefined);
+              setCompletedLoadingStageIds([]);
+            }, 300);
+          }, 1000); // Show completion state for 1 second
           break;
       }
     } else if (!isCreating) {
       setShowLoadingScreen(false);
       setCurrentLoadingStageId(undefined);
       setCompletedLoadingStageIds([]);
+      // Clear any pending timeout
+      if (stageTimeoutRef.current) {
+        clearTimeout(stageTimeoutRef.current);
+        stageTimeoutRef.current = null;
+      }
     }
     
     if (error) {
@@ -438,22 +519,44 @@ export default function InterviewPageClient({
             )}
 
             {/* Interview interface - only show when active */}
-            {interviewActive && showLoadingScreen ? (
-              <InterviewLoadingScreen
-                stages={loadingStages}
-                currentStageId={currentLoadingStageId}
-                completedStageIds={completedLoadingStageIds}
-              />
-            ) : interviewActive ? (
-              <div className="mt-8">
-                <InterviewRoom
-                  jobTitle={jobTitle}
-                  onComplete={handleInterviewComplete}
-                  resumeData={resumeData}
-                  autoStart={true}
-                  onSessionCreationStatus={handleSessionCreationStatus}
-                />
-              </div>
+            {interviewActive ? (
+              <>
+                {/* Always mount InterviewRoom to handle the session lifecycle */}
+                <motion.div 
+                  className={showLoadingScreen ? "sr-only" : "mt-8"}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: showLoadingScreen ? 0 : 1 }}
+                  transition={{ duration: 0.5, delay: showLoadingScreen ? 0 : 0.3 }}
+                >
+                  <InterviewRoom
+                    jobTitle={jobTitle}
+                    onComplete={handleInterviewComplete}
+                    resumeData={resumeData}
+                    autoStart={true}
+                    onSessionCreationStatus={handleSessionCreationStatus}
+                    hideLoadingUI={showLoadingScreen}
+                  />
+                </motion.div>
+                
+                {/* Show loading screen overlay when needed */}
+                <AnimatePresence>
+                  {showLoadingScreen && (
+                    <motion.div 
+                      className="fixed inset-0 z-50 bg-background"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.5 }}
+                    >
+                      <InterviewLoadingScreen
+                        stages={loadingStages}
+                        currentStageId={currentLoadingStageId}
+                        completedStageIds={completedLoadingStageIds}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
             ) : (isPremium || (credits !== null && Number(credits) >= 0.50)) ? (
               <div className="mt-8">
                 <Button

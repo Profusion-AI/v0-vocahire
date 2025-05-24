@@ -19,6 +19,7 @@ interface InterviewRoomProps {
   resumeData?: ResumeData | null
   autoStart?: boolean
   onSessionCreationStatus?: (isCreating: boolean, error?: string, status?: string) => void
+  hideLoadingUI?: boolean
 }
 
 export default function InterviewRoom({
@@ -27,6 +28,7 @@ export default function InterviewRoom({
   resumeData,
   autoStart = false,
   onSessionCreationStatus,
+  hideLoadingUI = false,
 }: InterviewRoomProps) {
   const router = useRouter()
   
@@ -200,9 +202,9 @@ export default function InterviewRoom({
     )
   }
 
-  // Render connection progress during setup
-  if (status === "requesting_mic" || status === "testing_api" || status === "fetching_token" || 
-      status === "creating_offer" || status === "exchanging_sdp" || status === "connecting_webrtc") {
+  // Render connection progress during setup (unless parent is handling loading UI)
+  if (!hideLoadingUI && (status === "requesting_mic" || status === "testing_api" || status === "fetching_token" || 
+      status === "creating_offer" || status === "exchanging_sdp" || status === "connecting_webrtc")) {
     return (
       <Card className="w-full max-w-md mx-auto">
         <CardHeader>
@@ -229,6 +231,12 @@ export default function InterviewRoom({
         </CardContent>
       </Card>
     )
+  }
+
+  // Don't render anything during loading if parent is handling UI
+  if (hideLoadingUI && (status === "requesting_mic" || status === "testing_api" || status === "fetching_token" || 
+      status === "creating_offer" || status === "exchanging_sdp" || status === "connecting_webrtc")) {
+    return null;
   }
 
   // Render error state

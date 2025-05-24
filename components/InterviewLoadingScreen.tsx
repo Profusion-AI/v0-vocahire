@@ -3,6 +3,7 @@
 import { motion } from "framer-motion"
 import { InterviewLoadingIndicator, LoadingStage } from "@/components/ui/InterviewLoadingIndicator"
 import { AnimatedQuoteDisplay } from "@/components/ui/AnimatedQuoteDisplay"
+import { CheckCircle2 } from "lucide-react"
 
 interface InterviewLoadingScreenProps {
   stages: LoadingStage[]
@@ -15,6 +16,8 @@ export function InterviewLoadingScreen({
   currentStageId,
   completedStageIds
 }: InterviewLoadingScreenProps) {
+  // Check if all stages are completed
+  const allStagesCompleted = stages.every(stage => completedStageIds.includes(stage.id));
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background">
       {/* Subtle background animation - gradient pulse */}
@@ -56,30 +59,47 @@ export function InterviewLoadingScreen({
           {/* Header */}
           <div className="text-center space-y-4">
             <motion.h1
+              key={allStagesCompleted ? "complete" : "preparing"}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
               className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent"
             >
-              Preparing Your Interview
+              {allStagesCompleted ? "Ready to Begin!" : "Preparing Your Interview"}
             </motion.h1>
             <motion.p
+              key={allStagesCompleted ? "complete-desc" : "preparing-desc"}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.2 }}
               className="text-muted-foreground text-lg"
             >
-              Getting everything ready for your personalized coaching session...
+              {allStagesCompleted 
+                ? "Your interview session is starting now..." 
+                : "Getting everything ready for your personalized coaching session..."}
             </motion.p>
           </div>
 
           {/* Progress Indicator */}
-          <InterviewLoadingIndicator
-            stages={stages}
-            currentStageId={currentStageId}
-            completedStageIds={completedStageIds}
-            className="max-w-md mx-auto"
-          />
+          {allStagesCompleted ? (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", duration: 0.5 }}
+              className="flex justify-center"
+            >
+              <div className="bg-green-500/10 p-8 rounded-full">
+                <CheckCircle2 className="w-16 h-16 text-green-500" />
+              </div>
+            </motion.div>
+          ) : (
+            <InterviewLoadingIndicator
+              stages={stages}
+              currentStageId={currentStageId}
+              completedStageIds={completedStageIds}
+              className="max-w-md mx-auto"
+            />
+          )}
 
           {/* Divider */}
           <div className="relative">
