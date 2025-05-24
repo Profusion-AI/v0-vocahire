@@ -9,6 +9,7 @@ import { Mic, Clock, AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import type { ResumeData } from "@/components/resume-input"
 import { useRealtimeInterviewSession } from "@/hooks/useRealtimeInterviewSession"
+import { AudioLevelIndicator } from "@/components/AudioLevelIndicator"
 import { toast } from "sonner"
 // import styles from "./InterviewRoom.module.css"
 // Removed ConnectionProgress import as we'll create a simple inline version
@@ -210,24 +211,45 @@ export default function InterviewRoom({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Loader2 className="h-5 w-5 animate-spin" />
-            Setting up interview...
+            {status === "requesting_mic" ? "Checking microphone..." : "Setting up interview..."}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="text-center">
-              <p className="text-sm text-gray-600">Current step: <strong>{status.replace('_', ' ')}</strong></p>
+              <p className="text-sm text-gray-600">
+                {status === "requesting_mic" ? "Please allow microphone access when prompted" : 
+                 `Current step: ${status.replace(/_/g, ' ')}`}
+              </p>
             </div>
+            
+            {/* Audio Level Indicator - shown during mic check and after */}
+            {(status === "requesting_mic" || status !== "requesting_mic") && (
+              <div className="mt-4">
+                <AudioLevelIndicator 
+                  isActive={true}
+                  height={40}
+                  barCount={7}
+                  showFeedback={status === "requesting_mic"}
+                  className="mb-4"
+                />
+              </div>
+            )}
+            
+            <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
-                className={`bg-blue-600 h-2 rounded-full transition-all duration-300 ${
-                  status === "requesting_mic" ? "progress-bar-20" :
-                  status === "fetching_token" ? "progress-bar-40" :
-                  status === "creating_offer" ? "progress-bar-60" :
-                  status === "exchanging_sdp" ? "progress-bar-80" :
-                  status === "connecting_webrtc" ? "progress-bar-90" : "progress-bar-100"
-                }`}
+                className={`bg-blue-600 h-2 rounded-full transition-all duration-300`}
+                style={{
+                  width: status === "requesting_mic" ? "20%" :
+                         status === "testing_api" ? "30%" :
+                         status === "fetching_token" ? "40%" :
+                         status === "creating_offer" ? "60%" :
+                         status === "exchanging_sdp" ? "80%" :
+                         status === "connecting_webrtc" ? "90%" : "100%"
+                }}
               />
             </div>
+          </div>
         </CardContent>
       </Card>
     )
@@ -337,22 +359,33 @@ export default function InterviewRoom({
           </div>
         </div>
 
-        {/* Speaking Status */}
+        {/* Speaking Status with Audio Level Indicator */}
         <Card>
           <CardContent className="py-4">
-            <div className="flex items-center justify-center gap-4">
-              <div className={`flex items-center gap-2 ${isUserSpeaking ? 'text-green-600' : 'text-gray-400'}`}>
-                <Mic className={`h-5 w-5 ${isUserSpeaking ? 'animate-pulse' : ''}`} />
-                <span>{isUserSpeaking ? 'You are speaking' : 'Listening...'}</span>
+            <div className="space-y-4">
+              {/* Audio Level Indicator for active interview */}
+              <AudioLevelIndicator 
+                isActive={true}
+                height={50}
+                barCount={9}
+                showFeedback={false}
+                className="mb-4"
+              />
+              
+              <div className="flex items-center justify-center gap-4">
+                <div className={`flex items-center gap-2 ${isUserSpeaking ? 'text-green-600' : 'text-gray-400'}`}>
+                  <Mic className={`h-5 w-5 ${isUserSpeaking ? 'animate-pulse' : ''}`} />
+                  <span>{isUserSpeaking ? 'You are speaking' : 'Listening...'}</span>
+                </div>
               </div>
+              
+              {/* AI Captions */}
+              {aiCaptions && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-800">{aiCaptions}</p>
+                </div>
+              )}
             </div>
-            
-            {/* AI Captions */}
-            {aiCaptions && (
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-800">{aiCaptions}</p>
-              </div>
-            )}
           </CardContent>
         </Card>
 
