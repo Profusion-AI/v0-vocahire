@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 🚨 CRITICAL: Working MVP Configuration (January 2025)
+## 🚨 CRITICAL: Working MVP Configuration (May 2025)
 
 **After 100+ build attempts, the following configuration is PROVEN TO WORK. DO NOT MODIFY these settings without thorough testing.**
 
@@ -22,7 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VocaHire is an AI interview coaching platform that enables users to practice interviews with a real-time voice AI, receive personalized feedback, and improve their skills. The platform is built with Next.js 15 using the App Router pattern, and it includes various services for authentication, database storage, payments, and AI interactions.
+VocaHire is an AI interview coaching platform that enables human users to practice job interviews with a real-time (full-duplex) voice assistant AI, receive personalized feedback, and improve their skills. The platform is built with Next.js 15 using the App Router pattern, and it includes various services for authentication, database storage, payments, and AI interactions.
 
 ## Architecture
 
@@ -93,6 +93,8 @@ curl /api/sentry-example-api
 
 - `/app`: Next.js application routes and components
   - `/app/api`: Backend API routes
+  - `/app/api/interviews`: Interview session persistence endpoint
+  - `/app/api/generate-feedback`: AI feedback generation endpoint
   - `/app/api/webhooks`: Webhook handlers for Clerk and Stripe
   - `/app/api/diagnostic`: Database and system health check endpoints
 - `/prisma`: Database schema and migrations
@@ -104,7 +106,10 @@ curl /api/sentry-example-api
   - `/lib/user-cache.ts`: User credential caching implementation with 30s TTL
   - `/lib/retry-utils.ts`: Retry mechanisms for database operations
   - `/lib/fallback-db.ts`: Fallback database implementation for resilience
+  - `/lib/auth-utils.ts`: User management utilities including getOrCreatePrismaUser
+  - `/lib/usage-tracking.ts`: Usage analytics and tracking utilities
 - `/hooks`: Custom React hooks
+  - `/hooks/useRealtimeInterviewSession.ts`: WebRTC session management with transcript persistence
 - `/scripts`: Build and deployment scripts
   - `/scripts/build-vercel-safe.sh`: Intelligent build script for Vercel deployment
 - **Sentry Configuration**: Error monitoring setup
@@ -118,9 +123,9 @@ curl /api/sentry-example-api
 The application uses Prisma as an ORM with PostgreSQL (via Supabase). Key models include:
 
 - `User`: User profiles and authentication data
-- `InterviewSession`: Interview metadata
-- `Transcript`: Text records of interview conversations
-- `Feedback`: AI-generated interview feedback
+- `InterviewSession`: Interview metadata with feedbackStatus tracking
+- `Transcript`: Full text records of interview conversations
+- `Feedback`: AI-generated interview feedback with analysis
 
 ### Supabase Connection Strategy
 
@@ -146,10 +151,11 @@ All Prisma migrations have been successfully applied to the production database:
 - `20250515022414_update_user_with_clerk_id`
 - `20250515215903_add_email_name_image_to_user`
 - `20250519143501_update_credits_to_decimal`
+- `20250523204427_add_feedback_status_and_performance_indexes`
 
 ### Database Performance Optimizations (January 2025)
 
-**🚀 Connection Pool Optimization (January 2025)**
+**🚀 Connection Pool Optimization (early May 2025)**
 - **Connection Pool Size**: Increased from 5 to 25 connections
 - **Pool Timeout**: Increased from 10s to 20s for better resilience
 - **PgBouncer Mode**: Enabled for optimal serverless connection handling
@@ -719,6 +725,14 @@ User clicks "Start Interview"
 - ✅ **Flow Optimization**: Clear separation between orchestration (InterviewPageClient) and UI (InterviewRoom)
 - ✅ **Debugging**: Centralized all interview state in `useRealtimeInterviewSession` hook
 
+**Interview Data Persistence (COMPLETED May 2025)**
+- ✅ **Transcript Storage**: Full conversation history saved to database with each message timestamped
+- ✅ **LocalStorage Fallback**: Automatic backup when database save fails, with sync mechanism
+- ✅ **User Notifications**: Toast messages inform users of save status and fallback scenarios
+- ✅ **Async Feedback Generation**: Non-blocking background job triggered after interview save
+- ✅ **Database Indexes**: Performance optimized queries for user history and admin analytics
+- ✅ **Feedback Status Tracking**: InterviewSession tracks generation progress (pending/generating/completed/failed)
+
 **Sentry Configuration (COMPLETED)**
 - ✅ Resolved duplicate Session Replay instances error
 - ✅ Removed redundant `instrumentation-client.ts` file
@@ -771,6 +785,130 @@ case "response.audio_transcript.done":
   }
   break
 ```
+
+### Interview Data Persistence Architecture (May 2025)
+
+**🎯 Data Flow Overview:**
+1. **Real-time Collection**: Transcripts captured via WebRTC data channel events
+2. **Session Storage**: Full conversation stored in `messages` array during interview
+3. **Primary Persistence**: POST to `/api/interviews` on interview completion
+4. **Fallback Storage**: localStorage backup if database save fails
+5. **Async Feedback**: Background job triggered after successful save
+
+**📝 Transcript Storage Implementation:**
+```typescript
+// In useRealtimeInterviewSession hook
+const saveInterviewSession = useCallback(async () => {
+  try {
+    const response = await fetch('/api/interviews', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        sessionId: sessionDataRef.current.id,
+        messages, // Full transcript array
+        jobTitle,
+        resumeData,
+        averageResponseTime,
+        duration,
+        status: 'completed'
+      })
+    })
+    
+    if (!response.ok) throw new Error('Failed to save')
+    return await response.json()
+  } catch (error) {
+    // Fallback to localStorage
+    localStorage.setItem('vocahire_interview_messages', JSON.stringify(messages))
+    localStorage.setItem('vocahire_interview_metadata', JSON.stringify({
+      sessionId, jobTitle, resumeData, timestamp: Date.now()
+    }))
+    throw error
+  }
+}, [messages, jobTitle, resumeData, token])
+```
+
+**💾 Database Schema Enhancements:**
+```prisma
+model InterviewSession {
+  id                    String       @id @default(cuid())
+  userId                String
+  jobTitle              String?
+  resumeData            Json?
+  status                String       @default("pending")
+  feedbackStatus        String       @default("pending") // pending, generating, completed, failed
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  completedAt           DateTime?
+  duration              Int?
+  averageResponseTime   Float?
+  deletedAt             DateTime?    // Soft delete support
+  
+  user                  User         @relation(fields: [userId], references: [id])
+  transcripts           Transcript[]
+  feedback              Feedback[]
+  
+  @@index([userId, status, createdAt]) // User history queries
+  @@index([createdAt]) // Admin analytics
+  @@index([feedbackStatus, createdAt]) // Feedback generation queue
+}
+```
+
+**🔄 LocalStorage Sync Mechanism:**
+```typescript
+// In /app/feedback/page.tsx
+const attemptDataSync = async () => {
+  const localMessages = safeLocalStorageGet('vocahire_interview_messages')
+  const localMetadata = safeLocalStorageGet('vocahire_interview_metadata')
+  
+  if (localMessages && localMetadata) {
+    try {
+      const response = await fetch('/api/interviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await getToken()}`
+        },
+        body: JSON.stringify({
+          messages: localMessages,
+          ...localMetadata,
+          fromLocalStorage: true // Flag for analytics
+        })
+      })
+      
+      if (response.ok) {
+        localStorage.removeItem('vocahire_interview_messages')
+        localStorage.removeItem('vocahire_interview_metadata')
+        toast.success('Interview data synced successfully!')
+        router.refresh()
+      }
+    } catch (error) {
+      console.error('Sync failed:', error)
+    }
+  }
+}
+```
+
+**🔔 User Notifications:**
+- **Success**: Toast notification with feedback generation status
+- **Fallback**: Warning toast explaining localStorage save with sync instructions
+- **Sync UI**: Upload icon button on feedback page for manual sync
+- **Auto-sync**: Attempted on page load if localStorage data exists
+
+**⚡ Performance Optimizations:**
+- Transactional saves ensure data consistency
+- Non-blocking feedback generation via async job
+- Database indexes for efficient user history queries
+- Raw SQL queries for feedbackStatus updates to avoid Prisma type issues
+- Average response time calculation for interview analytics
+
+**🎤 Audio Recording Status:**
+- **Current State**: Text transcripts only (no audio file storage)
+- **Data Captured**: Full conversation transcripts via OpenAI Realtime API
+- **Audio Flow**: WebRTC streams audio in real-time but doesn't persist recordings
+- **Future Considerations**: Audio storage would require additional infrastructure for file storage, privacy compliance, and bandwidth management
 
 ### Error Handling Strategy
 
