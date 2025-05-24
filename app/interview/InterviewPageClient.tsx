@@ -258,7 +258,7 @@ export default function InterviewPageClient({
     
     // Mount InterviewRoom and let it handle the entire session lifecycle
     setInterviewActive(true);
-    console.log("Mounting InterviewRoom with autoStart...");
+    // Mount InterviewRoom with autoStart
   };
 
   const handleSessionCreationStatus = (isCreating: boolean, error?: string, status?: string) => {
@@ -277,7 +277,7 @@ export default function InterviewPageClient({
       // Set up auto-advancement after 10 seconds as fallback
       const setupAutoAdvance = (nextStageId: string, completedIds: string[]) => {
         stageTimeoutRef.current = setTimeout(() => {
-          console.log(`Auto-advancing from ${currentLoadingStageId} to ${nextStageId} after 10s timeout`);
+          // Auto-advancing after timeout
           setCompletedLoadingStageIds(completedIds);
           setCurrentLoadingStageId(nextStageId);
           
@@ -402,19 +402,7 @@ export default function InterviewPageClient({
     }
   };
 
-  // Debug logging for loading states
-  console.log('InterviewPageClient loading states:', {
-    isLoadingResume,
-    isUserDataLoading,
-    hasResumeData,
-    skipResume,
-    currentView,
-    user: !!user,
-    credits
-  })
-
   if (isLoadingResume || isUserDataLoading) { // Check both resume and user data loading
-    console.log('InterviewPageClient showing loading skeleton')
     return (
         <SessionLayout>
           <Skeleton className="h-12 w-3/4 mx-auto mb-8" />
