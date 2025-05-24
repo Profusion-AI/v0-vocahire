@@ -10,7 +10,9 @@ import Link from "next/link";
 import type { ResumeData } from "@/components/resume-input";
 // import { Navbar } from "@/components/navbar"; // Navbar is in parent server component
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mic, Settings, Bot, Zap } from "lucide-react";
+import { InterviewLoadingScreen } from "@/components/InterviewLoadingScreen";
+import type { LoadingStage } from "@/components/ui/InterviewLoadingIndicator";
 import SessionLayout from "@/components/SessionLayout";
 import { loadStripe } from "@stripe/stripe-js";
 import { useToast } from "@/hooks/use-toast";
@@ -64,6 +66,15 @@ export default function InterviewPageClient({
   const [currentView, setCurrentView] = useState<"interview" | "profile">("interview");
   const [interviewActive, setInterviewActive] = useState(false);
   const [creatingSession, setCreatingSession] = useState(false);
+  const [loadingStages] = useState<LoadingStage[]>([
+    { id: 'mic_check', label: 'Checking microphone...', icon: Mic },
+    { id: 'session_init', label: 'Initializing session...', icon: Settings },
+    { id: 'ai_connect', label: 'Connecting to AI Coach...', icon: Bot },
+    { id: 'finalizing', label: 'Finalizing setup...', icon: Zap }
+  ]);
+  const [currentLoadingStageId, setCurrentLoadingStageId] = useState<string | undefined>();
+  const [completedLoadingStageIds, setCompletedLoadingStageIds] = useState<string[]>([]);
+  const [showLoadingScreen, setShowLoadingScreen] = useState(false);
 
   // Local state for modals
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
@@ -234,8 +245,42 @@ export default function InterviewPageClient({
     console.log("Mounting InterviewRoom with autoStart...");
   };
 
-  const handleSessionCreationStatus = (isCreating: boolean, error?: string) => {
+  const handleSessionCreationStatus = (isCreating: boolean, error?: string, status?: string) => {
     setCreatingSession(isCreating);
+    
+    // Map interview statuses to loading stages
+    if (isCreating && status) {
+      setShowLoadingScreen(true);
+      
+      switch (status) {
+        case 'requesting_mic':
+        case 'testing_api':
+          setCurrentLoadingStageId('mic_check');
+          break;
+        case 'fetching_token':
+          setCompletedLoadingStageIds(['mic_check']);
+          setCurrentLoadingStageId('session_init');
+          break;
+        case 'creating_offer':
+        case 'exchanging_sdp':
+          setCompletedLoadingStageIds(['mic_check', 'session_init']);
+          setCurrentLoadingStageId('ai_connect');
+          break;
+        case 'connecting_webrtc':
+        case 'data_channel_open':
+          setCompletedLoadingStageIds(['mic_check', 'session_init', 'ai_connect']);
+          setCurrentLoadingStageId('finalizing');
+          break;
+        case 'active':
+          setCompletedLoadingStageIds(['mic_check', 'session_init', 'ai_connect', 'finalizing']);
+          setTimeout(() => setShowLoadingScreen(false), 500); // Show completion briefly
+          break;
+      }
+    } else if (!isCreating) {
+      setShowLoadingScreen(false);
+      setCurrentLoadingStageId(undefined);
+      setCompletedLoadingStageIds([]);
+    }
     
     if (error) {
       console.error("Session creation error:", error);
@@ -393,7 +438,13 @@ export default function InterviewPageClient({
             )}
 
             {/* Interview interface - only show when active */}
-            {interviewActive ? (
+            {interviewActive && showLoadingScreen ? (
+              <InterviewLoadingScreen
+                stages={loadingStages}
+                currentStageId={currentLoadingStageId}
+                completedStageIds={completedLoadingStageIds}
+              />
+            ) : interviewActive ? (
               <div className="mt-8">
                 <InterviewRoom
                   jobTitle={jobTitle}

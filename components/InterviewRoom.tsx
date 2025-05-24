@@ -18,7 +18,7 @@ interface InterviewRoomProps {
   jobTitle?: string
   resumeData?: ResumeData | null
   autoStart?: boolean
-  onSessionCreationStatus?: (isCreating: boolean, error?: string) => void
+  onSessionCreationStatus?: (isCreating: boolean, error?: string, status?: string) => void
 }
 
 export default function InterviewRoom({
@@ -65,20 +65,20 @@ export default function InterviewRoom({
   const handleStartInterview = useCallback(async () => {
     try {
       console.log("Starting interview session...")
-      onSessionCreationStatus?.(true) // Notify parent that session creation started
+      onSessionCreationStatus?.(true, undefined, status) // Notify parent that session creation started
       
       await startSession(jobTitle)
       
-      onSessionCreationStatus?.(false) // Notify parent that session creation completed
+      // Status update will be handled by the status tracking effect
       console.log("Interview session started successfully")
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       console.error("Interview start failed:", errorMessage)
       
-      onSessionCreationStatus?.(false, errorMessage) // Notify parent of error
+      onSessionCreationStatus?.(false, errorMessage, status) // Notify parent of error
     }
-  }, [startSession, jobTitle, onSessionCreationStatus])
+  }, [startSession, jobTitle, onSessionCreationStatus, status])
 
   // Handle interview completion
   const handleInterviewComplete = useCallback(async () => {
@@ -160,9 +160,26 @@ export default function InterviewRoom({
   // Handle errors from the hook
   useEffect(() => {
     if (error && onSessionCreationStatus) {
-      onSessionCreationStatus(false, error)
+      onSessionCreationStatus(false, error, status)
     }
-  }, [error, onSessionCreationStatus])
+  }, [error, onSessionCreationStatus, status])
+
+  // Track status changes and notify parent
+  useEffect(() => {
+    if (onSessionCreationStatus && (
+      status === "requesting_mic" || 
+      status === "testing_api" || 
+      status === "fetching_token" || 
+      status === "creating_offer" || 
+      status === "exchanging_sdp" || 
+      status === "connecting_webrtc" ||
+      status === "data_channel_open" ||
+      status === "active"
+    )) {
+      const isCreating = status !== "active"
+      onSessionCreationStatus(isCreating, undefined, status)
+    }
+  }, [status, onSessionCreationStatus])
 
   // Render saving state
   if (status === "saving_results" || isSaving) {
