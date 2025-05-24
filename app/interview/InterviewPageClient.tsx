@@ -397,8 +397,14 @@ export default function InterviewPageClient({
         variant: "destructive",
         duration: toastDuration
       });
-      // Reset interview state on error
-      setInterviewActive(false);
+      
+      // Don't unmount InterviewRoom on error - let it handle retries
+      // Only reset if it's a fatal error that can't be retried
+      if (error.includes("Insufficient VocahireCredits") || 
+          error.includes("Unauthorized") ||
+          error.includes("API key not configured")) {
+        setInterviewActive(false);
+      }
     }
   };
 

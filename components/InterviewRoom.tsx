@@ -129,6 +129,24 @@ export default function InterviewRoom({
     }
   }, [startSession, jobTitle, onSessionCreationStatus, status])
 
+  // Cleanup interview on actual navigation away
+  useEffect(() => {
+    // Use router events to detect actual navigation
+    const handleRouteChange = () => {
+      if (status === "active") {
+        console.log("Route changing while interview active - stopping interview")
+        stopSession()
+      }
+    }
+    
+    // Listen for route changes
+    window.addEventListener('popstate', handleRouteChange)
+    
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange)
+    }
+  }, [status, stopSession])
+
   // Handle interview completion
   const handleInterviewComplete = useCallback(async () => {
     console.log("Interview completion initiated")

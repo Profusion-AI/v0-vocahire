@@ -388,6 +388,11 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
         // Audio data is handled via WebRTC audio track
         break
         
+      case "response.audio.done":
+        // Audio playback completed
+        addDebugMessage("Audio response completed")
+        break
+        
       case "response.text.delta":
         if (data.delta) {
           setAiCaptions(prev => prev + data.delta)
@@ -769,12 +774,9 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('beforeunload', handleBeforeUnload)
       
-      // Only stop if we detect actual unmount with active interview
-      // React StrictMode in dev might double-call this, so we check isActive
-      if (isActive) {
-        addDebugMessage("Component unmounting with active interview - stopping")
-        stop()
-      }
+      // Don't stop interview on cleanup - let it be managed explicitly
+      // This prevents issues with React StrictMode and component re-mounting
+      addDebugMessage("Component cleanup (interview remains active if running)")
     }
   }, [isActive, stop, addDebugMessage, messages, jobTitle, resumeData])
 
