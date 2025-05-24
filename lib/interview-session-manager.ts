@@ -1,183 +1,244 @@
 /**
  * Global Interview Session Manager
- * Ensures only one interview session can be active at a time
- * Manages cleanup of orphaned sessions and prevents audio overlap
+ * Ensures only one interview session is active at a time
+ * Handles cleanup of orphaned sessions and resources
  */
-
 class InterviewSessionManager {
-  private static instance: InterviewSessionManager;
-  private activeSessionId: string | null = null;
-  private cleanupCallbacks: Map<string, () => void> = new Map();
-  private audioElements: Map<string, HTMLAudioElement> = new Map();
-  private peerConnections: Map<string, RTCPeerConnection> = new Map();
-  private mediaStreams: Map<string, MediaStream> = new Map();
+  private static instance: InterviewSessionManager
+  private activeSessionId: string | null = null
+  private cleanupCallbacks: Map<string, () => void> = new Map()
+  private peerConnections: Map<string, RTCPeerConnection> = new Map()
+  private mediaStreams: Map<string, MediaStream> = new Map()
+  private audioElements: Map<string, HTMLAudioElement> = new Map()
+  private debugCallback: ((message: string) => void) | null = null
 
   private constructor() {
     if (typeof window !== 'undefined') {
-      // Listen for page unload to clean up everything
+      // Clean up everything on page unload
       window.addEventListener('beforeunload', () => {
-        this.cleanupAllSessions();
-      });
-
-      // Listen for visibility changes to pause/resume audio
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-          this.pauseAllAudio();
-        } else {
-          this.resumeAllAudio();
-        }
-      });
+        this.cleanupAllSessions()
+      })
     }
   }
 
   static getInstance(): InterviewSessionManager {
     if (!InterviewSessionManager.instance) {
-      InterviewSessionManager.instance = new InterviewSessionManager();
+      InterviewSessionManager.instance = new InterviewSessionManager()
     }
-    return InterviewSessionManager.instance;
+    return InterviewSessionManager.instance
   }
 
-  /**
-   * Register a new session and cleanup any existing sessions
-   */
+  setDebugCallback(callback: (message: string) => void) {
+    this.debugCallback = callback
+  }
+
+  private log(message: string) {
+    if (this.debugCallback) {
+      this.debugCallback(`[SessionManager] ${message}`)
+    }
+    console.log(`[SessionManager] ${message}`)
+  }
+
   registerSession(sessionId: string, cleanupCallback: () => void): void {
-    console.log(`[SessionManager] Registering new session: ${sessionId}`);
+    this.log(`Registering session: ${sessionId}`)
     
-    // If there's an active session, clean it up first
+    // If there's an active session that's different, clean it up first
     if (this.activeSessionId && this.activeSessionId !== sessionId) {
-      console.log(`[SessionManager] Cleaning up previous session: ${this.activeSessionId}`);
-      this.cleanupSession(this.activeSessionId);
+      this.log(`Cleaning up previous session: ${this.activeSessionId}`)
+      const previousCallback = this.cleanupCallbacks.get(this.activeSessionId)
+      if (previousCallback) {
+        try {
+          // Call the cleanup callback for the old session
+          previousCallback()
+        } catch (error) {
+          this.log(`Error calling cleanup callback for previous session: ${error}`)
+        }
+      }
+      // Ensure resources are cleaned up even if callback fails
+      this.cleanupSessionResources(this.activeSessionId)
     }
 
-    this.activeSessionId = sessionId;
-    this.cleanupCallbacks.set(sessionId, cleanupCallback);
+    this.activeSessionId = sessionId
+    this.cleanupCallbacks.set(sessionId, cleanupCallback)
+    this.log(`Session registered: ${sessionId}`)
   }
 
-  /**
-   * Register an audio element for a session
-   */
-  registerAudioElement(sessionId: string, audioElement: HTMLAudioElement): void {
-    // Clean up any existing audio for this session
-    const existingAudio = this.audioElements.get(sessionId);
-    if (existingAudio && existingAudio !== audioElement) {
-      existingAudio.pause();
-      existingAudio.srcObject = null;
-      existingAudio.remove();
-    }
-
-    this.audioElements.set(sessionId, audioElement);
+  registerPeerConnection(sessionId: string, pc: RTCPeerConnection): void {
+    if (!sessionId || !pc) return
+    this.log(`Registering peer connection for session: ${sessionId}`)
+    this.peerConnections.set(sessionId, pc)
   }
 
-  /**
-   * Register a peer connection for a session
-   */
-  registerPeerConnection(sessionId: string, peerConnection: RTCPeerConnection): void {
-    this.peerConnections.set(sessionId, peerConnection);
-  }
-
-  /**
-   * Register a media stream for a session
-   */
   registerMediaStream(sessionId: string, stream: MediaStream): void {
-    this.mediaStreams.set(sessionId, stream);
+    if (!sessionId || !stream) return
+    this.log(`Registering media stream for session: ${sessionId}`)
+    this.mediaStreams.set(sessionId, stream)
   }
 
-  /**
-   * Check if a session is currently active
-   */
-  isSessionActive(sessionId: string): boolean {
-    return this.activeSessionId === sessionId;
-  }
-
-  /**
-   * Clean up a specific session
-   */
-  cleanupSession(sessionId: string): void {
-    console.log(`[SessionManager] Cleaning up session: ${sessionId}`);
-
-    // Clean up audio element
-    const audioElement = this.audioElements.get(sessionId);
-    if (audioElement) {
-      audioElement.pause();
-      audioElement.srcObject = null;
-      audioElement.remove();
-      this.audioElements.delete(sessionId);
+  registerAudioElement(sessionId: string, audioEl: HTMLAudioElement): void {
+    if (!sessionId || !audioEl) return
+    this.log(`Registering audio element for session: ${sessionId}`)
+    
+    // Clean up any existing audio element for this session
+    const existingAudio = this.audioElements.get(sessionId)
+    if (existingAudio && existingAudio !== audioEl) {
+      this.cleanupAudioElement(existingAudio)
     }
+    
+    this.audioElements.set(sessionId, audioEl)
+  }
 
-    // Clean up peer connection
-    const peerConnection = this.peerConnections.get(sessionId);
-    if (peerConnection) {
-      peerConnection.close();
-      this.peerConnections.delete(sessionId);
+  private cleanupAudioElement(audioEl: HTMLAudioElement): void {
+    if (!audioEl) return
+    try {
+      audioEl.pause()
+      audioEl.srcObject = null
+      audioEl.src = ''
+      audioEl.load() // Reset the element
+      // Remove from DOM if it's attached
+      if (audioEl.parentNode) {
+        audioEl.remove()
+      }
+      this.log('Audio element cleaned up')
+    } catch (error) {
+      this.log(`Error cleaning up audio element: ${error}`)
+    }
+  }
+
+  private cleanupPeerConnection(pc: RTCPeerConnection): void {
+    if (!pc) return
+    try {
+      // Check if connection is already closed
+      if (pc.connectionState === 'closed') {
+        this.log('Peer connection already closed')
+        return
+      }
+
+      // Close all data channels
+      // Note: We can't directly access data channels, but closing the PC will close them
+      
+      // Stop all transceivers
+      if (pc.getTransceivers) {
+        pc.getTransceivers().forEach(transceiver => {
+          try {
+            transceiver.stop()
+          } catch (e) {
+            this.log(`Error stopping transceiver: ${e}`)
+          }
+        })
+      }
+
+      // Remove all tracks
+      const senders = pc.getSenders()
+      senders.forEach(sender => {
+        try {
+          pc.removeTrack(sender)
+        } catch (e) {
+          this.log(`Error removing sender: ${e}`)
+        }
+      })
+
+      // Close the peer connection
+      pc.close()
+      this.log('Peer connection closed')
+    } catch (error) {
+      this.log(`Error cleaning up peer connection: ${error}`)
+    }
+  }
+
+  private cleanupMediaStream(stream: MediaStream): void {
+    if (!stream) return
+    try {
+      stream.getTracks().forEach(track => {
+        track.stop()
+        this.log(`Track stopped: ${track.kind}`)
+      })
+    } catch (error) {
+      this.log(`Error cleaning up media stream: ${error}`)
+    }
+  }
+
+  private cleanupSessionResources(sessionId: string): void {
+    this.log(`Cleaning up resources for session: ${sessionId}`)
+
+    // Clean up audio element first (most important for preventing audio overlap)
+    const audioEl = this.audioElements.get(sessionId)
+    if (audioEl) {
+      this.cleanupAudioElement(audioEl)
+      this.audioElements.delete(sessionId)
     }
 
     // Clean up media stream
-    const mediaStream = this.mediaStreams.get(sessionId);
-    if (mediaStream) {
-      mediaStream.getTracks().forEach(track => track.stop());
-      this.mediaStreams.delete(sessionId);
+    const stream = this.mediaStreams.get(sessionId)
+    if (stream) {
+      this.cleanupMediaStream(stream)
+      this.mediaStreams.delete(sessionId)
     }
 
-    // Call the cleanup callback
-    const cleanupCallback = this.cleanupCallbacks.get(sessionId);
+    // Clean up peer connection last (as it might reference the stream)
+    const pc = this.peerConnections.get(sessionId)
+    if (pc) {
+      this.cleanupPeerConnection(pc)
+      this.peerConnections.delete(sessionId)
+    }
+
+    this.log(`Resources cleaned up for session: ${sessionId}`)
+  }
+
+  cleanupSession(sessionId: string): void {
+    this.log(`Cleaning up session: ${sessionId}`)
+    
+    // First, clean up all registered resources
+    this.cleanupSessionResources(sessionId)
+    
+    // Then call the cleanup callback if it exists
+    const cleanupCallback = this.cleanupCallbacks.get(sessionId)
     if (cleanupCallback) {
       try {
-        cleanupCallback();
+        cleanupCallback()
+        this.log(`Session cleanup callback executed: ${sessionId}`)
       } catch (error) {
-        console.error(`[SessionManager] Error in cleanup callback:`, error);
+        this.log(`Error during session cleanup callback: ${error}`)
       }
-      this.cleanupCallbacks.delete(sessionId);
     }
 
-    // Clear active session if it matches
+    // Remove the cleanup callback
+    this.cleanupCallbacks.delete(sessionId)
+    
+    // Clear active session if it's the one being cleaned up
     if (this.activeSessionId === sessionId) {
-      this.activeSessionId = null;
+      this.activeSessionId = null
+      this.log(`Active session cleared: ${sessionId}`)
     }
   }
 
-  /**
-   * Clean up all sessions
-   */
-  cleanupAllSessions(): void {
-    console.log(`[SessionManager] Cleaning up all sessions`);
-    const sessionIds = Array.from(this.cleanupCallbacks.keys());
-    sessionIds.forEach(sessionId => this.cleanupSession(sessionId));
+  isSessionActive(sessionId: string): boolean {
+    return this.activeSessionId === sessionId
   }
 
-  /**
-   * Pause all audio elements (for tab switching)
-   */
-  private pauseAllAudio(): void {
-    this.audioElements.forEach(audio => {
-      if (!audio.paused) {
-        audio.pause();
-      }
-    });
-  }
-
-  /**
-   * Resume all audio elements (for tab switching)
-   */
-  private resumeAllAudio(): void {
-    if (this.activeSessionId) {
-      const audio = this.audioElements.get(this.activeSessionId);
-      if (audio && audio.paused) {
-        audio.play().catch(e => 
-          console.error(`[SessionManager] Failed to resume audio:`, e)
-        );
-      }
-    }
-  }
-
-  /**
-   * Get the currently active session ID
-   */
   getActiveSessionId(): string | null {
-    return this.activeSessionId;
+    return this.activeSessionId
+  }
+
+  // Clean up all sessions (useful for testing or emergency cleanup)
+  cleanupAllSessions(): void {
+    this.log('Cleaning up all sessions')
+    const sessionIds = Array.from(this.cleanupCallbacks.keys())
+    sessionIds.forEach(sessionId => this.cleanupSession(sessionId))
+  }
+
+  // Get resource counts for debugging
+  getResourceCounts(): { sessions: number; peerConnections: number; streams: number; audioElements: number } {
+    return {
+      sessions: this.cleanupCallbacks.size,
+      peerConnections: this.peerConnections.size,
+      streams: this.mediaStreams.size,
+      audioElements: this.audioElements.size
+    }
   }
 }
 
 // Export singleton instance
-export const sessionManager = typeof window !== 'undefined' 
+export const interviewSessionManager = typeof window !== 'undefined' 
   ? InterviewSessionManager.getInstance() 
-  : null;
+  : null

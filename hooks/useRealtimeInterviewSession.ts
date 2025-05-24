@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react"
 import { useAuth } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
-import { sessionManager } from "@/lib/interview-session-manager"
+import { interviewSessionManager } from "@/lib/interview-session-manager"
 
 export interface InterviewMessage {
   role: "user" | "assistant"
@@ -86,6 +86,9 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
   
   // Unique session ID for this hook instance
   const hookSessionId = useRef<string>(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
+  
+  // Ref to handle forward reference of stop function
+  const stopRef = useRef<(() => void) | null>(null)
 
   // Add debug message
   const addDebugMessage = useCallback((message: string) => {
@@ -94,6 +97,13 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
     debugLogRef.current = `${timestamp} - ${message}\n${debugLogRef.current}`.substring(0, 5000)
     setDebug(debugLogRef.current)
   }, [])
+  
+  // Set up session manager debug callback
+  useEffect(() => {
+    if (interviewSessionManager) {
+      interviewSessionManager.setDebugCallback(addDebugMessage)
+    }
+  }, [addDebugMessage])
 
   // Add message to conversation
   const addMessage = useCallback((role: "user" | "assistant", content: string, confidence?: number) => {
@@ -146,8 +156,8 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       peerConnectionRef.current = pc
       
       // Register peer connection with session manager
-      if (sessionManager) {
-        sessionManager.registerPeerConnection(hookSessionId.current, pc)
+      if (interviewSessionManager) {
+        interviewSessionManager.registerPeerConnection(hookSessionId.current, pc)
       }
       
       // Setup connection state monitoring
@@ -247,8 +257,8 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
           aiAudioElementRef.current = audioElement
           
           // Register with session manager
-          if (sessionManager) {
-            sessionManager.registerAudioElement(hookSessionId.current, audioElement)
+          if (interviewSessionManager) {
+            interviewSessionManager.registerAudioElement(hookSessionId.current, audioElement)
           }
           
           audioElement.play().catch(e => addDebugMessage(`Audio play failed: ${e}`))
@@ -269,8 +279,8 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       localStreamRef.current = stream
       
       // Register media stream with session manager
-      if (sessionManager) {
-        sessionManager.registerMediaStream(hookSessionId.current, stream)
+      if (interviewSessionManager) {
+        interviewSessionManager.registerMediaStream(hookSessionId.current, stream)
       }
       
       // Add audio track to peer connection
@@ -526,12 +536,17 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
   const start = useCallback(async (overrideJobTitle?: string) => {
     const effectiveJobTitle = overrideJobTitle || jobTitle
     try {
-      // Register this session with the manager
-      if (sessionManager) {
-        sessionManager.registerSession(hookSessionId.current, () => {
+      // Register this session with the manager, providing cleanup callback
+      if (interviewSessionManager) {
+        interviewSessionManager.registerSession(hookSessionId.current, () => {
+          // This will be called by the manager when cleaning up a previous session
           addDebugMessage(`Session ${hookSessionId.current} cleanup requested by manager`)
-          stop()
+          // Call stop function via ref
+          if (stopRef.current) {
+            stopRef.current()
+          }
         })
+        addDebugMessage(`Session ${hookSessionId.current} registered with manager`)
       }
       
       setStatus("requesting_mic")
@@ -595,16 +610,34 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       
       throw error
     }
-  }, [createSession, setupWebRTC, addDebugMessage, retryCount, maxRetries, jobTitle, stop])
+  }, [createSession, setupWebRTC, addDebugMessage, retryCount, maxRetries, jobTitle])
 
   // Stop function
   const stop = useCallback(() => {
     try {
       addDebugMessage(`Stopping interview session ${hookSessionId.current}...`)
       
-      // Clean up through session manager if available
-      if (sessionManager) {
-        sessionManager.cleanupSession(hookSessionId.current)
+      // Delegate cleanup to session manager if available
+      if (interviewSessionManager) {
+        // Manager will handle all resource cleanup
+        interviewSessionManager.cleanupSession(hookSessionId.current)
+        
+        // Reset state
+        setStatus("idle")
+        setIsActive(false)
+        setIsConnecting(false)
+        setIsUserSpeaking(false)
+        setAiCaptions("")
+        setLiveTranscript(null)
+        sessionDataRef.current = null
+        
+        // Clear refs (they should be cleaned by manager but ensure they're null)
+        dataChannelRef.current = null
+        peerConnectionRef.current = null
+        localStreamRef.current = null
+        aiAudioElementRef.current = null
+        
+        addDebugMessage("Interview session stopped via manager")
       } else {
         // Manual cleanup if session manager not available
         // Close data channel
@@ -656,6 +689,9 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       addDebugMessage(`Stop error: ${errorMessage}`)
     }
   }, [addDebugMessage])
+  
+  // Set stop ref for forward reference
+  stopRef.current = stop
 
   // Toggle mute function
   const toggleMute = useCallback(() => {
@@ -822,12 +858,16 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       window.removeEventListener('beforeunload', handleBeforeUnload)
       
       // Clean up only if this session is no longer active in the manager
-      if (sessionManager && !sessionManager.isSessionActive(hookSessionId.current)) {
+      if (interviewSessionManager && !interviewSessionManager.isSessionActive(hookSessionId.current)) {
         addDebugMessage("Component cleanup - session no longer active, cleaning up")
         stop()
-      } else {
+      } else if (interviewSessionManager) {
         addDebugMessage("Component cleanup - session still active, preserving")
+      } else {
+        // No manager available, do manual cleanup
+        stop()
       }
+    }
   }, [isActive, stop, addDebugMessage, messages, jobTitle, resumeData])
 
   return {
