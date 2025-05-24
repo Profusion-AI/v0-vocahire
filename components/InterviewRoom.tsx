@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useCallback, useRef } from "react"
+import { useEffect, useCallback, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,6 +9,7 @@ import { Mic, Clock, AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import type { ResumeData } from "@/components/resume-input"
 import { useRealtimeInterviewSession } from "@/hooks/useRealtimeInterviewSession"
+import { toast } from "sonner"
 // import styles from "./InterviewRoom.module.css"
 // Removed ConnectionProgress import as we'll create a simple inline version
 
@@ -23,11 +24,16 @@ interface InterviewRoomProps {
 export default function InterviewRoom({
   onComplete,
   jobTitle = "Software Engineer",
-  resumeData: _resumeData,
+  resumeData,
   autoStart = false,
   onSessionCreationStatus,
 }: InterviewRoomProps) {
   const router = useRouter()
+  
+  // Local state for saving progress
+  const [isSaving, setIsSaving] = useState(false)
+  const [completionError, setCompletionError] = useState<string | null>(null)
+  const [showManualNavigation, setShowManualNavigation] = useState(false)
   
   // All state comes from the hook - single source of truth
   const {
@@ -40,7 +46,8 @@ export default function InterviewRoom({
     aiCaptions,
     start: startSession,
     stop: stopSession,
-  } = useRealtimeInterviewSession()
+    saveInterviewSession,
+  } = useRealtimeInterviewSession({ jobTitle, resumeData })
 
   // Track if we've attempted to start to prevent loops
   const hasAttemptedStart = useRef(false)
@@ -74,22 +81,81 @@ export default function InterviewRoom({
   }, [startSession, jobTitle, onSessionCreationStatus])
 
   // Handle interview completion
-  const handleInterviewComplete = useCallback(() => {
-    console.log("Interview completed")
+  const handleInterviewComplete = useCallback(async () => {
+    console.log("Interview completion initiated")
     
-    // Store interview data in localStorage for the feedback page
-    localStorage.setItem("vocahire_interview_messages", JSON.stringify(messages))
-    
-    stopSession()
-    
-    setTimeout(() => {
-      router.push("/feedback")
-    }, 2000)
-
-    if (onComplete) {
-      onComplete(messages)
+    try {
+      // Show saving status
+      setIsSaving(true)
+      setCompletionError(null)
+      
+      // Save the interview session
+      const result = await saveInterviewSession()
+      
+      if (result) {
+        // Success - redirect to feedback page
+        console.log("Interview saved successfully, redirecting to feedback")
+        toast.success("Interview saved successfully! Generating your feedback...", {
+          duration: 3000
+        })
+        router.push(result.redirectUrl || `/feedback?session=${result.id}`)
+      } else {
+        // Fallback to localStorage if save failed
+        console.warn("Failed to save to database, using localStorage fallback")
+        localStorage.setItem("vocahire_interview_messages", JSON.stringify(messages))
+        localStorage.setItem("vocahire_interview_metadata", JSON.stringify({
+          jobTitle,
+          timestamp: Date.now()
+        }))
+        
+        // Notify user about local save
+        toast.warning(
+          "Interview saved locally. We'll sync it when connection is restored.",
+          { 
+            duration: 5000,
+            description: "Your responses are safe and will be uploaded automatically."
+          }
+        )
+        
+        // Still redirect to feedback page
+        setTimeout(() => {
+          router.push("/feedback")
+        }, 2000)
+      }
+      
+    } catch (error) {
+      console.error("Error during interview completion:", error)
+      
+      // Show error to user
+      setCompletionError("Failed to save interview. Your responses have been saved locally.")
+      
+      // Fallback to localStorage
+      localStorage.setItem("vocahire_interview_messages", JSON.stringify(messages))
+      localStorage.setItem("vocahire_interview_metadata", JSON.stringify({
+        jobTitle,
+        timestamp: Date.now()
+      }))
+      
+      // Show error toast
+      toast.error("Failed to save interview to server", {
+        duration: 5000,
+        description: "Your interview has been saved locally and you can continue to feedback."
+      })
+      
+      // Allow manual navigation
+      setTimeout(() => {
+        setShowManualNavigation(true)
+      }, 3000)
+      
+    } finally {
+      setIsSaving(false)
+      stopSession()
+      
+      if (onComplete) {
+        onComplete(messages)
+      }
     }
-  }, [messages, router, onComplete, stopSession])
+  }, [messages, jobTitle, saveInterviewSession, stopSession, router, onComplete])
 
   // Handle errors from the hook
   useEffect(() => {
@@ -97,6 +163,25 @@ export default function InterviewRoom({
       onSessionCreationStatus(false, error)
     }
   }, [error, onSessionCreationStatus])
+
+  // Render saving state
+  if (status === "saving_results" || isSaving) {
+    return (
+      <Card className="w-full max-w-md mx-auto">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Saving interview results...
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-center text-gray-600">
+            Please wait while we save your interview data...
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
 
   // Render connection progress during setup
   if (status === "requesting_mic" || status === "testing_api" || status === "fetching_token" || 
@@ -189,13 +274,35 @@ export default function InterviewRoom({
                   onClick={handleInterviewComplete}
                   variant="destructive"
                   size="sm"
+                  disabled={isSaving}
                 >
-                  End Interview
+                  {isSaving ? "Saving..." : "End Interview"}
                 </Button>
               </div>
             </CardTitle>
           </CardHeader>
         </Card>
+
+        {/* Completion Error Alert */}
+        {completionError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Save Error</AlertTitle>
+            <AlertDescription>
+              {completionError}
+              {showManualNavigation && (
+                <Button 
+                  onClick={() => router.push("/feedback")}
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                >
+                  Continue to Feedback
+                </Button>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Connection Quality Indicator */}
         <div className="flex justify-center">

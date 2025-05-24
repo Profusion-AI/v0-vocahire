@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, Download, RefreshCw } from "lucide-react"
+import { AlertCircle, Download, RefreshCw, CloudUpload } from "lucide-react"
+import { toast } from "sonner"
+import { useSearchParams } from "next/navigation"
+import { useAuth } from "@clerk/nextjs"
 
 import AuthGuard from "@/components/auth/AuthGuard";
 import SessionLayout from "@/components/SessionLayout";
@@ -87,6 +90,12 @@ function FeedbackPageContent() {
     mostCommon: Array<{ word: string; count: number }>
   } | null>(null)
   const [recordingUrl, setRecordingUrl] = useState<string | null>(null)
+  
+  // Sync functionality states
+  const [hasLocalData, setHasLocalData] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const searchParams = useSearchParams()
+  const { getToken } = useAuth()
 
   // Add a mounting check for client-side only code
   const [isMounted, setIsMounted] = useState(false)
@@ -106,6 +115,18 @@ function FeedbackPageContent() {
       return;
     }
     
+    // Check if we have a session ID in URL (database-powered)
+    const sessionId = searchParams.get('session')
+    
+    if (sessionId) {
+      // Load from database - this will be handled by existing logic
+      setIsLoading(true)
+      // TODO: Implement database loading
+      setIsLoading(false)
+      return
+    }
+    
+    // Otherwise, check for localStorage data
     const data = loadInterviewData()
     
     if (data.error) {
@@ -119,6 +140,9 @@ function FeedbackPageContent() {
       return;
     }
     
+    // We have local data
+    setHasLocalData(true)
+    
     if (data.recordingUrl) {
       setRecordingUrl(data.recordingUrl)
     }
@@ -127,9 +151,9 @@ function FeedbackPageContent() {
       setFillerWordStats(data.fillerWordStats)
     }
     
-    // Generate feedback
+    // Generate feedback from local data
     generateFeedback(data.messages, data.fillerWordCounts, data.resumeData)
-  }, [isMounted])
+  }, [isMounted, searchParams])
 
   const generateFeedback = async (
     messages: Array<{ role: string; content: string }>,
@@ -284,6 +308,77 @@ function FeedbackPageContent() {
     generateFeedback(data.messages, data.fillerWordCounts, data.resumeData)
   }
 
+  // Sync localStorage data to database
+  const attemptDataSync = async () => {
+    const localMessages = safeLocalStorageGet('vocahire_interview_messages')
+    const localMetadata = safeLocalStorageGet('vocahire_interview_metadata')
+    
+    if (!localMessages) {
+      toast.error("No local data to sync")
+      return
+    }
+    
+    setIsSyncing(true)
+    
+    try {
+      const messages = JSON.parse(localMessages)
+      const metadata = localMetadata ? JSON.parse(localMetadata) : {}
+      const authToken = await getToken()
+      
+      if (!authToken) {
+        throw new Error("Not authenticated")
+      }
+      
+      const response = await fetch("/api/interviews", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          sessionId: `local-${Date.now()}`, // Generate unique ID for local session
+          jobTitle: metadata.jobTitle || "Software Engineer",
+          resumeData: null,
+          messages: messages,
+          startTime: messages[0]?.timestamp || metadata.timestamp,
+          endTime: messages[messages.length - 1]?.timestamp || Date.now(),
+          duration: (messages[messages.length - 1]?.timestamp || Date.now()) - (messages[0]?.timestamp || metadata.timestamp),
+          metrics: {
+            totalUserMessages: messages.filter((m: any) => m.role === "user").length,
+            totalAssistantMessages: messages.filter((m: any) => m.role === "assistant").length,
+          }
+        })
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || "Failed to sync data")
+      }
+      
+      const result = await response.json()
+      
+      // Clear localStorage after successful sync
+      localStorage.removeItem('vocahire_interview_messages')
+      localStorage.removeItem('vocahire_interview_metadata')
+      localStorage.removeItem('vocahire_interview_id')
+      
+      toast.success('Interview data synced successfully!', {
+        description: 'Your interview has been saved to your account.'
+      })
+      
+      // Redirect to the database-powered feedback page
+      window.location.href = result.redirectUrl || `/feedback?session=${result.id}`
+      
+    } catch (error) {
+      console.error("Sync failed:", error)
+      toast.error('Failed to sync interview data', {
+        description: error instanceof Error ? error.message : 'Please try again later.'
+      })
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <SessionLayout>
@@ -325,6 +420,34 @@ function FeedbackPageContent() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {hasLocalData && (
+        <Alert className="max-w-3xl mx-auto mb-6 shadow-lg">
+          <CloudUpload className="h-4 w-4" />
+          <AlertTitle>Local Interview Data</AlertTitle>
+          <AlertDescription className="space-y-2">
+            <p>This interview is saved locally in your browser. Would you like to sync it to your account?</p>
+            <Button 
+              onClick={attemptDataSync} 
+              disabled={isSyncing}
+              size="sm"
+              className="mt-2"
+            >
+              {isSyncing ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Syncing...
+                </>
+              ) : (
+                <>
+                  <CloudUpload className="mr-2 h-4 w-4" />
+                  Sync to Account
+                </>
+              )}
+            </Button>
+          </AlertDescription>
         </Alert>
       )}
 

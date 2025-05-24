@@ -2,12 +2,14 @@ import { getRedisClient } from "./redis"
 
 export enum UsageType {
   INTERVIEW_SESSION = "interview_session",
+  INTERVIEW_COMPLETED = "interview_completed",
   FEEDBACK_GENERATION = "feedback_generation",
   UPLOAD = "upload",
 }
 
 interface UsageLimits {
   [UsageType.INTERVIEW_SESSION]: number
+  [UsageType.INTERVIEW_COMPLETED]: number
   [UsageType.FEEDBACK_GENERATION]: number
   [UsageType.UPLOAD]: number
 }
@@ -15,6 +17,7 @@ interface UsageLimits {
 // Default limits for free tier
 const FREE_TIER_LIMITS: UsageLimits = {
   [UsageType.INTERVIEW_SESSION]: 3, // 3 interviews per day
+  [UsageType.INTERVIEW_COMPLETED]: 100, // No practical limit on saving completed interviews
   [UsageType.FEEDBACK_GENERATION]: 5, // 5 feedback generations per day
   [UsageType.UPLOAD]: 10, // 10 uploads per day
 }
@@ -27,7 +30,7 @@ async function getUserLimit(userId: string, usageType: UsageType): Promise<numbe
 }
 
 // Track usage for a specific user and usage type
-export async function trackUsage(userId: string, usageType: UsageType): Promise<void> {
+export async function trackUsage(userId: string, usageType: UsageType, metadata?: any): Promise<void> {
   try {
     const redis = getRedisClient()
 
@@ -50,6 +53,11 @@ export async function trackUsage(userId: string, usageType: UsageType): Promise<
     await redis.incr(monthlyKey)
     // Set expiration to 35 days
     await redis.expire(monthlyKey, 35 * 24 * 60 * 60)
+    
+    // Log metadata if provided
+    if (metadata) {
+      console.log(`Usage tracked: ${usageType} for user ${userId}`, metadata)
+    }
   } catch (error) {
     console.error(`Error tracking usage for ${userId} (${usageType}):`, error)
     // Continue even if Redis is down

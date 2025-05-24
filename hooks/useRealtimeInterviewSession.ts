@@ -2,12 +2,22 @@
 
 import { useState, useRef, useCallback, useEffect } from "react"
 import { useAuth } from "@clerk/nextjs"
+import { useRouter } from "next/navigation"
 
 export interface InterviewMessage {
   role: "user" | "assistant"
   content: string
   timestamp: number
   confidence?: number
+}
+
+export interface ResumeData {
+  jobTitle: string
+  skills: string
+  experience: string
+  education: string
+  achievements: string
+  resumeUrl?: string
 }
 
 type InterviewStatus =
@@ -22,6 +32,7 @@ type InterviewStatus =
   | "active"
   | "ended"
   | "error"
+  | "saving_results"
 
 interface SessionData {
   id: string
@@ -29,9 +40,17 @@ interface SessionData {
   expires_at?: number
 }
 
-export function useRealtimeInterviewSession() {
-  // Authentication
+interface UseRealtimeInterviewSessionProps {
+  jobTitle?: string
+  resumeData?: ResumeData | null
+}
+
+export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionProps = {}) {
+  const { jobTitle = "Software Engineer", resumeData = null } = props
+  
+  // Authentication and routing
   const { isLoaded, isSignedIn, getToken } = useAuth()
+  const router = useRouter()
 
   // Core state
   const [status, setStatus] = useState<InterviewStatus>("idle")
@@ -419,16 +438,17 @@ export function useRealtimeInterviewSession() {
   }, [isLoaded, isSignedIn, getToken, addDebugMessage])
 
   // Main start function
-  const start = useCallback(async (jobTitle: string) => {
+  const start = useCallback(async (overrideJobTitle?: string) => {
+    const effectiveJobTitle = overrideJobTitle || jobTitle
     try {
       setStatus("requesting_mic")
       setIsConnecting(true)
       setError(null)
       setRetryCount(0)
-      addDebugMessage(`Starting interview session for: ${jobTitle}`)
+      addDebugMessage(`Starting interview session for: ${effectiveJobTitle}`)
 
       // Create session
-      const sessionData = await createSession(jobTitle)
+      const sessionData = await createSession(effectiveJobTitle)
       sessionDataRef.current = sessionData
 
       // Setup WebRTC
@@ -467,7 +487,7 @@ export function useRealtimeInterviewSession() {
         setTimeout(() => {
           setRetryCount(prev => prev + 1)
           // Don't call start directly to avoid loops
-          createSession(jobTitle).then(sessionData => {
+          createSession(effectiveJobTitle).then(sessionData => {
             sessionDataRef.current = sessionData
             return setupWebRTC(sessionData)
           }).catch(retryError => {
@@ -482,7 +502,7 @@ export function useRealtimeInterviewSession() {
       
       throw error
     }
-  }, [createSession, setupWebRTC, addDebugMessage, retryCount, maxRetries])
+  }, [createSession, setupWebRTC, addDebugMessage, retryCount, maxRetries, jobTitle])
 
   // Stop function
   const stop = useCallback(() => {
@@ -546,6 +566,85 @@ export function useRealtimeInterviewSession() {
     }
   }, [addDebugMessage])
 
+  // Helper function to calculate average response time
+  const calculateAverageResponseTime = useCallback((messages: InterviewMessage[]) => {
+    const responseTimes: number[] = []
+    let lastUserMessageTime: number | null = null
+    
+    for (const message of messages) {
+      if (message.role === "user") {
+        lastUserMessageTime = message.timestamp
+      } else if (message.role === "assistant" && lastUserMessageTime !== null) {
+        responseTimes.push(message.timestamp - lastUserMessageTime)
+        lastUserMessageTime = null
+      }
+    }
+    
+    if (responseTimes.length === 0) return 0
+    return responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
+  }, [])
+
+  // Save interview session to database
+  const saveInterviewSession = useCallback(async () => {
+    if (messages.length === 0 || !sessionDataRef.current?.id) {
+      addDebugMessage("No messages or session ID to save")
+      return null
+    }
+    
+    setStatus("saving_results")
+    const sessionStartTime = messages[0]?.timestamp || Date.now()
+    const sessionEndTime = messages[messages.length - 1]?.timestamp || Date.now()
+    
+    try {
+      // Get auth token for API call
+      const authToken = await getToken()
+      if (!authToken) throw new Error("No auth token available")
+      
+      const response = await fetch("/api/interviews", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          sessionId: sessionDataRef.current.id,
+          jobTitle,
+          resumeData: resumeData || null,
+          messages,
+          startTime: sessionStartTime,
+          endTime: sessionEndTime,
+          duration: sessionEndTime - sessionStartTime,
+          // Include performance metrics
+          metrics: {
+            totalUserMessages: messages.filter(m => m.role === "user").length,
+            totalAssistantMessages: messages.filter(m => m.role === "assistant").length,
+            averageResponseTime: calculateAverageResponseTime(messages)
+          }
+        })
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || "Failed to save interview")
+      }
+      
+      const result = await response.json()
+      addDebugMessage(`Interview saved with ID: ${result.id}`)
+      
+      // Clear session data
+      sessionDataRef.current = null
+      
+      return result
+    } catch (error) {
+      addDebugMessage(`Failed to save interview: ${error}`)
+      const errorMessage = `Failed to save interview results: ${error instanceof Error ? error.message : String(error)}`
+      setError(errorMessage)
+      throw error
+    } finally {
+      setStatus("idle")
+    }
+  }, [messages, jobTitle, resumeData, getToken, addDebugMessage, calculateAverageResponseTime])
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -570,6 +669,7 @@ export function useRealtimeInterviewSession() {
     stop,
     addDebugMessage,
     sendMessage,
+    saveInterviewSession,
     
     // Refs
     localStreamRef,

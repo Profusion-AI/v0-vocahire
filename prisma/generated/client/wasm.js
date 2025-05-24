@@ -122,6 +122,7 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
 
 exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
+  clerkId: 'clerkId',
   role: 'role',
   credits: 'credits',
   resumeJobTitle: 'resumeJobTitle',
@@ -150,6 +151,7 @@ exports.Prisma.InterviewSessionScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   jobTitle: 'jobTitle',
+  resumeData: 'resumeData',
   resumeSnapshot: 'resumeSnapshot',
   company: 'company',
   interviewType: 'interviewType',
@@ -157,13 +159,20 @@ exports.Prisma.InterviewSessionScalarFieldEnum = {
   webrtcSessionId: 'webrtcSessionId',
   openaiSessionId: 'openaiSessionId',
   fallbackMode: 'fallbackMode',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  duration: 'duration',
+  status: 'status',
+  feedbackStatus: 'feedbackStatus',
+  metadata: 'metadata',
   startedAt: 'startedAt',
   endedAt: 'endedAt',
   durationSeconds: 'durationSeconds',
   audioUrl: 'audioUrl',
   expiresAt: 'expiresAt',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  deletedAt: 'deletedAt'
 };
 
 exports.Prisma.TranscriptScalarFieldEnum = {
@@ -173,6 +182,8 @@ exports.Prisma.TranscriptScalarFieldEnum = {
   content: 'content',
   confidence: 'confidence',
   timestamp: 'timestamp',
+  sequenceNumber: 'sequenceNumber',
+  metadata: 'metadata',
   expiresAt: 'expiresAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

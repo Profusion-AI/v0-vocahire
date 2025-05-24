@@ -1314,10 +1314,12 @@ export namespace Prisma {
    */
 
   export type InterviewSessionCountOutputType = {
+    feedbacks: number
     transcripts: number
   }
 
   export type InterviewSessionCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    feedbacks?: boolean | InterviewSessionCountOutputTypeCountFeedbacksArgs
     transcripts?: boolean | InterviewSessionCountOutputTypeCountTranscriptsArgs
   }
 
@@ -1330,6 +1332,13 @@ export namespace Prisma {
      * Select specific fields to fetch from the InterviewSessionCountOutputType
      */
     select?: InterviewSessionCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * InterviewSessionCountOutputType without action
+   */
+  export type InterviewSessionCountOutputTypeCountFeedbacksArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: FeedbackWhereInput
   }
 
   /**
@@ -1366,6 +1375,7 @@ export namespace Prisma {
 
   export type UserMinAggregateOutputType = {
     id: string | null
+    clerkId: string | null
     role: $Enums.UserRole | null
     credits: Decimal | null
     resumeJobTitle: string | null
@@ -1392,6 +1402,7 @@ export namespace Prisma {
 
   export type UserMaxAggregateOutputType = {
     id: string | null
+    clerkId: string | null
     role: $Enums.UserRole | null
     credits: Decimal | null
     resumeJobTitle: string | null
@@ -1418,6 +1429,7 @@ export namespace Prisma {
 
   export type UserCountAggregateOutputType = {
     id: number
+    clerkId: number
     role: number
     credits: number
     resumeJobTitle: number
@@ -1454,6 +1466,7 @@ export namespace Prisma {
 
   export type UserMinAggregateInputType = {
     id?: true
+    clerkId?: true
     role?: true
     credits?: true
     resumeJobTitle?: true
@@ -1480,6 +1493,7 @@ export namespace Prisma {
 
   export type UserMaxAggregateInputType = {
     id?: true
+    clerkId?: true
     role?: true
     credits?: true
     resumeJobTitle?: true
@@ -1506,6 +1520,7 @@ export namespace Prisma {
 
   export type UserCountAggregateInputType = {
     id?: true
+    clerkId?: true
     role?: true
     credits?: true
     resumeJobTitle?: true
@@ -1619,6 +1634,7 @@ export namespace Prisma {
 
   export type UserGroupByOutputType = {
     id: string
+    clerkId: string
     role: $Enums.UserRole
     credits: Decimal
     resumeJobTitle: string | null
@@ -1664,6 +1680,7 @@ export namespace Prisma {
 
   export type UserSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    clerkId?: boolean
     role?: boolean
     credits?: boolean
     resumeJobTitle?: boolean
@@ -1694,6 +1711,7 @@ export namespace Prisma {
 
   export type UserSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    clerkId?: boolean
     role?: boolean
     credits?: boolean
     resumeJobTitle?: boolean
@@ -1720,6 +1738,7 @@ export namespace Prisma {
 
   export type UserSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    clerkId?: boolean
     role?: boolean
     credits?: boolean
     resumeJobTitle?: boolean
@@ -1746,6 +1765,7 @@ export namespace Prisma {
 
   export type UserSelectScalar = {
     id?: boolean
+    clerkId?: boolean
     role?: boolean
     credits?: boolean
     resumeJobTitle?: boolean
@@ -1770,7 +1790,7 @@ export namespace Prisma {
     name?: boolean
   }
 
-  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "role" | "credits" | "resumeJobTitle" | "resumeSkills" | "resumeExperience" | "resumeEducation" | "resumeAchievements" | "resumeFileUrl" | "jobSearchStage" | "linkedinUrl" | "acceptedTermsAt" | "acceptedPrivacyAt" | "dataRetentionOverride" | "createdAt" | "updatedAt" | "premiumExpiresAt" | "premiumSubscriptionId" | "stripeCustomerId" | "isPremium" | "email" | "image" | "name", ExtArgs["result"]["user"]>
+  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "clerkId" | "role" | "credits" | "resumeJobTitle" | "resumeSkills" | "resumeExperience" | "resumeEducation" | "resumeAchievements" | "resumeFileUrl" | "jobSearchStage" | "linkedinUrl" | "acceptedTermsAt" | "acceptedPrivacyAt" | "dataRetentionOverride" | "createdAt" | "updatedAt" | "premiumExpiresAt" | "premiumSubscriptionId" | "stripeCustomerId" | "isPremium" | "email" | "image" | "name", ExtArgs["result"]["user"]>
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     feedbacks?: boolean | User$feedbacksArgs<ExtArgs>
     interviewSessions?: boolean | User$interviewSessionsArgs<ExtArgs>
@@ -1789,6 +1809,7 @@ export namespace Prisma {
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
+      clerkId: string
       role: $Enums.UserRole
       credits: Prisma.Decimal
       resumeJobTitle: string | null
@@ -2238,6 +2259,7 @@ export namespace Prisma {
    */
   interface UserFieldRefs {
     readonly id: FieldRef<"User", 'String'>
+    readonly clerkId: FieldRef<"User", 'String'>
     readonly role: FieldRef<"User", 'UserRole'>
     readonly credits: FieldRef<"User", 'Decimal'>
     readonly resumeJobTitle: FieldRef<"User", 'String'>
@@ -2751,10 +2773,12 @@ export namespace Prisma {
   }
 
   export type InterviewSessionAvgAggregateOutputType = {
+    duration: number | null
     durationSeconds: number | null
   }
 
   export type InterviewSessionSumAggregateOutputType = {
+    duration: number | null
     durationSeconds: number | null
   }
 
@@ -2768,6 +2792,11 @@ export namespace Prisma {
     webrtcSessionId: string | null
     openaiSessionId: string | null
     fallbackMode: boolean | null
+    startTime: Date | null
+    endTime: Date | null
+    duration: number | null
+    status: string | null
+    feedbackStatus: string | null
     startedAt: Date | null
     endedAt: Date | null
     durationSeconds: number | null
@@ -2775,6 +2804,7 @@ export namespace Prisma {
     expiresAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
+    deletedAt: Date | null
   }
 
   export type InterviewSessionMaxAggregateOutputType = {
@@ -2787,6 +2817,11 @@ export namespace Prisma {
     webrtcSessionId: string | null
     openaiSessionId: string | null
     fallbackMode: boolean | null
+    startTime: Date | null
+    endTime: Date | null
+    duration: number | null
+    status: string | null
+    feedbackStatus: string | null
     startedAt: Date | null
     endedAt: Date | null
     durationSeconds: number | null
@@ -2794,12 +2829,14 @@ export namespace Prisma {
     expiresAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
+    deletedAt: Date | null
   }
 
   export type InterviewSessionCountAggregateOutputType = {
     id: number
     userId: number
     jobTitle: number
+    resumeData: number
     resumeSnapshot: number
     company: number
     interviewType: number
@@ -2807,6 +2844,12 @@ export namespace Prisma {
     webrtcSessionId: number
     openaiSessionId: number
     fallbackMode: number
+    startTime: number
+    endTime: number
+    duration: number
+    status: number
+    feedbackStatus: number
+    metadata: number
     startedAt: number
     endedAt: number
     durationSeconds: number
@@ -2814,15 +2857,18 @@ export namespace Prisma {
     expiresAt: number
     createdAt: number
     updatedAt: number
+    deletedAt: number
     _all: number
   }
 
 
   export type InterviewSessionAvgAggregateInputType = {
+    duration?: true
     durationSeconds?: true
   }
 
   export type InterviewSessionSumAggregateInputType = {
+    duration?: true
     durationSeconds?: true
   }
 
@@ -2836,6 +2882,11 @@ export namespace Prisma {
     webrtcSessionId?: true
     openaiSessionId?: true
     fallbackMode?: true
+    startTime?: true
+    endTime?: true
+    duration?: true
+    status?: true
+    feedbackStatus?: true
     startedAt?: true
     endedAt?: true
     durationSeconds?: true
@@ -2843,6 +2894,7 @@ export namespace Prisma {
     expiresAt?: true
     createdAt?: true
     updatedAt?: true
+    deletedAt?: true
   }
 
   export type InterviewSessionMaxAggregateInputType = {
@@ -2855,6 +2907,11 @@ export namespace Prisma {
     webrtcSessionId?: true
     openaiSessionId?: true
     fallbackMode?: true
+    startTime?: true
+    endTime?: true
+    duration?: true
+    status?: true
+    feedbackStatus?: true
     startedAt?: true
     endedAt?: true
     durationSeconds?: true
@@ -2862,12 +2919,14 @@ export namespace Prisma {
     expiresAt?: true
     createdAt?: true
     updatedAt?: true
+    deletedAt?: true
   }
 
   export type InterviewSessionCountAggregateInputType = {
     id?: true
     userId?: true
     jobTitle?: true
+    resumeData?: true
     resumeSnapshot?: true
     company?: true
     interviewType?: true
@@ -2875,6 +2934,12 @@ export namespace Prisma {
     webrtcSessionId?: true
     openaiSessionId?: true
     fallbackMode?: true
+    startTime?: true
+    endTime?: true
+    duration?: true
+    status?: true
+    feedbackStatus?: true
+    metadata?: true
     startedAt?: true
     endedAt?: true
     durationSeconds?: true
@@ -2882,6 +2947,7 @@ export namespace Prisma {
     expiresAt?: true
     createdAt?: true
     updatedAt?: true
+    deletedAt?: true
     _all?: true
   }
 
@@ -2975,6 +3041,7 @@ export namespace Prisma {
     id: string
     userId: string
     jobTitle: string
+    resumeData: JsonValue | null
     resumeSnapshot: JsonValue | null
     company: string | null
     interviewType: string | null
@@ -2982,6 +3049,12 @@ export namespace Prisma {
     webrtcSessionId: string | null
     openaiSessionId: string | null
     fallbackMode: boolean
+    startTime: Date | null
+    endTime: Date | null
+    duration: number | null
+    status: string
+    feedbackStatus: string
+    metadata: JsonValue | null
     startedAt: Date
     endedAt: Date | null
     durationSeconds: number | null
@@ -2989,6 +3062,7 @@ export namespace Prisma {
     expiresAt: Date | null
     createdAt: Date
     updatedAt: Date
+    deletedAt: Date | null
     _count: InterviewSessionCountAggregateOutputType | null
     _avg: InterviewSessionAvgAggregateOutputType | null
     _sum: InterviewSessionSumAggregateOutputType | null
@@ -3014,6 +3088,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     jobTitle?: boolean
+    resumeData?: boolean
     resumeSnapshot?: boolean
     company?: boolean
     interviewType?: boolean
@@ -3021,6 +3096,12 @@ export namespace Prisma {
     webrtcSessionId?: boolean
     openaiSessionId?: boolean
     fallbackMode?: boolean
+    startTime?: boolean
+    endTime?: boolean
+    duration?: boolean
+    status?: boolean
+    feedbackStatus?: boolean
+    metadata?: boolean
     startedAt?: boolean
     endedAt?: boolean
     durationSeconds?: boolean
@@ -3028,7 +3109,8 @@ export namespace Prisma {
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
-    feedback?: boolean | InterviewSession$feedbackArgs<ExtArgs>
+    deletedAt?: boolean
+    feedbacks?: boolean | InterviewSession$feedbacksArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
     transcripts?: boolean | InterviewSession$transcriptsArgs<ExtArgs>
     _count?: boolean | InterviewSessionCountOutputTypeDefaultArgs<ExtArgs>
@@ -3038,6 +3120,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     jobTitle?: boolean
+    resumeData?: boolean
     resumeSnapshot?: boolean
     company?: boolean
     interviewType?: boolean
@@ -3045,6 +3128,12 @@ export namespace Prisma {
     webrtcSessionId?: boolean
     openaiSessionId?: boolean
     fallbackMode?: boolean
+    startTime?: boolean
+    endTime?: boolean
+    duration?: boolean
+    status?: boolean
+    feedbackStatus?: boolean
+    metadata?: boolean
     startedAt?: boolean
     endedAt?: boolean
     durationSeconds?: boolean
@@ -3052,6 +3141,7 @@ export namespace Prisma {
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    deletedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["interviewSession"]>
 
@@ -3059,6 +3149,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     jobTitle?: boolean
+    resumeData?: boolean
     resumeSnapshot?: boolean
     company?: boolean
     interviewType?: boolean
@@ -3066,6 +3157,12 @@ export namespace Prisma {
     webrtcSessionId?: boolean
     openaiSessionId?: boolean
     fallbackMode?: boolean
+    startTime?: boolean
+    endTime?: boolean
+    duration?: boolean
+    status?: boolean
+    feedbackStatus?: boolean
+    metadata?: boolean
     startedAt?: boolean
     endedAt?: boolean
     durationSeconds?: boolean
@@ -3073,6 +3170,7 @@ export namespace Prisma {
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    deletedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["interviewSession"]>
 
@@ -3080,6 +3178,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     jobTitle?: boolean
+    resumeData?: boolean
     resumeSnapshot?: boolean
     company?: boolean
     interviewType?: boolean
@@ -3087,6 +3186,12 @@ export namespace Prisma {
     webrtcSessionId?: boolean
     openaiSessionId?: boolean
     fallbackMode?: boolean
+    startTime?: boolean
+    endTime?: boolean
+    duration?: boolean
+    status?: boolean
+    feedbackStatus?: boolean
+    metadata?: boolean
     startedAt?: boolean
     endedAt?: boolean
     durationSeconds?: boolean
@@ -3094,11 +3199,12 @@ export namespace Prisma {
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    deletedAt?: boolean
   }
 
-  export type InterviewSessionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "jobTitle" | "resumeSnapshot" | "company" | "interviewType" | "jdContext" | "webrtcSessionId" | "openaiSessionId" | "fallbackMode" | "startedAt" | "endedAt" | "durationSeconds" | "audioUrl" | "expiresAt" | "createdAt" | "updatedAt", ExtArgs["result"]["interviewSession"]>
+  export type InterviewSessionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "jobTitle" | "resumeData" | "resumeSnapshot" | "company" | "interviewType" | "jdContext" | "webrtcSessionId" | "openaiSessionId" | "fallbackMode" | "startTime" | "endTime" | "duration" | "status" | "feedbackStatus" | "metadata" | "startedAt" | "endedAt" | "durationSeconds" | "audioUrl" | "expiresAt" | "createdAt" | "updatedAt" | "deletedAt", ExtArgs["result"]["interviewSession"]>
   export type InterviewSessionInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    feedback?: boolean | InterviewSession$feedbackArgs<ExtArgs>
+    feedbacks?: boolean | InterviewSession$feedbacksArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
     transcripts?: boolean | InterviewSession$transcriptsArgs<ExtArgs>
     _count?: boolean | InterviewSessionCountOutputTypeDefaultArgs<ExtArgs>
@@ -3113,7 +3219,7 @@ export namespace Prisma {
   export type $InterviewSessionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "InterviewSession"
     objects: {
-      feedback: Prisma.$FeedbackPayload<ExtArgs> | null
+      feedbacks: Prisma.$FeedbackPayload<ExtArgs>[]
       user: Prisma.$UserPayload<ExtArgs>
       transcripts: Prisma.$TranscriptPayload<ExtArgs>[]
     }
@@ -3121,6 +3227,7 @@ export namespace Prisma {
       id: string
       userId: string
       jobTitle: string
+      resumeData: Prisma.JsonValue | null
       resumeSnapshot: Prisma.JsonValue | null
       company: string | null
       interviewType: string | null
@@ -3128,6 +3235,12 @@ export namespace Prisma {
       webrtcSessionId: string | null
       openaiSessionId: string | null
       fallbackMode: boolean
+      startTime: Date | null
+      endTime: Date | null
+      duration: number | null
+      status: string
+      feedbackStatus: string
+      metadata: Prisma.JsonValue | null
       startedAt: Date
       endedAt: Date | null
       durationSeconds: number | null
@@ -3135,6 +3248,7 @@ export namespace Prisma {
       expiresAt: Date | null
       createdAt: Date
       updatedAt: Date
+      deletedAt: Date | null
     }, ExtArgs["result"]["interviewSession"]>
     composites: {}
   }
@@ -3529,7 +3643,7 @@ export namespace Prisma {
    */
   export interface Prisma__InterviewSessionClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
-    feedback<T extends InterviewSession$feedbackArgs<ExtArgs> = {}>(args?: Subset<T, InterviewSession$feedbackArgs<ExtArgs>>): Prisma__FeedbackClient<$Result.GetResult<Prisma.$FeedbackPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    feedbacks<T extends InterviewSession$feedbacksArgs<ExtArgs> = {}>(args?: Subset<T, InterviewSession$feedbacksArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$FeedbackPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     transcripts<T extends InterviewSession$transcriptsArgs<ExtArgs> = {}>(args?: Subset<T, InterviewSession$transcriptsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TranscriptPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
@@ -3564,6 +3678,7 @@ export namespace Prisma {
     readonly id: FieldRef<"InterviewSession", 'String'>
     readonly userId: FieldRef<"InterviewSession", 'String'>
     readonly jobTitle: FieldRef<"InterviewSession", 'String'>
+    readonly resumeData: FieldRef<"InterviewSession", 'Json'>
     readonly resumeSnapshot: FieldRef<"InterviewSession", 'Json'>
     readonly company: FieldRef<"InterviewSession", 'String'>
     readonly interviewType: FieldRef<"InterviewSession", 'String'>
@@ -3571,6 +3686,12 @@ export namespace Prisma {
     readonly webrtcSessionId: FieldRef<"InterviewSession", 'String'>
     readonly openaiSessionId: FieldRef<"InterviewSession", 'String'>
     readonly fallbackMode: FieldRef<"InterviewSession", 'Boolean'>
+    readonly startTime: FieldRef<"InterviewSession", 'DateTime'>
+    readonly endTime: FieldRef<"InterviewSession", 'DateTime'>
+    readonly duration: FieldRef<"InterviewSession", 'Int'>
+    readonly status: FieldRef<"InterviewSession", 'String'>
+    readonly feedbackStatus: FieldRef<"InterviewSession", 'String'>
+    readonly metadata: FieldRef<"InterviewSession", 'Json'>
     readonly startedAt: FieldRef<"InterviewSession", 'DateTime'>
     readonly endedAt: FieldRef<"InterviewSession", 'DateTime'>
     readonly durationSeconds: FieldRef<"InterviewSession", 'Int'>
@@ -3578,6 +3699,7 @@ export namespace Prisma {
     readonly expiresAt: FieldRef<"InterviewSession", 'DateTime'>
     readonly createdAt: FieldRef<"InterviewSession", 'DateTime'>
     readonly updatedAt: FieldRef<"InterviewSession", 'DateTime'>
+    readonly deletedAt: FieldRef<"InterviewSession", 'DateTime'>
   }
     
 
@@ -3974,9 +4096,9 @@ export namespace Prisma {
   }
 
   /**
-   * InterviewSession.feedback
+   * InterviewSession.feedbacks
    */
-  export type InterviewSession$feedbackArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type InterviewSession$feedbacksArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
      * Select specific fields to fetch from the Feedback
      */
@@ -3990,6 +4112,11 @@ export namespace Prisma {
      */
     include?: FeedbackInclude<ExtArgs> | null
     where?: FeedbackWhereInput
+    orderBy?: FeedbackOrderByWithRelationInput | FeedbackOrderByWithRelationInput[]
+    cursor?: FeedbackWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: FeedbackScalarFieldEnum | FeedbackScalarFieldEnum[]
   }
 
   /**
@@ -4049,10 +4176,12 @@ export namespace Prisma {
 
   export type TranscriptAvgAggregateOutputType = {
     confidence: number | null
+    sequenceNumber: number | null
   }
 
   export type TranscriptSumAggregateOutputType = {
     confidence: number | null
+    sequenceNumber: number | null
   }
 
   export type TranscriptMinAggregateOutputType = {
@@ -4062,6 +4191,7 @@ export namespace Prisma {
     content: string | null
     confidence: number | null
     timestamp: Date | null
+    sequenceNumber: number | null
     expiresAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -4074,6 +4204,7 @@ export namespace Prisma {
     content: string | null
     confidence: number | null
     timestamp: Date | null
+    sequenceNumber: number | null
     expiresAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -4086,6 +4217,8 @@ export namespace Prisma {
     content: number
     confidence: number
     timestamp: number
+    sequenceNumber: number
+    metadata: number
     expiresAt: number
     createdAt: number
     updatedAt: number
@@ -4095,10 +4228,12 @@ export namespace Prisma {
 
   export type TranscriptAvgAggregateInputType = {
     confidence?: true
+    sequenceNumber?: true
   }
 
   export type TranscriptSumAggregateInputType = {
     confidence?: true
+    sequenceNumber?: true
   }
 
   export type TranscriptMinAggregateInputType = {
@@ -4108,6 +4243,7 @@ export namespace Prisma {
     content?: true
     confidence?: true
     timestamp?: true
+    sequenceNumber?: true
     expiresAt?: true
     createdAt?: true
     updatedAt?: true
@@ -4120,6 +4256,7 @@ export namespace Prisma {
     content?: true
     confidence?: true
     timestamp?: true
+    sequenceNumber?: true
     expiresAt?: true
     createdAt?: true
     updatedAt?: true
@@ -4132,6 +4269,8 @@ export namespace Prisma {
     content?: true
     confidence?: true
     timestamp?: true
+    sequenceNumber?: true
+    metadata?: true
     expiresAt?: true
     createdAt?: true
     updatedAt?: true
@@ -4231,6 +4370,8 @@ export namespace Prisma {
     content: string
     confidence: number | null
     timestamp: Date
+    sequenceNumber: number
+    metadata: JsonValue | null
     expiresAt: Date | null
     createdAt: Date
     updatedAt: Date
@@ -4262,6 +4403,8 @@ export namespace Prisma {
     content?: boolean
     confidence?: boolean
     timestamp?: boolean
+    sequenceNumber?: boolean
+    metadata?: boolean
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -4275,6 +4418,8 @@ export namespace Prisma {
     content?: boolean
     confidence?: boolean
     timestamp?: boolean
+    sequenceNumber?: boolean
+    metadata?: boolean
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -4288,6 +4433,8 @@ export namespace Prisma {
     content?: boolean
     confidence?: boolean
     timestamp?: boolean
+    sequenceNumber?: boolean
+    metadata?: boolean
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -4301,12 +4448,14 @@ export namespace Prisma {
     content?: boolean
     confidence?: boolean
     timestamp?: boolean
+    sequenceNumber?: boolean
+    metadata?: boolean
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type TranscriptOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "sessionId" | "role" | "content" | "confidence" | "timestamp" | "expiresAt" | "createdAt" | "updatedAt", ExtArgs["result"]["transcript"]>
+  export type TranscriptOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "sessionId" | "role" | "content" | "confidence" | "timestamp" | "sequenceNumber" | "metadata" | "expiresAt" | "createdAt" | "updatedAt", ExtArgs["result"]["transcript"]>
   export type TranscriptInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     session?: boolean | InterviewSessionDefaultArgs<ExtArgs>
   }
@@ -4329,6 +4478,8 @@ export namespace Prisma {
       content: string
       confidence: number | null
       timestamp: Date
+      sequenceNumber: number
+      metadata: Prisma.JsonValue | null
       expiresAt: Date | null
       createdAt: Date
       updatedAt: Date
@@ -4762,6 +4913,8 @@ export namespace Prisma {
     readonly content: FieldRef<"Transcript", 'String'>
     readonly confidence: FieldRef<"Transcript", 'Float'>
     readonly timestamp: FieldRef<"Transcript", 'DateTime'>
+    readonly sequenceNumber: FieldRef<"Transcript", 'Int'>
+    readonly metadata: FieldRef<"Transcript", 'Json'>
     readonly expiresAt: FieldRef<"Transcript", 'DateTime'>
     readonly createdAt: FieldRef<"Transcript", 'DateTime'>
     readonly updatedAt: FieldRef<"Transcript", 'DateTime'>
@@ -7476,6 +7629,7 @@ export namespace Prisma {
 
   export const UserScalarFieldEnum: {
     id: 'id',
+    clerkId: 'clerkId',
     role: 'role',
     credits: 'credits',
     resumeJobTitle: 'resumeJobTitle',
@@ -7507,6 +7661,7 @@ export namespace Prisma {
     id: 'id',
     userId: 'userId',
     jobTitle: 'jobTitle',
+    resumeData: 'resumeData',
     resumeSnapshot: 'resumeSnapshot',
     company: 'company',
     interviewType: 'interviewType',
@@ -7514,13 +7669,20 @@ export namespace Prisma {
     webrtcSessionId: 'webrtcSessionId',
     openaiSessionId: 'openaiSessionId',
     fallbackMode: 'fallbackMode',
+    startTime: 'startTime',
+    endTime: 'endTime',
+    duration: 'duration',
+    status: 'status',
+    feedbackStatus: 'feedbackStatus',
+    metadata: 'metadata',
     startedAt: 'startedAt',
     endedAt: 'endedAt',
     durationSeconds: 'durationSeconds',
     audioUrl: 'audioUrl',
     expiresAt: 'expiresAt',
     createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
+    updatedAt: 'updatedAt',
+    deletedAt: 'deletedAt'
   };
 
   export type InterviewSessionScalarFieldEnum = (typeof InterviewSessionScalarFieldEnum)[keyof typeof InterviewSessionScalarFieldEnum]
@@ -7533,6 +7695,8 @@ export namespace Prisma {
     content: 'content',
     confidence: 'confidence',
     timestamp: 'timestamp',
+    sequenceNumber: 'sequenceNumber',
+    metadata: 'metadata',
     expiresAt: 'expiresAt',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
@@ -7730,6 +7894,7 @@ export namespace Prisma {
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
     id?: StringFilter<"User"> | string
+    clerkId?: StringFilter<"User"> | string
     role?: EnumUserRoleFilter<"User"> | $Enums.UserRole
     credits?: DecimalFilter<"User"> | Decimal | DecimalJsLike | number | string
     resumeJobTitle?: StringNullableFilter<"User"> | string | null
@@ -7759,6 +7924,7 @@ export namespace Prisma {
 
   export type UserOrderByWithRelationInput = {
     id?: SortOrder
+    clerkId?: SortOrder
     role?: SortOrder
     credits?: SortOrder
     resumeJobTitle?: SortOrderInput | SortOrder
@@ -7788,6 +7954,7 @@ export namespace Prisma {
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
     id?: string
+    clerkId?: string
     premiumSubscriptionId?: string
     stripeCustomerId?: string
     email?: string
@@ -7816,10 +7983,11 @@ export namespace Prisma {
     feedbacks?: FeedbackListRelationFilter
     interviewSessions?: InterviewSessionListRelationFilter
     usageEvents?: UsageEventListRelationFilter
-  }, "id" | "id" | "premiumSubscriptionId" | "stripeCustomerId" | "email">
+  }, "id" | "id" | "clerkId" | "premiumSubscriptionId" | "stripeCustomerId" | "email">
 
   export type UserOrderByWithAggregationInput = {
     id?: SortOrder
+    clerkId?: SortOrder
     role?: SortOrder
     credits?: SortOrder
     resumeJobTitle?: SortOrderInput | SortOrder
@@ -7854,6 +8022,7 @@ export namespace Prisma {
     OR?: UserScalarWhereWithAggregatesInput[]
     NOT?: UserScalarWhereWithAggregatesInput | UserScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"User"> | string
+    clerkId?: StringWithAggregatesFilter<"User"> | string
     role?: EnumUserRoleWithAggregatesFilter<"User"> | $Enums.UserRole
     credits?: DecimalWithAggregatesFilter<"User"> | Decimal | DecimalJsLike | number | string
     resumeJobTitle?: StringNullableWithAggregatesFilter<"User"> | string | null
@@ -7885,6 +8054,7 @@ export namespace Prisma {
     id?: StringFilter<"InterviewSession"> | string
     userId?: StringFilter<"InterviewSession"> | string
     jobTitle?: StringFilter<"InterviewSession"> | string
+    resumeData?: JsonNullableFilter<"InterviewSession">
     resumeSnapshot?: JsonNullableFilter<"InterviewSession">
     company?: StringNullableFilter<"InterviewSession"> | string | null
     interviewType?: StringNullableFilter<"InterviewSession"> | string | null
@@ -7892,6 +8062,12 @@ export namespace Prisma {
     webrtcSessionId?: StringNullableFilter<"InterviewSession"> | string | null
     openaiSessionId?: StringNullableFilter<"InterviewSession"> | string | null
     fallbackMode?: BoolFilter<"InterviewSession"> | boolean
+    startTime?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
+    endTime?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
+    duration?: IntNullableFilter<"InterviewSession"> | number | null
+    status?: StringFilter<"InterviewSession"> | string
+    feedbackStatus?: StringFilter<"InterviewSession"> | string
+    metadata?: JsonNullableFilter<"InterviewSession">
     startedAt?: DateTimeFilter<"InterviewSession"> | Date | string
     endedAt?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
     durationSeconds?: IntNullableFilter<"InterviewSession"> | number | null
@@ -7899,7 +8075,8 @@ export namespace Prisma {
     expiresAt?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
     createdAt?: DateTimeFilter<"InterviewSession"> | Date | string
     updatedAt?: DateTimeFilter<"InterviewSession"> | Date | string
-    feedback?: XOR<FeedbackNullableScalarRelationFilter, FeedbackWhereInput> | null
+    deletedAt?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
+    feedbacks?: FeedbackListRelationFilter
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
     transcripts?: TranscriptListRelationFilter
   }
@@ -7908,6 +8085,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     jobTitle?: SortOrder
+    resumeData?: SortOrderInput | SortOrder
     resumeSnapshot?: SortOrderInput | SortOrder
     company?: SortOrderInput | SortOrder
     interviewType?: SortOrderInput | SortOrder
@@ -7915,6 +8093,12 @@ export namespace Prisma {
     webrtcSessionId?: SortOrderInput | SortOrder
     openaiSessionId?: SortOrderInput | SortOrder
     fallbackMode?: SortOrder
+    startTime?: SortOrderInput | SortOrder
+    endTime?: SortOrderInput | SortOrder
+    duration?: SortOrderInput | SortOrder
+    status?: SortOrder
+    feedbackStatus?: SortOrder
+    metadata?: SortOrderInput | SortOrder
     startedAt?: SortOrder
     endedAt?: SortOrderInput | SortOrder
     durationSeconds?: SortOrderInput | SortOrder
@@ -7922,7 +8106,8 @@ export namespace Prisma {
     expiresAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
-    feedback?: FeedbackOrderByWithRelationInput
+    deletedAt?: SortOrderInput | SortOrder
+    feedbacks?: FeedbackOrderByRelationAggregateInput
     user?: UserOrderByWithRelationInput
     transcripts?: TranscriptOrderByRelationAggregateInput
   }
@@ -7936,11 +8121,18 @@ export namespace Prisma {
     NOT?: InterviewSessionWhereInput | InterviewSessionWhereInput[]
     userId?: StringFilter<"InterviewSession"> | string
     jobTitle?: StringFilter<"InterviewSession"> | string
+    resumeData?: JsonNullableFilter<"InterviewSession">
     resumeSnapshot?: JsonNullableFilter<"InterviewSession">
     company?: StringNullableFilter<"InterviewSession"> | string | null
     interviewType?: StringNullableFilter<"InterviewSession"> | string | null
     jdContext?: StringNullableFilter<"InterviewSession"> | string | null
     fallbackMode?: BoolFilter<"InterviewSession"> | boolean
+    startTime?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
+    endTime?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
+    duration?: IntNullableFilter<"InterviewSession"> | number | null
+    status?: StringFilter<"InterviewSession"> | string
+    feedbackStatus?: StringFilter<"InterviewSession"> | string
+    metadata?: JsonNullableFilter<"InterviewSession">
     startedAt?: DateTimeFilter<"InterviewSession"> | Date | string
     endedAt?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
     durationSeconds?: IntNullableFilter<"InterviewSession"> | number | null
@@ -7948,7 +8140,8 @@ export namespace Prisma {
     expiresAt?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
     createdAt?: DateTimeFilter<"InterviewSession"> | Date | string
     updatedAt?: DateTimeFilter<"InterviewSession"> | Date | string
-    feedback?: XOR<FeedbackNullableScalarRelationFilter, FeedbackWhereInput> | null
+    deletedAt?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
+    feedbacks?: FeedbackListRelationFilter
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
     transcripts?: TranscriptListRelationFilter
   }, "id" | "webrtcSessionId" | "openaiSessionId">
@@ -7957,6 +8150,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     jobTitle?: SortOrder
+    resumeData?: SortOrderInput | SortOrder
     resumeSnapshot?: SortOrderInput | SortOrder
     company?: SortOrderInput | SortOrder
     interviewType?: SortOrderInput | SortOrder
@@ -7964,6 +8158,12 @@ export namespace Prisma {
     webrtcSessionId?: SortOrderInput | SortOrder
     openaiSessionId?: SortOrderInput | SortOrder
     fallbackMode?: SortOrder
+    startTime?: SortOrderInput | SortOrder
+    endTime?: SortOrderInput | SortOrder
+    duration?: SortOrderInput | SortOrder
+    status?: SortOrder
+    feedbackStatus?: SortOrder
+    metadata?: SortOrderInput | SortOrder
     startedAt?: SortOrder
     endedAt?: SortOrderInput | SortOrder
     durationSeconds?: SortOrderInput | SortOrder
@@ -7971,6 +8171,7 @@ export namespace Prisma {
     expiresAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    deletedAt?: SortOrderInput | SortOrder
     _count?: InterviewSessionCountOrderByAggregateInput
     _avg?: InterviewSessionAvgOrderByAggregateInput
     _max?: InterviewSessionMaxOrderByAggregateInput
@@ -7985,6 +8186,7 @@ export namespace Prisma {
     id?: StringWithAggregatesFilter<"InterviewSession"> | string
     userId?: StringWithAggregatesFilter<"InterviewSession"> | string
     jobTitle?: StringWithAggregatesFilter<"InterviewSession"> | string
+    resumeData?: JsonNullableWithAggregatesFilter<"InterviewSession">
     resumeSnapshot?: JsonNullableWithAggregatesFilter<"InterviewSession">
     company?: StringNullableWithAggregatesFilter<"InterviewSession"> | string | null
     interviewType?: StringNullableWithAggregatesFilter<"InterviewSession"> | string | null
@@ -7992,6 +8194,12 @@ export namespace Prisma {
     webrtcSessionId?: StringNullableWithAggregatesFilter<"InterviewSession"> | string | null
     openaiSessionId?: StringNullableWithAggregatesFilter<"InterviewSession"> | string | null
     fallbackMode?: BoolWithAggregatesFilter<"InterviewSession"> | boolean
+    startTime?: DateTimeNullableWithAggregatesFilter<"InterviewSession"> | Date | string | null
+    endTime?: DateTimeNullableWithAggregatesFilter<"InterviewSession"> | Date | string | null
+    duration?: IntNullableWithAggregatesFilter<"InterviewSession"> | number | null
+    status?: StringWithAggregatesFilter<"InterviewSession"> | string
+    feedbackStatus?: StringWithAggregatesFilter<"InterviewSession"> | string
+    metadata?: JsonNullableWithAggregatesFilter<"InterviewSession">
     startedAt?: DateTimeWithAggregatesFilter<"InterviewSession"> | Date | string
     endedAt?: DateTimeNullableWithAggregatesFilter<"InterviewSession"> | Date | string | null
     durationSeconds?: IntNullableWithAggregatesFilter<"InterviewSession"> | number | null
@@ -7999,6 +8207,7 @@ export namespace Prisma {
     expiresAt?: DateTimeNullableWithAggregatesFilter<"InterviewSession"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"InterviewSession"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"InterviewSession"> | Date | string
+    deletedAt?: DateTimeNullableWithAggregatesFilter<"InterviewSession"> | Date | string | null
   }
 
   export type TranscriptWhereInput = {
@@ -8011,6 +8220,8 @@ export namespace Prisma {
     content?: StringFilter<"Transcript"> | string
     confidence?: FloatNullableFilter<"Transcript"> | number | null
     timestamp?: DateTimeFilter<"Transcript"> | Date | string
+    sequenceNumber?: IntFilter<"Transcript"> | number
+    metadata?: JsonNullableFilter<"Transcript">
     expiresAt?: DateTimeNullableFilter<"Transcript"> | Date | string | null
     createdAt?: DateTimeFilter<"Transcript"> | Date | string
     updatedAt?: DateTimeFilter<"Transcript"> | Date | string
@@ -8024,6 +8235,8 @@ export namespace Prisma {
     content?: SortOrder
     confidence?: SortOrderInput | SortOrder
     timestamp?: SortOrder
+    sequenceNumber?: SortOrder
+    metadata?: SortOrderInput | SortOrder
     expiresAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -8040,6 +8253,8 @@ export namespace Prisma {
     content?: StringFilter<"Transcript"> | string
     confidence?: FloatNullableFilter<"Transcript"> | number | null
     timestamp?: DateTimeFilter<"Transcript"> | Date | string
+    sequenceNumber?: IntFilter<"Transcript"> | number
+    metadata?: JsonNullableFilter<"Transcript">
     expiresAt?: DateTimeNullableFilter<"Transcript"> | Date | string | null
     createdAt?: DateTimeFilter<"Transcript"> | Date | string
     updatedAt?: DateTimeFilter<"Transcript"> | Date | string
@@ -8053,6 +8268,8 @@ export namespace Prisma {
     content?: SortOrder
     confidence?: SortOrderInput | SortOrder
     timestamp?: SortOrder
+    sequenceNumber?: SortOrder
+    metadata?: SortOrderInput | SortOrder
     expiresAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -8073,6 +8290,8 @@ export namespace Prisma {
     content?: StringWithAggregatesFilter<"Transcript"> | string
     confidence?: FloatNullableWithAggregatesFilter<"Transcript"> | number | null
     timestamp?: DateTimeWithAggregatesFilter<"Transcript"> | Date | string
+    sequenceNumber?: IntWithAggregatesFilter<"Transcript"> | number
+    metadata?: JsonNullableWithAggregatesFilter<"Transcript">
     expiresAt?: DateTimeNullableWithAggregatesFilter<"Transcript"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Transcript"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Transcript"> | Date | string
@@ -8115,10 +8334,10 @@ export namespace Prisma {
 
   export type FeedbackWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    sessionId?: string
     AND?: FeedbackWhereInput | FeedbackWhereInput[]
     OR?: FeedbackWhereInput[]
     NOT?: FeedbackWhereInput | FeedbackWhereInput[]
+    sessionId?: StringFilter<"Feedback"> | string
     userId?: StringFilter<"Feedback"> | string
     summary?: StringFilter<"Feedback"> | string
     strengths?: StringNullableFilter<"Feedback"> | string | null
@@ -8130,7 +8349,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"Feedback"> | Date | string
     session?: XOR<InterviewSessionScalarRelationFilter, InterviewSessionWhereInput>
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
-  }, "id" | "sessionId">
+  }, "id">
 
   export type FeedbackOrderByWithAggregationInput = {
     id?: SortOrder
@@ -8235,6 +8454,7 @@ export namespace Prisma {
 
   export type UserCreateInput = {
     id: string
+    clerkId: string
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
     resumeJobTitle?: string | null
@@ -8264,6 +8484,7 @@ export namespace Prisma {
 
   export type UserUncheckedCreateInput = {
     id: string
+    clerkId: string
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
     resumeJobTitle?: string | null
@@ -8293,6 +8514,7 @@ export namespace Prisma {
 
   export type UserUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerkId?: StringFieldUpdateOperationsInput | string
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
@@ -8322,6 +8544,7 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerkId?: StringFieldUpdateOperationsInput | string
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
@@ -8351,6 +8574,7 @@ export namespace Prisma {
 
   export type UserCreateManyInput = {
     id: string
+    clerkId: string
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
     resumeJobTitle?: string | null
@@ -8377,6 +8601,7 @@ export namespace Prisma {
 
   export type UserUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerkId?: StringFieldUpdateOperationsInput | string
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
@@ -8403,6 +8628,7 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerkId?: StringFieldUpdateOperationsInput | string
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
@@ -8428,8 +8654,9 @@ export namespace Prisma {
   }
 
   export type InterviewSessionCreateInput = {
-    id: string
+    id?: string
     jobTitle: string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: string | null
     interviewType?: string | null
@@ -8437,6 +8664,12 @@ export namespace Prisma {
     webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
+    startTime?: Date | string | null
+    endTime?: Date | string | null
+    duration?: number | null
+    status?: string
+    feedbackStatus?: string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: Date | string
     endedAt?: Date | string | null
     durationSeconds?: number | null
@@ -8444,15 +8677,17 @@ export namespace Prisma {
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    feedback?: FeedbackCreateNestedOneWithoutSessionInput
+    deletedAt?: Date | string | null
+    feedbacks?: FeedbackCreateNestedManyWithoutSessionInput
     user: UserCreateNestedOneWithoutInterviewSessionsInput
     transcripts?: TranscriptCreateNestedManyWithoutSessionInput
   }
 
   export type InterviewSessionUncheckedCreateInput = {
-    id: string
+    id?: string
     userId: string
     jobTitle: string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: string | null
     interviewType?: string | null
@@ -8460,6 +8695,12 @@ export namespace Prisma {
     webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
+    startTime?: Date | string | null
+    endTime?: Date | string | null
+    duration?: number | null
+    status?: string
+    feedbackStatus?: string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: Date | string
     endedAt?: Date | string | null
     durationSeconds?: number | null
@@ -8467,13 +8708,15 @@ export namespace Prisma {
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    feedback?: FeedbackUncheckedCreateNestedOneWithoutSessionInput
+    deletedAt?: Date | string | null
+    feedbacks?: FeedbackUncheckedCreateNestedManyWithoutSessionInput
     transcripts?: TranscriptUncheckedCreateNestedManyWithoutSessionInput
   }
 
   export type InterviewSessionUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     jobTitle?: StringFieldUpdateOperationsInput | string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
@@ -8481,6 +8724,12 @@ export namespace Prisma {
     webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
+    startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    duration?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: StringFieldUpdateOperationsInput | string
+    feedbackStatus?: StringFieldUpdateOperationsInput | string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
@@ -8488,7 +8737,8 @@ export namespace Prisma {
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    feedback?: FeedbackUpdateOneWithoutSessionNestedInput
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    feedbacks?: FeedbackUpdateManyWithoutSessionNestedInput
     user?: UserUpdateOneRequiredWithoutInterviewSessionsNestedInput
     transcripts?: TranscriptUpdateManyWithoutSessionNestedInput
   }
@@ -8497,6 +8747,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     jobTitle?: StringFieldUpdateOperationsInput | string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
@@ -8504,6 +8755,12 @@ export namespace Prisma {
     webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
+    startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    duration?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: StringFieldUpdateOperationsInput | string
+    feedbackStatus?: StringFieldUpdateOperationsInput | string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
@@ -8511,14 +8768,16 @@ export namespace Prisma {
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    feedback?: FeedbackUncheckedUpdateOneWithoutSessionNestedInput
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    feedbacks?: FeedbackUncheckedUpdateManyWithoutSessionNestedInput
     transcripts?: TranscriptUncheckedUpdateManyWithoutSessionNestedInput
   }
 
   export type InterviewSessionCreateManyInput = {
-    id: string
+    id?: string
     userId: string
     jobTitle: string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: string | null
     interviewType?: string | null
@@ -8526,6 +8785,12 @@ export namespace Prisma {
     webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
+    startTime?: Date | string | null
+    endTime?: Date | string | null
+    duration?: number | null
+    status?: string
+    feedbackStatus?: string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: Date | string
     endedAt?: Date | string | null
     durationSeconds?: number | null
@@ -8533,11 +8798,13 @@ export namespace Prisma {
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    deletedAt?: Date | string | null
   }
 
   export type InterviewSessionUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     jobTitle?: StringFieldUpdateOperationsInput | string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
@@ -8545,6 +8812,12 @@ export namespace Prisma {
     webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
+    startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    duration?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: StringFieldUpdateOperationsInput | string
+    feedbackStatus?: StringFieldUpdateOperationsInput | string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
@@ -8552,12 +8825,14 @@ export namespace Prisma {
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type InterviewSessionUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     jobTitle?: StringFieldUpdateOperationsInput | string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
@@ -8565,6 +8840,12 @@ export namespace Prisma {
     webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
+    startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    duration?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: StringFieldUpdateOperationsInput | string
+    feedbackStatus?: StringFieldUpdateOperationsInput | string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
@@ -8572,14 +8853,17 @@ export namespace Prisma {
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type TranscriptCreateInput = {
-    id: string
+    id?: string
     role: string
     content: string
     confidence?: number | null
     timestamp: Date | string
+    sequenceNumber?: number
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -8587,12 +8871,14 @@ export namespace Prisma {
   }
 
   export type TranscriptUncheckedCreateInput = {
-    id: string
+    id?: string
     sessionId: string
     role: string
     content: string
     confidence?: number | null
     timestamp: Date | string
+    sequenceNumber?: number
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -8604,6 +8890,8 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     confidence?: NullableFloatFieldUpdateOperationsInput | number | null
     timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+    sequenceNumber?: IntFieldUpdateOperationsInput | number
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -8617,18 +8905,22 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     confidence?: NullableFloatFieldUpdateOperationsInput | number | null
     timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+    sequenceNumber?: IntFieldUpdateOperationsInput | number
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type TranscriptCreateManyInput = {
-    id: string
+    id?: string
     sessionId: string
     role: string
     content: string
     confidence?: number | null
     timestamp: Date | string
+    sequenceNumber?: number
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -8640,6 +8932,8 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     confidence?: NullableFloatFieldUpdateOperationsInput | number | null
     timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+    sequenceNumber?: IntFieldUpdateOperationsInput | number
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -8652,13 +8946,15 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     confidence?: NullableFloatFieldUpdateOperationsInput | number | null
     timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+    sequenceNumber?: IntFieldUpdateOperationsInput | number
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type FeedbackCreateInput = {
-    id: string
+    id?: string
     summary: string
     strengths?: string | null
     areasForImprovement?: string | null
@@ -8667,12 +8963,12 @@ export namespace Prisma {
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    session: InterviewSessionCreateNestedOneWithoutFeedbackInput
+    session: InterviewSessionCreateNestedOneWithoutFeedbacksInput
     user: UserCreateNestedOneWithoutFeedbacksInput
   }
 
   export type FeedbackUncheckedCreateInput = {
-    id: string
+    id?: string
     sessionId: string
     userId: string
     summary: string
@@ -8695,7 +8991,7 @@ export namespace Prisma {
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    session?: InterviewSessionUpdateOneRequiredWithoutFeedbackNestedInput
+    session?: InterviewSessionUpdateOneRequiredWithoutFeedbacksNestedInput
     user?: UserUpdateOneRequiredWithoutFeedbacksNestedInput
   }
 
@@ -8714,7 +9010,7 @@ export namespace Prisma {
   }
 
   export type FeedbackCreateManyInput = {
-    id: string
+    id?: string
     sessionId: string
     userId: string
     summary: string
@@ -8939,6 +9235,7 @@ export namespace Prisma {
 
   export type UserCountOrderByAggregateInput = {
     id?: SortOrder
+    clerkId?: SortOrder
     role?: SortOrder
     credits?: SortOrder
     resumeJobTitle?: SortOrder
@@ -8969,6 +9266,7 @@ export namespace Prisma {
 
   export type UserMaxOrderByAggregateInput = {
     id?: SortOrder
+    clerkId?: SortOrder
     role?: SortOrder
     credits?: SortOrder
     resumeJobTitle?: SortOrder
@@ -8995,6 +9293,7 @@ export namespace Prisma {
 
   export type UserMinOrderByAggregateInput = {
     id?: SortOrder
+    clerkId?: SortOrder
     role?: SortOrder
     credits?: SortOrder
     resumeJobTitle?: SortOrder
@@ -9163,11 +9462,6 @@ export namespace Prisma {
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
 
-  export type FeedbackNullableScalarRelationFilter = {
-    is?: FeedbackWhereInput | null
-    isNot?: FeedbackWhereInput | null
-  }
-
   export type UserScalarRelationFilter = {
     is?: UserWhereInput
     isNot?: UserWhereInput
@@ -9187,6 +9481,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     jobTitle?: SortOrder
+    resumeData?: SortOrder
     resumeSnapshot?: SortOrder
     company?: SortOrder
     interviewType?: SortOrder
@@ -9194,6 +9489,12 @@ export namespace Prisma {
     webrtcSessionId?: SortOrder
     openaiSessionId?: SortOrder
     fallbackMode?: SortOrder
+    startTime?: SortOrder
+    endTime?: SortOrder
+    duration?: SortOrder
+    status?: SortOrder
+    feedbackStatus?: SortOrder
+    metadata?: SortOrder
     startedAt?: SortOrder
     endedAt?: SortOrder
     durationSeconds?: SortOrder
@@ -9201,9 +9502,11 @@ export namespace Prisma {
     expiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    deletedAt?: SortOrder
   }
 
   export type InterviewSessionAvgOrderByAggregateInput = {
+    duration?: SortOrder
     durationSeconds?: SortOrder
   }
 
@@ -9217,6 +9520,11 @@ export namespace Prisma {
     webrtcSessionId?: SortOrder
     openaiSessionId?: SortOrder
     fallbackMode?: SortOrder
+    startTime?: SortOrder
+    endTime?: SortOrder
+    duration?: SortOrder
+    status?: SortOrder
+    feedbackStatus?: SortOrder
     startedAt?: SortOrder
     endedAt?: SortOrder
     durationSeconds?: SortOrder
@@ -9224,6 +9532,7 @@ export namespace Prisma {
     expiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    deletedAt?: SortOrder
   }
 
   export type InterviewSessionMinOrderByAggregateInput = {
@@ -9236,6 +9545,11 @@ export namespace Prisma {
     webrtcSessionId?: SortOrder
     openaiSessionId?: SortOrder
     fallbackMode?: SortOrder
+    startTime?: SortOrder
+    endTime?: SortOrder
+    duration?: SortOrder
+    status?: SortOrder
+    feedbackStatus?: SortOrder
     startedAt?: SortOrder
     endedAt?: SortOrder
     durationSeconds?: SortOrder
@@ -9243,9 +9557,11 @@ export namespace Prisma {
     expiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    deletedAt?: SortOrder
   }
 
   export type InterviewSessionSumOrderByAggregateInput = {
+    duration?: SortOrder
     durationSeconds?: SortOrder
   }
   export type JsonNullableWithAggregatesFilter<$PrismaModel = never> =
@@ -9302,6 +9618,17 @@ export namespace Prisma {
     not?: NestedFloatNullableFilter<$PrismaModel> | number | null
   }
 
+  export type IntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
   export type InterviewSessionScalarRelationFilter = {
     is?: InterviewSessionWhereInput
     isNot?: InterviewSessionWhereInput
@@ -9314,6 +9641,8 @@ export namespace Prisma {
     content?: SortOrder
     confidence?: SortOrder
     timestamp?: SortOrder
+    sequenceNumber?: SortOrder
+    metadata?: SortOrder
     expiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -9321,6 +9650,7 @@ export namespace Prisma {
 
   export type TranscriptAvgOrderByAggregateInput = {
     confidence?: SortOrder
+    sequenceNumber?: SortOrder
   }
 
   export type TranscriptMaxOrderByAggregateInput = {
@@ -9330,6 +9660,7 @@ export namespace Prisma {
     content?: SortOrder
     confidence?: SortOrder
     timestamp?: SortOrder
+    sequenceNumber?: SortOrder
     expiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -9342,6 +9673,7 @@ export namespace Prisma {
     content?: SortOrder
     confidence?: SortOrder
     timestamp?: SortOrder
+    sequenceNumber?: SortOrder
     expiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -9349,6 +9681,7 @@ export namespace Prisma {
 
   export type TranscriptSumOrderByAggregateInput = {
     confidence?: SortOrder
+    sequenceNumber?: SortOrder
   }
 
   export type FloatNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -9365,6 +9698,22 @@ export namespace Prisma {
     _sum?: NestedFloatNullableFilter<$PrismaModel>
     _min?: NestedFloatNullableFilter<$PrismaModel>
     _max?: NestedFloatNullableFilter<$PrismaModel>
+  }
+
+  export type IntWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
   }
 
   export type FeedbackCountOrderByAggregateInput = {
@@ -9614,10 +9963,11 @@ export namespace Prisma {
     deleteMany?: UsageEventScalarWhereInput | UsageEventScalarWhereInput[]
   }
 
-  export type FeedbackCreateNestedOneWithoutSessionInput = {
-    create?: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput>
-    connectOrCreate?: FeedbackCreateOrConnectWithoutSessionInput
-    connect?: FeedbackWhereUniqueInput
+  export type FeedbackCreateNestedManyWithoutSessionInput = {
+    create?: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput> | FeedbackCreateWithoutSessionInput[] | FeedbackUncheckedCreateWithoutSessionInput[]
+    connectOrCreate?: FeedbackCreateOrConnectWithoutSessionInput | FeedbackCreateOrConnectWithoutSessionInput[]
+    createMany?: FeedbackCreateManySessionInputEnvelope
+    connect?: FeedbackWhereUniqueInput | FeedbackWhereUniqueInput[]
   }
 
   export type UserCreateNestedOneWithoutInterviewSessionsInput = {
@@ -9633,10 +9983,11 @@ export namespace Prisma {
     connect?: TranscriptWhereUniqueInput | TranscriptWhereUniqueInput[]
   }
 
-  export type FeedbackUncheckedCreateNestedOneWithoutSessionInput = {
-    create?: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput>
-    connectOrCreate?: FeedbackCreateOrConnectWithoutSessionInput
-    connect?: FeedbackWhereUniqueInput
+  export type FeedbackUncheckedCreateNestedManyWithoutSessionInput = {
+    create?: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput> | FeedbackCreateWithoutSessionInput[] | FeedbackUncheckedCreateWithoutSessionInput[]
+    connectOrCreate?: FeedbackCreateOrConnectWithoutSessionInput | FeedbackCreateOrConnectWithoutSessionInput[]
+    createMany?: FeedbackCreateManySessionInputEnvelope
+    connect?: FeedbackWhereUniqueInput | FeedbackWhereUniqueInput[]
   }
 
   export type TranscriptUncheckedCreateNestedManyWithoutSessionInput = {
@@ -9654,14 +10005,18 @@ export namespace Prisma {
     divide?: number
   }
 
-  export type FeedbackUpdateOneWithoutSessionNestedInput = {
-    create?: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput>
-    connectOrCreate?: FeedbackCreateOrConnectWithoutSessionInput
-    upsert?: FeedbackUpsertWithoutSessionInput
-    disconnect?: FeedbackWhereInput | boolean
-    delete?: FeedbackWhereInput | boolean
-    connect?: FeedbackWhereUniqueInput
-    update?: XOR<XOR<FeedbackUpdateToOneWithWhereWithoutSessionInput, FeedbackUpdateWithoutSessionInput>, FeedbackUncheckedUpdateWithoutSessionInput>
+  export type FeedbackUpdateManyWithoutSessionNestedInput = {
+    create?: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput> | FeedbackCreateWithoutSessionInput[] | FeedbackUncheckedCreateWithoutSessionInput[]
+    connectOrCreate?: FeedbackCreateOrConnectWithoutSessionInput | FeedbackCreateOrConnectWithoutSessionInput[]
+    upsert?: FeedbackUpsertWithWhereUniqueWithoutSessionInput | FeedbackUpsertWithWhereUniqueWithoutSessionInput[]
+    createMany?: FeedbackCreateManySessionInputEnvelope
+    set?: FeedbackWhereUniqueInput | FeedbackWhereUniqueInput[]
+    disconnect?: FeedbackWhereUniqueInput | FeedbackWhereUniqueInput[]
+    delete?: FeedbackWhereUniqueInput | FeedbackWhereUniqueInput[]
+    connect?: FeedbackWhereUniqueInput | FeedbackWhereUniqueInput[]
+    update?: FeedbackUpdateWithWhereUniqueWithoutSessionInput | FeedbackUpdateWithWhereUniqueWithoutSessionInput[]
+    updateMany?: FeedbackUpdateManyWithWhereWithoutSessionInput | FeedbackUpdateManyWithWhereWithoutSessionInput[]
+    deleteMany?: FeedbackScalarWhereInput | FeedbackScalarWhereInput[]
   }
 
   export type UserUpdateOneRequiredWithoutInterviewSessionsNestedInput = {
@@ -9686,14 +10041,18 @@ export namespace Prisma {
     deleteMany?: TranscriptScalarWhereInput | TranscriptScalarWhereInput[]
   }
 
-  export type FeedbackUncheckedUpdateOneWithoutSessionNestedInput = {
-    create?: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput>
-    connectOrCreate?: FeedbackCreateOrConnectWithoutSessionInput
-    upsert?: FeedbackUpsertWithoutSessionInput
-    disconnect?: FeedbackWhereInput | boolean
-    delete?: FeedbackWhereInput | boolean
-    connect?: FeedbackWhereUniqueInput
-    update?: XOR<XOR<FeedbackUpdateToOneWithWhereWithoutSessionInput, FeedbackUpdateWithoutSessionInput>, FeedbackUncheckedUpdateWithoutSessionInput>
+  export type FeedbackUncheckedUpdateManyWithoutSessionNestedInput = {
+    create?: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput> | FeedbackCreateWithoutSessionInput[] | FeedbackUncheckedCreateWithoutSessionInput[]
+    connectOrCreate?: FeedbackCreateOrConnectWithoutSessionInput | FeedbackCreateOrConnectWithoutSessionInput[]
+    upsert?: FeedbackUpsertWithWhereUniqueWithoutSessionInput | FeedbackUpsertWithWhereUniqueWithoutSessionInput[]
+    createMany?: FeedbackCreateManySessionInputEnvelope
+    set?: FeedbackWhereUniqueInput | FeedbackWhereUniqueInput[]
+    disconnect?: FeedbackWhereUniqueInput | FeedbackWhereUniqueInput[]
+    delete?: FeedbackWhereUniqueInput | FeedbackWhereUniqueInput[]
+    connect?: FeedbackWhereUniqueInput | FeedbackWhereUniqueInput[]
+    update?: FeedbackUpdateWithWhereUniqueWithoutSessionInput | FeedbackUpdateWithWhereUniqueWithoutSessionInput[]
+    updateMany?: FeedbackUpdateManyWithWhereWithoutSessionInput | FeedbackUpdateManyWithWhereWithoutSessionInput[]
+    deleteMany?: FeedbackScalarWhereInput | FeedbackScalarWhereInput[]
   }
 
   export type TranscriptUncheckedUpdateManyWithoutSessionNestedInput = {
@@ -9724,6 +10083,14 @@ export namespace Prisma {
     divide?: number
   }
 
+  export type IntFieldUpdateOperationsInput = {
+    set?: number
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
   export type InterviewSessionUpdateOneRequiredWithoutTranscriptsNestedInput = {
     create?: XOR<InterviewSessionCreateWithoutTranscriptsInput, InterviewSessionUncheckedCreateWithoutTranscriptsInput>
     connectOrCreate?: InterviewSessionCreateOrConnectWithoutTranscriptsInput
@@ -9732,9 +10099,9 @@ export namespace Prisma {
     update?: XOR<XOR<InterviewSessionUpdateToOneWithWhereWithoutTranscriptsInput, InterviewSessionUpdateWithoutTranscriptsInput>, InterviewSessionUncheckedUpdateWithoutTranscriptsInput>
   }
 
-  export type InterviewSessionCreateNestedOneWithoutFeedbackInput = {
-    create?: XOR<InterviewSessionCreateWithoutFeedbackInput, InterviewSessionUncheckedCreateWithoutFeedbackInput>
-    connectOrCreate?: InterviewSessionCreateOrConnectWithoutFeedbackInput
+  export type InterviewSessionCreateNestedOneWithoutFeedbacksInput = {
+    create?: XOR<InterviewSessionCreateWithoutFeedbacksInput, InterviewSessionUncheckedCreateWithoutFeedbacksInput>
+    connectOrCreate?: InterviewSessionCreateOrConnectWithoutFeedbacksInput
     connect?: InterviewSessionWhereUniqueInput
   }
 
@@ -9744,12 +10111,12 @@ export namespace Prisma {
     connect?: UserWhereUniqueInput
   }
 
-  export type InterviewSessionUpdateOneRequiredWithoutFeedbackNestedInput = {
-    create?: XOR<InterviewSessionCreateWithoutFeedbackInput, InterviewSessionUncheckedCreateWithoutFeedbackInput>
-    connectOrCreate?: InterviewSessionCreateOrConnectWithoutFeedbackInput
-    upsert?: InterviewSessionUpsertWithoutFeedbackInput
+  export type InterviewSessionUpdateOneRequiredWithoutFeedbacksNestedInput = {
+    create?: XOR<InterviewSessionCreateWithoutFeedbacksInput, InterviewSessionUncheckedCreateWithoutFeedbacksInput>
+    connectOrCreate?: InterviewSessionCreateOrConnectWithoutFeedbacksInput
+    upsert?: InterviewSessionUpsertWithoutFeedbacksInput
     connect?: InterviewSessionWhereUniqueInput
-    update?: XOR<XOR<InterviewSessionUpdateToOneWithWhereWithoutFeedbackInput, InterviewSessionUpdateWithoutFeedbackInput>, InterviewSessionUncheckedUpdateWithoutFeedbackInput>
+    update?: XOR<XOR<InterviewSessionUpdateToOneWithWhereWithoutFeedbacksInput, InterviewSessionUpdateWithoutFeedbacksInput>, InterviewSessionUncheckedUpdateWithoutFeedbacksInput>
   }
 
   export type UserUpdateOneRequiredWithoutFeedbacksNestedInput = {
@@ -10046,8 +10413,35 @@ export namespace Prisma {
     _max?: NestedFloatNullableFilter<$PrismaModel>
   }
 
+  export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
+  }
+
+  export type NestedFloatFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatFilter<$PrismaModel> | number
+  }
+
   export type FeedbackCreateWithoutUserInput = {
-    id: string
+    id?: string
     summary: string
     strengths?: string | null
     areasForImprovement?: string | null
@@ -10056,11 +10450,11 @@ export namespace Prisma {
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    session: InterviewSessionCreateNestedOneWithoutFeedbackInput
+    session: InterviewSessionCreateNestedOneWithoutFeedbacksInput
   }
 
   export type FeedbackUncheckedCreateWithoutUserInput = {
-    id: string
+    id?: string
     sessionId: string
     summary: string
     strengths?: string | null
@@ -10083,8 +10477,9 @@ export namespace Prisma {
   }
 
   export type InterviewSessionCreateWithoutUserInput = {
-    id: string
+    id?: string
     jobTitle: string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: string | null
     interviewType?: string | null
@@ -10092,6 +10487,12 @@ export namespace Prisma {
     webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
+    startTime?: Date | string | null
+    endTime?: Date | string | null
+    duration?: number | null
+    status?: string
+    feedbackStatus?: string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: Date | string
     endedAt?: Date | string | null
     durationSeconds?: number | null
@@ -10099,13 +10500,15 @@ export namespace Prisma {
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    feedback?: FeedbackCreateNestedOneWithoutSessionInput
+    deletedAt?: Date | string | null
+    feedbacks?: FeedbackCreateNestedManyWithoutSessionInput
     transcripts?: TranscriptCreateNestedManyWithoutSessionInput
   }
 
   export type InterviewSessionUncheckedCreateWithoutUserInput = {
-    id: string
+    id?: string
     jobTitle: string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: string | null
     interviewType?: string | null
@@ -10113,6 +10516,12 @@ export namespace Prisma {
     webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
+    startTime?: Date | string | null
+    endTime?: Date | string | null
+    duration?: number | null
+    status?: string
+    feedbackStatus?: string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: Date | string
     endedAt?: Date | string | null
     durationSeconds?: number | null
@@ -10120,7 +10529,8 @@ export namespace Prisma {
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    feedback?: FeedbackUncheckedCreateNestedOneWithoutSessionInput
+    deletedAt?: Date | string | null
+    feedbacks?: FeedbackUncheckedCreateNestedManyWithoutSessionInput
     transcripts?: TranscriptUncheckedCreateNestedManyWithoutSessionInput
   }
 
@@ -10218,6 +10628,7 @@ export namespace Prisma {
     id?: StringFilter<"InterviewSession"> | string
     userId?: StringFilter<"InterviewSession"> | string
     jobTitle?: StringFilter<"InterviewSession"> | string
+    resumeData?: JsonNullableFilter<"InterviewSession">
     resumeSnapshot?: JsonNullableFilter<"InterviewSession">
     company?: StringNullableFilter<"InterviewSession"> | string | null
     interviewType?: StringNullableFilter<"InterviewSession"> | string | null
@@ -10225,6 +10636,12 @@ export namespace Prisma {
     webrtcSessionId?: StringNullableFilter<"InterviewSession"> | string | null
     openaiSessionId?: StringNullableFilter<"InterviewSession"> | string | null
     fallbackMode?: BoolFilter<"InterviewSession"> | boolean
+    startTime?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
+    endTime?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
+    duration?: IntNullableFilter<"InterviewSession"> | number | null
+    status?: StringFilter<"InterviewSession"> | string
+    feedbackStatus?: StringFilter<"InterviewSession"> | string
+    metadata?: JsonNullableFilter<"InterviewSession">
     startedAt?: DateTimeFilter<"InterviewSession"> | Date | string
     endedAt?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
     durationSeconds?: IntNullableFilter<"InterviewSession"> | number | null
@@ -10232,6 +10649,7 @@ export namespace Prisma {
     expiresAt?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
     createdAt?: DateTimeFilter<"InterviewSession"> | Date | string
     updatedAt?: DateTimeFilter<"InterviewSession"> | Date | string
+    deletedAt?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
   }
 
   export type UsageEventUpsertWithWhereUniqueWithoutUserInput = {
@@ -10264,7 +10682,7 @@ export namespace Prisma {
   }
 
   export type FeedbackCreateWithoutSessionInput = {
-    id: string
+    id?: string
     summary: string
     strengths?: string | null
     areasForImprovement?: string | null
@@ -10277,7 +10695,7 @@ export namespace Prisma {
   }
 
   export type FeedbackUncheckedCreateWithoutSessionInput = {
-    id: string
+    id?: string
     userId: string
     summary: string
     strengths?: string | null
@@ -10294,8 +10712,14 @@ export namespace Prisma {
     create: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput>
   }
 
+  export type FeedbackCreateManySessionInputEnvelope = {
+    data: FeedbackCreateManySessionInput | FeedbackCreateManySessionInput[]
+    skipDuplicates?: boolean
+  }
+
   export type UserCreateWithoutInterviewSessionsInput = {
     id: string
+    clerkId: string
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
     resumeJobTitle?: string | null
@@ -10324,6 +10748,7 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutInterviewSessionsInput = {
     id: string
+    clerkId: string
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
     resumeJobTitle?: string | null
@@ -10356,22 +10781,26 @@ export namespace Prisma {
   }
 
   export type TranscriptCreateWithoutSessionInput = {
-    id: string
+    id?: string
     role: string
     content: string
     confidence?: number | null
     timestamp: Date | string
+    sequenceNumber?: number
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
 
   export type TranscriptUncheckedCreateWithoutSessionInput = {
-    id: string
+    id?: string
     role: string
     content: string
     confidence?: number | null
     timestamp: Date | string
+    sequenceNumber?: number
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -10387,41 +10816,20 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
-  export type FeedbackUpsertWithoutSessionInput = {
+  export type FeedbackUpsertWithWhereUniqueWithoutSessionInput = {
+    where: FeedbackWhereUniqueInput
     update: XOR<FeedbackUpdateWithoutSessionInput, FeedbackUncheckedUpdateWithoutSessionInput>
     create: XOR<FeedbackCreateWithoutSessionInput, FeedbackUncheckedCreateWithoutSessionInput>
-    where?: FeedbackWhereInput
   }
 
-  export type FeedbackUpdateToOneWithWhereWithoutSessionInput = {
-    where?: FeedbackWhereInput
+  export type FeedbackUpdateWithWhereUniqueWithoutSessionInput = {
+    where: FeedbackWhereUniqueInput
     data: XOR<FeedbackUpdateWithoutSessionInput, FeedbackUncheckedUpdateWithoutSessionInput>
   }
 
-  export type FeedbackUpdateWithoutSessionInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    summary?: StringFieldUpdateOperationsInput | string
-    strengths?: NullableStringFieldUpdateOperationsInput | string | null
-    areasForImprovement?: NullableStringFieldUpdateOperationsInput | string | null
-    fillerWordCount?: NullableIntFieldUpdateOperationsInput | number | null
-    transcriptScore?: NullableFloatFieldUpdateOperationsInput | number | null
-    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    user?: UserUpdateOneRequiredWithoutFeedbacksNestedInput
-  }
-
-  export type FeedbackUncheckedUpdateWithoutSessionInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    summary?: StringFieldUpdateOperationsInput | string
-    strengths?: NullableStringFieldUpdateOperationsInput | string | null
-    areasForImprovement?: NullableStringFieldUpdateOperationsInput | string | null
-    fillerWordCount?: NullableIntFieldUpdateOperationsInput | number | null
-    transcriptScore?: NullableFloatFieldUpdateOperationsInput | number | null
-    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  export type FeedbackUpdateManyWithWhereWithoutSessionInput = {
+    where: FeedbackScalarWhereInput
+    data: XOR<FeedbackUpdateManyMutationInput, FeedbackUncheckedUpdateManyWithoutSessionInput>
   }
 
   export type UserUpsertWithoutInterviewSessionsInput = {
@@ -10437,6 +10845,7 @@ export namespace Prisma {
 
   export type UserUpdateWithoutInterviewSessionsInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerkId?: StringFieldUpdateOperationsInput | string
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
@@ -10465,6 +10874,7 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutInterviewSessionsInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerkId?: StringFieldUpdateOperationsInput | string
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
@@ -10517,14 +10927,17 @@ export namespace Prisma {
     content?: StringFilter<"Transcript"> | string
     confidence?: FloatNullableFilter<"Transcript"> | number | null
     timestamp?: DateTimeFilter<"Transcript"> | Date | string
+    sequenceNumber?: IntFilter<"Transcript"> | number
+    metadata?: JsonNullableFilter<"Transcript">
     expiresAt?: DateTimeNullableFilter<"Transcript"> | Date | string | null
     createdAt?: DateTimeFilter<"Transcript"> | Date | string
     updatedAt?: DateTimeFilter<"Transcript"> | Date | string
   }
 
   export type InterviewSessionCreateWithoutTranscriptsInput = {
-    id: string
+    id?: string
     jobTitle: string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: string | null
     interviewType?: string | null
@@ -10532,6 +10945,12 @@ export namespace Prisma {
     webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
+    startTime?: Date | string | null
+    endTime?: Date | string | null
+    duration?: number | null
+    status?: string
+    feedbackStatus?: string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: Date | string
     endedAt?: Date | string | null
     durationSeconds?: number | null
@@ -10539,14 +10958,16 @@ export namespace Prisma {
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    feedback?: FeedbackCreateNestedOneWithoutSessionInput
+    deletedAt?: Date | string | null
+    feedbacks?: FeedbackCreateNestedManyWithoutSessionInput
     user: UserCreateNestedOneWithoutInterviewSessionsInput
   }
 
   export type InterviewSessionUncheckedCreateWithoutTranscriptsInput = {
-    id: string
+    id?: string
     userId: string
     jobTitle: string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: string | null
     interviewType?: string | null
@@ -10554,6 +10975,12 @@ export namespace Prisma {
     webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
+    startTime?: Date | string | null
+    endTime?: Date | string | null
+    duration?: number | null
+    status?: string
+    feedbackStatus?: string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: Date | string
     endedAt?: Date | string | null
     durationSeconds?: number | null
@@ -10561,7 +10988,8 @@ export namespace Prisma {
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    feedback?: FeedbackUncheckedCreateNestedOneWithoutSessionInput
+    deletedAt?: Date | string | null
+    feedbacks?: FeedbackUncheckedCreateNestedManyWithoutSessionInput
   }
 
   export type InterviewSessionCreateOrConnectWithoutTranscriptsInput = {
@@ -10583,6 +11011,7 @@ export namespace Prisma {
   export type InterviewSessionUpdateWithoutTranscriptsInput = {
     id?: StringFieldUpdateOperationsInput | string
     jobTitle?: StringFieldUpdateOperationsInput | string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
@@ -10590,6 +11019,12 @@ export namespace Prisma {
     webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
+    startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    duration?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: StringFieldUpdateOperationsInput | string
+    feedbackStatus?: StringFieldUpdateOperationsInput | string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
@@ -10597,7 +11032,8 @@ export namespace Prisma {
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    feedback?: FeedbackUpdateOneWithoutSessionNestedInput
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    feedbacks?: FeedbackUpdateManyWithoutSessionNestedInput
     user?: UserUpdateOneRequiredWithoutInterviewSessionsNestedInput
   }
 
@@ -10605,6 +11041,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     jobTitle?: StringFieldUpdateOperationsInput | string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
@@ -10612,6 +11049,12 @@ export namespace Prisma {
     webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
+    startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    duration?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: StringFieldUpdateOperationsInput | string
+    feedbackStatus?: StringFieldUpdateOperationsInput | string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
@@ -10619,12 +11062,14 @@ export namespace Prisma {
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    feedback?: FeedbackUncheckedUpdateOneWithoutSessionNestedInput
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    feedbacks?: FeedbackUncheckedUpdateManyWithoutSessionNestedInput
   }
 
-  export type InterviewSessionCreateWithoutFeedbackInput = {
-    id: string
+  export type InterviewSessionCreateWithoutFeedbacksInput = {
+    id?: string
     jobTitle: string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: string | null
     interviewType?: string | null
@@ -10632,6 +11077,12 @@ export namespace Prisma {
     webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
+    startTime?: Date | string | null
+    endTime?: Date | string | null
+    duration?: number | null
+    status?: string
+    feedbackStatus?: string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: Date | string
     endedAt?: Date | string | null
     durationSeconds?: number | null
@@ -10639,14 +11090,16 @@ export namespace Prisma {
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    deletedAt?: Date | string | null
     user: UserCreateNestedOneWithoutInterviewSessionsInput
     transcripts?: TranscriptCreateNestedManyWithoutSessionInput
   }
 
-  export type InterviewSessionUncheckedCreateWithoutFeedbackInput = {
-    id: string
+  export type InterviewSessionUncheckedCreateWithoutFeedbacksInput = {
+    id?: string
     userId: string
     jobTitle: string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: string | null
     interviewType?: string | null
@@ -10654,6 +11107,12 @@ export namespace Prisma {
     webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
+    startTime?: Date | string | null
+    endTime?: Date | string | null
+    duration?: number | null
+    status?: string
+    feedbackStatus?: string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: Date | string
     endedAt?: Date | string | null
     durationSeconds?: number | null
@@ -10661,16 +11120,18 @@ export namespace Prisma {
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    deletedAt?: Date | string | null
     transcripts?: TranscriptUncheckedCreateNestedManyWithoutSessionInput
   }
 
-  export type InterviewSessionCreateOrConnectWithoutFeedbackInput = {
+  export type InterviewSessionCreateOrConnectWithoutFeedbacksInput = {
     where: InterviewSessionWhereUniqueInput
-    create: XOR<InterviewSessionCreateWithoutFeedbackInput, InterviewSessionUncheckedCreateWithoutFeedbackInput>
+    create: XOR<InterviewSessionCreateWithoutFeedbacksInput, InterviewSessionUncheckedCreateWithoutFeedbacksInput>
   }
 
   export type UserCreateWithoutFeedbacksInput = {
     id: string
+    clerkId: string
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
     resumeJobTitle?: string | null
@@ -10699,6 +11160,7 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutFeedbacksInput = {
     id: string
+    clerkId: string
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
     resumeJobTitle?: string | null
@@ -10730,20 +11192,21 @@ export namespace Prisma {
     create: XOR<UserCreateWithoutFeedbacksInput, UserUncheckedCreateWithoutFeedbacksInput>
   }
 
-  export type InterviewSessionUpsertWithoutFeedbackInput = {
-    update: XOR<InterviewSessionUpdateWithoutFeedbackInput, InterviewSessionUncheckedUpdateWithoutFeedbackInput>
-    create: XOR<InterviewSessionCreateWithoutFeedbackInput, InterviewSessionUncheckedCreateWithoutFeedbackInput>
+  export type InterviewSessionUpsertWithoutFeedbacksInput = {
+    update: XOR<InterviewSessionUpdateWithoutFeedbacksInput, InterviewSessionUncheckedUpdateWithoutFeedbacksInput>
+    create: XOR<InterviewSessionCreateWithoutFeedbacksInput, InterviewSessionUncheckedCreateWithoutFeedbacksInput>
     where?: InterviewSessionWhereInput
   }
 
-  export type InterviewSessionUpdateToOneWithWhereWithoutFeedbackInput = {
+  export type InterviewSessionUpdateToOneWithWhereWithoutFeedbacksInput = {
     where?: InterviewSessionWhereInput
-    data: XOR<InterviewSessionUpdateWithoutFeedbackInput, InterviewSessionUncheckedUpdateWithoutFeedbackInput>
+    data: XOR<InterviewSessionUpdateWithoutFeedbacksInput, InterviewSessionUncheckedUpdateWithoutFeedbacksInput>
   }
 
-  export type InterviewSessionUpdateWithoutFeedbackInput = {
+  export type InterviewSessionUpdateWithoutFeedbacksInput = {
     id?: StringFieldUpdateOperationsInput | string
     jobTitle?: StringFieldUpdateOperationsInput | string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
@@ -10751,6 +11214,12 @@ export namespace Prisma {
     webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
+    startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    duration?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: StringFieldUpdateOperationsInput | string
+    feedbackStatus?: StringFieldUpdateOperationsInput | string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
@@ -10758,14 +11227,16 @@ export namespace Prisma {
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     user?: UserUpdateOneRequiredWithoutInterviewSessionsNestedInput
     transcripts?: TranscriptUpdateManyWithoutSessionNestedInput
   }
 
-  export type InterviewSessionUncheckedUpdateWithoutFeedbackInput = {
+  export type InterviewSessionUncheckedUpdateWithoutFeedbacksInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     jobTitle?: StringFieldUpdateOperationsInput | string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
@@ -10773,6 +11244,12 @@ export namespace Prisma {
     webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
+    startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    duration?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: StringFieldUpdateOperationsInput | string
+    feedbackStatus?: StringFieldUpdateOperationsInput | string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
@@ -10780,6 +11257,7 @@ export namespace Prisma {
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     transcripts?: TranscriptUncheckedUpdateManyWithoutSessionNestedInput
   }
 
@@ -10796,6 +11274,7 @@ export namespace Prisma {
 
   export type UserUpdateWithoutFeedbacksInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerkId?: StringFieldUpdateOperationsInput | string
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
@@ -10824,6 +11303,7 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutFeedbacksInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerkId?: StringFieldUpdateOperationsInput | string
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
@@ -10852,6 +11332,7 @@ export namespace Prisma {
 
   export type UserCreateWithoutUsageEventsInput = {
     id: string
+    clerkId: string
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
     resumeJobTitle?: string | null
@@ -10880,6 +11361,7 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutUsageEventsInput = {
     id: string
+    clerkId: string
     role?: $Enums.UserRole
     credits?: Decimal | DecimalJsLike | number | string
     resumeJobTitle?: string | null
@@ -10924,6 +11406,7 @@ export namespace Prisma {
 
   export type UserUpdateWithoutUsageEventsInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerkId?: StringFieldUpdateOperationsInput | string
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
@@ -10952,6 +11435,7 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutUsageEventsInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerkId?: StringFieldUpdateOperationsInput | string
     role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
     credits?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     resumeJobTitle?: NullableStringFieldUpdateOperationsInput | string | null
@@ -10979,7 +11463,7 @@ export namespace Prisma {
   }
 
   export type FeedbackCreateManyUserInput = {
-    id: string
+    id?: string
     sessionId: string
     summary: string
     strengths?: string | null
@@ -10992,8 +11476,9 @@ export namespace Prisma {
   }
 
   export type InterviewSessionCreateManyUserInput = {
-    id: string
+    id?: string
     jobTitle: string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: string | null
     interviewType?: string | null
@@ -11001,6 +11486,12 @@ export namespace Prisma {
     webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
+    startTime?: Date | string | null
+    endTime?: Date | string | null
+    duration?: number | null
+    status?: string
+    feedbackStatus?: string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: Date | string
     endedAt?: Date | string | null
     durationSeconds?: number | null
@@ -11008,6 +11499,7 @@ export namespace Prisma {
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    deletedAt?: Date | string | null
   }
 
   export type UsageEventCreateManyUserInput = {
@@ -11029,7 +11521,7 @@ export namespace Prisma {
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    session?: InterviewSessionUpdateOneRequiredWithoutFeedbackNestedInput
+    session?: InterviewSessionUpdateOneRequiredWithoutFeedbacksNestedInput
   }
 
   export type FeedbackUncheckedUpdateWithoutUserInput = {
@@ -11061,6 +11553,7 @@ export namespace Prisma {
   export type InterviewSessionUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     jobTitle?: StringFieldUpdateOperationsInput | string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
@@ -11068,6 +11561,12 @@ export namespace Prisma {
     webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
+    startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    duration?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: StringFieldUpdateOperationsInput | string
+    feedbackStatus?: StringFieldUpdateOperationsInput | string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
@@ -11075,13 +11574,15 @@ export namespace Prisma {
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    feedback?: FeedbackUpdateOneWithoutSessionNestedInput
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    feedbacks?: FeedbackUpdateManyWithoutSessionNestedInput
     transcripts?: TranscriptUpdateManyWithoutSessionNestedInput
   }
 
   export type InterviewSessionUncheckedUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     jobTitle?: StringFieldUpdateOperationsInput | string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
@@ -11089,6 +11590,12 @@ export namespace Prisma {
     webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
+    startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    duration?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: StringFieldUpdateOperationsInput | string
+    feedbackStatus?: StringFieldUpdateOperationsInput | string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
@@ -11096,13 +11603,15 @@ export namespace Prisma {
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    feedback?: FeedbackUncheckedUpdateOneWithoutSessionNestedInput
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    feedbacks?: FeedbackUncheckedUpdateManyWithoutSessionNestedInput
     transcripts?: TranscriptUncheckedUpdateManyWithoutSessionNestedInput
   }
 
   export type InterviewSessionUncheckedUpdateManyWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     jobTitle?: StringFieldUpdateOperationsInput | string
+    resumeData?: NullableJsonNullValueInput | InputJsonValue
     resumeSnapshot?: NullableJsonNullValueInput | InputJsonValue
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
@@ -11110,6 +11619,12 @@ export namespace Prisma {
     webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
+    startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    duration?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: StringFieldUpdateOperationsInput | string
+    feedbackStatus?: StringFieldUpdateOperationsInput | string
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     durationSeconds?: NullableIntFieldUpdateOperationsInput | number | null
@@ -11117,6 +11632,7 @@ export namespace Prisma {
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type UsageEventUpdateWithoutUserInput = {
@@ -11146,15 +11662,69 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type FeedbackCreateManySessionInput = {
+    id?: string
+    userId: string
+    summary: string
+    strengths?: string | null
+    areasForImprovement?: string | null
+    fillerWordCount?: number | null
+    transcriptScore?: number | null
+    expiresAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
   export type TranscriptCreateManySessionInput = {
-    id: string
+    id?: string
     role: string
     content: string
     confidence?: number | null
     timestamp: Date | string
+    sequenceNumber?: number
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+  }
+
+  export type FeedbackUpdateWithoutSessionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    summary?: StringFieldUpdateOperationsInput | string
+    strengths?: NullableStringFieldUpdateOperationsInput | string | null
+    areasForImprovement?: NullableStringFieldUpdateOperationsInput | string | null
+    fillerWordCount?: NullableIntFieldUpdateOperationsInput | number | null
+    transcriptScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutFeedbacksNestedInput
+  }
+
+  export type FeedbackUncheckedUpdateWithoutSessionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    summary?: StringFieldUpdateOperationsInput | string
+    strengths?: NullableStringFieldUpdateOperationsInput | string | null
+    areasForImprovement?: NullableStringFieldUpdateOperationsInput | string | null
+    fillerWordCount?: NullableIntFieldUpdateOperationsInput | number | null
+    transcriptScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type FeedbackUncheckedUpdateManyWithoutSessionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    summary?: StringFieldUpdateOperationsInput | string
+    strengths?: NullableStringFieldUpdateOperationsInput | string | null
+    areasForImprovement?: NullableStringFieldUpdateOperationsInput | string | null
+    fillerWordCount?: NullableIntFieldUpdateOperationsInput | number | null
+    transcriptScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type TranscriptUpdateWithoutSessionInput = {
@@ -11163,6 +11733,8 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     confidence?: NullableFloatFieldUpdateOperationsInput | number | null
     timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+    sequenceNumber?: IntFieldUpdateOperationsInput | number
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11174,6 +11746,8 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     confidence?: NullableFloatFieldUpdateOperationsInput | number | null
     timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+    sequenceNumber?: IntFieldUpdateOperationsInput | number
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11185,6 +11759,8 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     confidence?: NullableFloatFieldUpdateOperationsInput | number | null
     timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+    sequenceNumber?: IntFieldUpdateOperationsInput | number
+    metadata?: NullableJsonNullValueInput | InputJsonValue
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string

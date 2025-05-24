@@ -11,6 +11,7 @@ datasource db {
 
 model User {
   id                    String             @id @unique
+  clerkId               String             @unique
   role                  UserRole           @default(USER)
   credits               Decimal            @default(3) @db.Decimal(10, 2)
   resumeJobTitle        String?
@@ -36,12 +37,15 @@ model User {
   feedbacks             Feedback[]
   interviewSessions     InterviewSession[]
   usageEvents           UsageEvent[]
+
+  @@index([clerkId])
 }
 
 model InterviewSession {
-  id              String       @id
+  id              String       @id @default(uuid())
   userId          String
   jobTitle        String
+  resumeData      Json?
   resumeSnapshot  Json?
   company         String?
   interviewType   String?
@@ -49,6 +53,12 @@ model InterviewSession {
   webrtcSessionId String?      @unique
   openaiSessionId String?      @unique
   fallbackMode    Boolean      @default(false)
+  startTime       DateTime?
+  endTime         DateTime?
+  duration        Int?
+  status          String       @default("pending")
+  feedbackStatus  String       @default("pending") // pending, generating, completed, failed
+  metadata        Json?
   startedAt       DateTime     @default(now())
   endedAt         DateTime?
   durationSeconds Int?
@@ -56,33 +66,39 @@ model InterviewSession {
   expiresAt       DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
-  feedback        Feedback?
+  deletedAt       DateTime? // For soft delete
+  feedbacks       Feedback[]
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   transcripts     Transcript[]
 
+  @@index([userId, status, createdAt]) // For user's interview history
   @@index([userId])
-  @@index([createdAt])
+  @@index([createdAt]) // For admin analytics
 }
 
 model Transcript {
-  id         String           @id
-  sessionId  String
-  role       String
-  content    String
-  confidence Float?
-  timestamp  DateTime
-  expiresAt  DateTime?
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
-  session    InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id             String           @id @default(uuid())
+  sessionId      String
+  role           String
+  content        String
+  confidence     Float?
+  timestamp      DateTime
+  sequenceNumber Int              @default(0)
+  metadata       Json?
+  expiresAt      DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  session        InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
+  @@index([sessionId, sequenceNumber]) // For ordered retrieval
+  @@index([sessionId, role]) // For filtering by speaker
   @@index([sessionId])
   @@index([timestamp])
 }
 
 model Feedback {
-  id                  String           @id
-  sessionId           String           @unique
+  id                  String           @id @default(uuid())
+  sessionId           String
   userId              String
   summary             String
   strengths           String?
@@ -95,6 +111,7 @@ model Feedback {
   session             InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([sessionId])
   @@index([userId])
 }
 
