@@ -54,11 +54,11 @@ export function useUserData(): UseUserDataReturn {
   const fetchUserData = useCallback(async () => {
     // Skip during server-side rendering
     if (typeof window === 'undefined') {
-      console.log('fetchUserData: Skipping on server-side');
+      // Skip on server-side
       return;
     }
     
-    console.log('fetchUserData: Starting fetch...');
+    // Starting fetch
     setIsLoading(true);
     setError(null);
     try {
@@ -68,11 +68,11 @@ export function useUserData(): UseUserDataReturn {
         throw new Error(errorData.error || `Failed to fetch user data. Status: ${res.status}`);
       }
       const data = await res.json();
-      console.log('fetchUserData: Received API response:', data);
+      // Process API response
       // Adjust according to your actual /api/user response structure
       const userDataFromApi = data.user || data; 
       if (userDataFromApi) {
-        console.log('fetchUserData: Setting user data', userDataFromApi);
+        // Set user data
         setUser({
             id: userDataFromApi.id,
             email: userDataFromApi.email,
@@ -113,7 +113,7 @@ export function useUserData(): UseUserDataReturn {
         linkedinUrl: null,
       });
     } finally {
-      console.log('fetchUserData: Setting isLoading to false');
+      // Complete loading
       setIsLoading(false);
     }
   }, []);
@@ -121,10 +121,10 @@ export function useUserData(): UseUserDataReturn {
   useEffect(() => {
     // Skip during server-side rendering
     if (typeof window !== 'undefined') {
-      console.log('useUserData: useEffect running, calling fetchUserData');
+      // Initial fetch on mount
       fetchUserData();
     } else {
-      console.log('useUserData: useEffect skipping due to SSR');
+      // Skip SSR
     }
   }, [fetchUserData]);
 
@@ -141,7 +141,7 @@ export function useUserData(): UseUserDataReturn {
     const handleFocus = () => {
       const now = Date.now();
       if (now - lastFetchTime > REFETCH_COOLDOWN) {
-        console.log("Window focused, refetching user data via useUserData hook.");
+        // Refetch on window focus
         lastFetchTime = now;
         fetchUserData();
       }
@@ -153,16 +153,7 @@ export function useUserData(): UseUserDataReturn {
     };
   }, [fetchUserData]);
 
-  // Debug logging with more detail
-  console.log('useUserData state:', { 
-    hasUser: !!user, 
-    credits: user?.credits, 
-    isPremium: user?.isPremium, 
-    isLoading, 
-    error: !!error,
-    userName: user?.name,
-    userEmail: user?.email
-  })
+  // State is returned below
 
   return {
     user,
