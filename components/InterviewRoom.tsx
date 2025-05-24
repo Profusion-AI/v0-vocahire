@@ -52,7 +52,7 @@ export default function InterviewRoom({
     start: startSession,
     stop: stopSession,
     pause: pauseSession,
-    resume: resumeSession,
+    resume: _resumeSession,
     toggleMute,
     saveInterviewSession,
   } = useRealtimeInterviewSession({ jobTitle, resumeData })
