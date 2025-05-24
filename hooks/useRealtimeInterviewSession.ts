@@ -52,14 +52,36 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
   // Authentication and routing
   const { isLoaded, isSignedIn, getToken } = useAuth()
   const router = useRouter()
+  
+  // Preserve session state across Clerk re-renders
+  const sessionStateRef = useRef<{
+    isActive: boolean
+    status: InterviewStatus
+    sessionData: SessionData | null
+  }>({
+    isActive: false,
+    status: "idle",
+    sessionData: null
+  })
 
-  // Core state
-  const [status, setStatus] = useState<InterviewStatus>("idle")
+  // Core state - initialize from ref to preserve across re-renders
+  const [status, setStatusState] = useState<InterviewStatus>(sessionStateRef.current.status)
   const [messages, setMessages] = useState<InterviewMessage[]>([])
   const [error, setError] = useState<string | null>(null)
   const [debug, setDebug] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
-  const [isActive, setIsActive] = useState(false)
+  const [isActiveState, setIsActiveState] = useState(sessionStateRef.current.isActive)
+  
+  // Wrapped setters that update both state and ref
+  const setStatus = useCallback((newStatus: InterviewStatus) => {
+    sessionStateRef.current.status = newStatus
+    setStatusState(newStatus)
+  }, [])
+  
+  const setIsActive = useCallback((active: boolean) => {
+    sessionStateRef.current.isActive = active
+    setIsActiveState(active)
+  }, [])
   
   // Real-time state
   const [isUserSpeaking, setIsUserSpeaking] = useState(false)
@@ -236,7 +258,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       
       dataChannel.onclose = () => {
         addDebugMessage("Data channel closed")
-        if (isActive) {
+        if (sessionStateRef.current.isActive) {
           throw new Error("Data channel closed unexpectedly")
         }
       }
@@ -352,7 +374,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       addDebugMessage(`WebRTC setup failed: ${error}`)
       throw error
     }
-  }, [addDebugMessage, getIceServers, isActive, jobTitle])
+  }, [addDebugMessage, getIceServers, jobTitle, setStatus, setIsActive, setIsConnecting])
 
   // Handle OpenAI message from data channel
   const handleOpenAIMessage = useCallback((data: any) => {
@@ -535,6 +557,13 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
   // Main start function
   const start = useCallback(async (overrideJobTitle?: string) => {
     const effectiveJobTitle = overrideJobTitle || jobTitle
+    
+    // Guard against Clerk touch re-renders
+    if (sessionStateRef.current.isActive && sessionStateRef.current.sessionData) {
+      addDebugMessage("Session already active, ignoring start request (likely from Clerk re-render)")
+      return
+    }
+    
     try {
       // Check if we have a paused session to resume
       if (interviewSessionManager && interviewSessionManager.isSessionPaused(hookSessionId.current)) {
@@ -568,6 +597,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       // Create session
       const sessionData = await createSession(effectiveJobTitle)
       sessionDataRef.current = sessionData
+      sessionStateRef.current.sessionData = sessionData
 
       // Setup WebRTC
       await setupWebRTC(sessionData)
@@ -640,6 +670,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
         setAiCaptions("")
         setLiveTranscript(null)
         sessionDataRef.current = null
+        sessionStateRef.current.sessionData = null
         
         // Clear refs (they should be cleaned by manager but ensure they're null)
         dataChannelRef.current = null
@@ -705,13 +736,13 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
 
   // Pause function
   const pause = useCallback(() => {
-    if (interviewSessionManager && isActive) {
+    if (interviewSessionManager && sessionStateRef.current.isActive) {
       addDebugMessage(`Pausing interview session ${hookSessionId.current}`)
       interviewSessionManager.pauseSession(hookSessionId.current)
       setStatus("idle")
       setIsActive(false)
     }
-  }, [isActive, addDebugMessage])
+  }, [addDebugMessage, setStatus, setIsActive])
   
   // Resume function
   const resume = useCallback(() => {
@@ -721,7 +752,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       setStatus("active")
       setIsActive(true)
     }
-  }, [addDebugMessage])
+  }, [addDebugMessage, setStatus, setIsActive])
 
   // Toggle mute function
   const toggleMute = useCallback(() => {
@@ -842,7 +873,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
   // Handle visibility changes to maintain connection
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.hidden && isActive) {
+      if (document.hidden && sessionStateRef.current.isActive) {
         // Tab is hidden - pause the session
         addDebugMessage("Tab hidden, pausing interview session")
         if (interviewSessionManager) {
@@ -868,7 +899,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
 
     // Handle actual page navigation (not just tab switches)
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isActive) {
+      if (sessionStateRef.current.isActive) {
         // Save interview state to localStorage for potential recovery
         const interviewState = {
           sessionId: sessionDataRef.current?.id,
@@ -903,7 +934,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
         addDebugMessage("Component unmounting - no active session to pause")
       }
     }
-  }, [isActive, stop, addDebugMessage, messages, jobTitle, resumeData])
+  }, [addDebugMessage, messages, jobTitle, resumeData, setIsActive, setStatus])
 
   return {
     // State
@@ -912,7 +943,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
     error,
     debug,
     isConnecting,
-    isActive,
+    isActive: isActiveState,
     isUserSpeaking,
     aiCaptions,
     liveTranscript,
