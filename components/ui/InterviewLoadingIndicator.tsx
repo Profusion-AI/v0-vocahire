@@ -32,20 +32,27 @@ export function InterviewLoadingIndicator({
     
     const startTime = Date.now();
     const duration = 10000; // 10 seconds
+    const updateInterval = 100; // Update every 100ms instead of every frame
+    let intervalId: NodeJS.Timeout | null = null;
     
     const updateProgress = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min((elapsed / duration) * 100, 100);
       setStageProgress(prev => ({ ...prev, [currentStageId]: progress }));
       
-      if (progress < 100) {
-        requestAnimationFrame(updateProgress);
+      if (progress >= 100 && intervalId) {
+        clearInterval(intervalId);
       }
     };
     
-    updateProgress();
+    // Use interval instead of requestAnimationFrame to reduce CPU usage
+    intervalId = setInterval(updateProgress, updateInterval);
+    updateProgress(); // Initial call
     
     return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
       // Clean up when stage changes
       setStageProgress(prev => {
         const next = { ...prev };
@@ -178,25 +185,22 @@ export function InterviewLoadingIndicator({
                       fill="none"
                       className="text-muted"
                     />
-                    <motion.circle
+                    <circle
                       cx="16"
                       cy="16"
                       r="14"
                       stroke="currentColor"
                       strokeWidth="2"
                       fill="none"
-                      className="text-primary"
+                      className="text-primary transition-all duration-100"
                       strokeDasharray={88}
                       strokeDashoffset={88 - (88 * (stageProgress[stage.id] || 0)) / 100}
                       strokeLinecap="round"
-                      initial={{ strokeDashoffset: 88 }}
-                      animate={{ strokeDashoffset: 88 - (88 * (stageProgress[stage.id] || 0)) / 100 }}
-                      transition={{ duration: 0.1 }}
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-xs font-medium">
-                      {Math.round(stageProgress[stage.id] || 0)}%
+                    <span className="text-[10px] font-medium tabular-nums">
+                      {Math.round(stageProgress[stage.id] || 0)}
                     </span>
                   </div>
                 </div>
@@ -212,9 +216,10 @@ export function InterviewLoadingIndicator({
                     initial={{ width: "0%" }}
                     animate={{ width: "100%" }}
                     transition={{
-                      duration: 3,
+                      duration: 4,
                       repeat: Infinity,
-                      ease: "linear"
+                      ease: "easeInOut",
+                      repeatDelay: 0.5
                     }}
                   />
                 </motion.div>
