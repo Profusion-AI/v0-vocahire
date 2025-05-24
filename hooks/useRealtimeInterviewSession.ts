@@ -721,12 +721,62 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
     }
   }, [messages, jobTitle, resumeData, getToken, addDebugMessage, calculateAverageResponseTime])
 
-  // Cleanup on unmount
+  // Handle visibility changes to maintain connection
   useEffect(() => {
-    return () => {
-      stop()
+    const handleVisibilityChange = () => {
+      if (document.hidden && isActive) {
+        // Tab is hidden but we're in an active interview
+        addDebugMessage("Tab hidden but maintaining interview connection")
+        // Don't stop the interview, just log it
+      } else if (!document.hidden && isActive) {
+        // Tab is visible again
+        addDebugMessage("Tab visible again, interview continues")
+        // If AI audio was paused, try to resume it
+        if (aiAudioElementRef.current && aiAudioElementRef.current.paused) {
+          aiAudioElementRef.current.play().catch(e => 
+            addDebugMessage(`Failed to resume AI audio: ${e}`)
+          )
+        }
+      }
     }
-  }, [stop])
+
+    // Add visibility change listener
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    // Handle actual page navigation (not just tab switches)
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isActive) {
+        // Save interview state to localStorage for potential recovery
+        const interviewState = {
+          sessionId: sessionDataRef.current?.id,
+          messages,
+          jobTitle,
+          resumeData,
+          timestamp: Date.now()
+        }
+        localStorage.setItem('vocahire_active_interview', JSON.stringify(interviewState))
+        
+        // Show browser confirmation dialog
+        e.preventDefault()
+        e.returnValue = 'You have an active interview. Are you sure you want to leave?'
+      }
+    }
+    
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      
+      // Only stop if we detect actual unmount with active interview
+      // React StrictMode in dev might double-call this, so we check isActive
+      if (isActive) {
+        addDebugMessage("Component unmounting with active interview - stopping")
+        stop()
+      }
+    }
+  }, [isActive, stop, addDebugMessage, messages, jobTitle, resumeData])
 
   return {
     // State

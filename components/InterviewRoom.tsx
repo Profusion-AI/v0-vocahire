@@ -58,6 +58,53 @@ export default function InterviewRoom({
   // Track if we've attempted to start to prevent loops
   const hasAttemptedStart = useRef(false)
   
+  // Check for interrupted interview on mount
+  const [hasInterruptedInterview, setHasInterruptedInterview] = useState(false)
+  
+  // Track if tab is in background
+  const [isTabHidden, setIsTabHidden] = useState(false)
+  
+  useEffect(() => {
+    const savedState = localStorage.getItem('vocahire_active_interview')
+    if (savedState) {
+      try {
+        const state = JSON.parse(savedState)
+        // Check if it's recent (within last 5 minutes)
+        if (Date.now() - state.timestamp < 5 * 60 * 1000) {
+          setHasInterruptedInterview(true)
+          // Show notification about interrupted interview
+          toast.info(
+            "It looks like your previous interview was interrupted. Starting a fresh session.",
+            {
+              duration: 5000,
+              description: "Your interview progress has been saved locally."
+            }
+          )
+          // Clear it after checking
+          localStorage.removeItem('vocahire_active_interview')
+        }
+      } catch (e) {
+        console.error('Failed to parse saved interview state:', e)
+      }
+    }
+  }, [])
+  
+  // Track tab visibility
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsTabHidden(document.hidden)
+      if (!document.hidden && status === "active") {
+        // Tab became visible again during active interview
+        toast.success("Welcome back! Your interview continues...", {
+          duration: 3000,
+        })
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [status])
+  
   // Auto-start effect when autoStart prop is true
   useEffect(() => {
     if (autoStart && status === "idle" && !hasAttemptedStart.current) {
@@ -370,6 +417,12 @@ export default function InterviewRoom({
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm">
             <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
             <span>Connected</span>
+            {isTabHidden && (
+              <>
+                <span className="text-gray-500">•</span>
+                <span className="text-gray-600 text-xs">Running in background</span>
+              </>
+            )}
           </div>
         </div>
 
