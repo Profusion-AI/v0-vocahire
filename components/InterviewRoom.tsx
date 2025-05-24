@@ -51,6 +51,8 @@ export default function InterviewRoom({
     isMuted,
     start: startSession,
     stop: stopSession,
+    pause: pauseSession,
+    resume: resumeSession,
     toggleMute,
     saveInterviewSession,
   } = useRealtimeInterviewSession({ jobTitle, resumeData })
@@ -134,8 +136,8 @@ export default function InterviewRoom({
     // Use router events to detect actual navigation
     const handleRouteChange = () => {
       if (status === "active") {
-        console.log("Route changing while interview active - stopping interview")
-        stopSession()
+        console.log("Route changing while interview active - pausing interview")
+        pauseSession()
       }
     }
     
@@ -145,7 +147,7 @@ export default function InterviewRoom({
     return () => {
       window.removeEventListener('popstate', handleRouteChange)
     }
-  }, [status, stopSession])
+  }, [status, pauseSession])
 
   // Handle interview completion
   const handleInterviewComplete = useCallback(async () => {

@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react"
 import { useAuth } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
-import { interviewSessionManager } from "@/lib/interview-session-manager"
+import { interviewSessionManager, SessionState } from "@/lib/interview-session-manager"
 
 export interface InterviewMessage {
   role: "user" | "assistant"
@@ -536,11 +536,21 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
   const start = useCallback(async (overrideJobTitle?: string) => {
     const effectiveJobTitle = overrideJobTitle || jobTitle
     try {
+      // Check if we have a paused session to resume
+      if (interviewSessionManager && interviewSessionManager.isSessionPaused(hookSessionId.current)) {
+        addDebugMessage(`Resuming paused session: ${hookSessionId.current}`)
+        interviewSessionManager.resumeSession(hookSessionId.current)
+        setStatus("active")
+        setIsActive(true)
+        setIsConnecting(false)
+        return // Don't create a new session
+      }
+      
       // Register this session with the manager, providing cleanup callback
       if (interviewSessionManager) {
         interviewSessionManager.registerSession(hookSessionId.current, () => {
-          // This will be called by the manager when cleaning up a previous session
-          addDebugMessage(`Session ${hookSessionId.current} cleanup requested by manager`)
+          // This will be called by the manager when terminating the session
+          addDebugMessage(`Session ${hookSessionId.current} termination requested by manager`)
           // Call stop function via ref
           if (stopRef.current) {
             stopRef.current()
@@ -620,7 +630,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       // Delegate cleanup to session manager if available
       if (interviewSessionManager) {
         // Manager will handle all resource cleanup
-        interviewSessionManager.cleanupSession(hookSessionId.current)
+        interviewSessionManager.terminateSession(hookSessionId.current)
         
         // Reset state
         setStatus("idle")
@@ -692,6 +702,26 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
   
   // Set stop ref for forward reference
   stopRef.current = stop
+
+  // Pause function
+  const pause = useCallback(() => {
+    if (interviewSessionManager && isActive) {
+      addDebugMessage(`Pausing interview session ${hookSessionId.current}`)
+      interviewSessionManager.pauseSession(hookSessionId.current)
+      setStatus("idle")
+      setIsActive(false)
+    }
+  }, [isActive, addDebugMessage])
+  
+  // Resume function
+  const resume = useCallback(() => {
+    if (interviewSessionManager && interviewSessionManager.isSessionPaused(hookSessionId.current)) {
+      addDebugMessage(`Resuming interview session ${hookSessionId.current}`)
+      interviewSessionManager.resumeSession(hookSessionId.current)
+      setStatus("active")
+      setIsActive(true)
+    }
+  }, [addDebugMessage])
 
   // Toggle mute function
   const toggleMute = useCallback(() => {
@@ -813,17 +843,22 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden && isActive) {
-        // Tab is hidden but we're in an active interview
-        addDebugMessage("Tab hidden but maintaining interview connection")
-        // Don't stop the interview, just log it
-      } else if (!document.hidden && isActive) {
-        // Tab is visible again
-        addDebugMessage("Tab visible again, interview continues")
-        // If AI audio was paused, try to resume it
-        if (aiAudioElementRef.current && aiAudioElementRef.current.paused) {
-          aiAudioElementRef.current.play().catch(e => 
-            addDebugMessage(`Failed to resume AI audio: ${e}`)
-          )
+        // Tab is hidden - pause the session
+        addDebugMessage("Tab hidden, pausing interview session")
+        if (interviewSessionManager) {
+          interviewSessionManager.pauseSession(hookSessionId.current)
+        }
+      } else if (!document.hidden) {
+        // Tab is visible again - check if we need to resume
+        if (interviewSessionManager && interviewSessionManager.isSessionPaused(hookSessionId.current)) {
+          addDebugMessage("Tab visible again, resuming interview session")
+          interviewSessionManager.resumeSession(hookSessionId.current)
+          
+          // The session manager will handle audio resumption, but ensure our state is synced
+          if (interviewSessionManager.getSessionState(hookSessionId.current) === SessionState.ACTIVE) {
+            setIsActive(true)
+            setStatus("active")
+          }
         }
       }
     }
@@ -857,15 +892,15 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('beforeunload', handleBeforeUnload)
       
-      // Clean up only if this session is no longer active in the manager
-      if (interviewSessionManager && !interviewSessionManager.isSessionActive(hookSessionId.current)) {
-        addDebugMessage("Component cleanup - session no longer active, cleaning up")
-        stop()
-      } else if (interviewSessionManager) {
-        addDebugMessage("Component cleanup - session still active, preserving")
+      // Component unmounting - pause instead of terminate
+      if (interviewSessionManager && interviewSessionManager.isSessionActive(hookSessionId.current)) {
+        addDebugMessage("Component unmounting - pausing active session for potential resume")
+        interviewSessionManager.pauseSession(hookSessionId.current)
+      } else if (interviewSessionManager && interviewSessionManager.isSessionPaused(hookSessionId.current)) {
+        addDebugMessage("Component unmounting - session already paused, preserving")
       } else {
-        // No manager available, do manual cleanup
-        stop()
+        // Session is terminated or no manager available
+        addDebugMessage("Component unmounting - no active session to pause")
       }
     }
   }, [isActive, stop, addDebugMessage, messages, jobTitle, resumeData])
@@ -886,6 +921,8 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
     // Functions
     start,
     stop,
+    pause,
+    resume,
     toggleMute,
     addDebugMessage,
     sendMessage,

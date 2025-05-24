@@ -2,21 +2,45 @@
  * Global Interview Session Manager
  * Ensures only one interview session is active at a time
  * Handles cleanup of orphaned sessions and resources
+ * Supports pause/resume functionality for better user experience
  */
+
+// Session states
+export enum SessionState {
+  ACTIVE = 'ACTIVE',
+  PAUSED = 'PAUSED',
+  BACKGROUND = 'BACKGROUND',
+  TERMINATED = 'TERMINATED'
+}
+
+interface SessionInfo {
+  id: string
+  state: SessionState
+  cleanupCallback: () => void
+  pauseTimeout?: NodeJS.Timeout
+  originalAudioStates?: {
+    localTracks: Array<{ track: MediaStreamTrack; enabled: boolean }>
+    remoteAudio: { playing: boolean; currentTime: number }
+  }
+}
+
 class InterviewSessionManager {
   private static instance: InterviewSessionManager
-  private activeSessionId: string | null = null
-  private cleanupCallbacks: Map<string, () => void> = new Map()
+  private sessions: Map<string, SessionInfo> = new Map()
   private peerConnections: Map<string, RTCPeerConnection> = new Map()
   private mediaStreams: Map<string, MediaStream> = new Map()
   private audioElements: Map<string, HTMLAudioElement> = new Map()
   private debugCallback: ((message: string) => void) | null = null
+  private sessionTimeouts: Map<string, NodeJS.Timeout> = new Map()
+  
+  // Configuration
+  private readonly PAUSE_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
 
   private constructor() {
     if (typeof window !== 'undefined') {
       // Clean up everything on page unload
       window.addEventListener('beforeunload', () => {
-        this.cleanupAllSessions()
+        this.terminateAllSessions()
       })
     }
   }
@@ -42,25 +66,29 @@ class InterviewSessionManager {
   registerSession(sessionId: string, cleanupCallback: () => void): void {
     this.log(`Registering session: ${sessionId}`)
     
-    // If there's an active session that's different, clean it up first
-    if (this.activeSessionId && this.activeSessionId !== sessionId) {
-      this.log(`Cleaning up previous session: ${this.activeSessionId}`)
-      const previousCallback = this.cleanupCallbacks.get(this.activeSessionId)
-      if (previousCallback) {
-        try {
-          // Call the cleanup callback for the old session
-          previousCallback()
-        } catch (error) {
-          this.log(`Error calling cleanup callback for previous session: ${error}`)
-        }
-      }
-      // Ensure resources are cleaned up even if callback fails
-      this.cleanupSessionResources(this.activeSessionId)
+    // Check if this session already exists and is paused
+    const existingSession = this.sessions.get(sessionId)
+    if (existingSession && (existingSession.state === SessionState.PAUSED || existingSession.state === SessionState.BACKGROUND)) {
+      this.log(`Found existing paused session: ${sessionId}, will resume instead of creating new`)
+      return
+    }
+    
+    // Find any active session and pause it instead of terminating
+    const activeSession = Array.from(this.sessions.values()).find(s => s.state === SessionState.ACTIVE)
+    if (activeSession && activeSession.id !== sessionId) {
+      this.log(`Pausing currently active session: ${activeSession.id}`)
+      this.pauseSession(activeSession.id)
     }
 
-    this.activeSessionId = sessionId
-    this.cleanupCallbacks.set(sessionId, cleanupCallback)
-    this.log(`Session registered: ${sessionId}`)
+    // Create new session info
+    const sessionInfo: SessionInfo = {
+      id: sessionId,
+      state: SessionState.ACTIVE,
+      cleanupCallback
+    }
+    
+    this.sessions.set(sessionId, sessionInfo)
+    this.log(`Session registered and active: ${sessionId}`)
   }
 
   registerPeerConnection(sessionId: string, pc: RTCPeerConnection): void {
@@ -185,56 +213,181 @@ class InterviewSessionManager {
     this.log(`Resources cleaned up for session: ${sessionId}`)
   }
 
-  cleanupSession(sessionId: string): void {
-    this.log(`Cleaning up session: ${sessionId}`)
+  pauseSession(sessionId: string): void {
+    const session = this.sessions.get(sessionId)
+    if (!session || session.state !== SessionState.ACTIVE) {
+      this.log(`Cannot pause session ${sessionId}: not found or not active`)
+      return
+    }
+
+    this.log(`Pausing session: ${sessionId}`)
     
-    // First, clean up all registered resources
+    // Save current audio states before pausing
+    const mediaStream = this.mediaStreams.get(sessionId)
+    const audioElement = this.audioElements.get(sessionId)
+    
+    if (mediaStream || audioElement) {
+      session.originalAudioStates = {
+        localTracks: [],
+        remoteAudio: { playing: false, currentTime: 0 }
+      }
+      
+      // Save and disable local audio tracks
+      if (mediaStream) {
+        mediaStream.getAudioTracks().forEach(track => {
+          session.originalAudioStates!.localTracks.push({
+            track,
+            enabled: track.enabled
+          })
+          track.enabled = false // Mute microphone
+        })
+      }
+      
+      // Save and pause remote audio
+      if (audioElement && !audioElement.paused) {
+        session.originalAudioStates!.remoteAudio = {
+          playing: true,
+          currentTime: audioElement.currentTime
+        }
+        audioElement.pause()
+      }
+    }
+    
+    // Update session state
+    session.state = SessionState.PAUSED
+    
+    // Set timeout for automatic termination
+    const timeout = setTimeout(() => {
+      this.log(`Session ${sessionId} auto-terminating after pause timeout`)
+      this.terminateSession(sessionId)
+    }, this.PAUSE_TIMEOUT_MS)
+    
+    session.pauseTimeout = timeout
+    this.sessionTimeouts.set(sessionId, timeout)
+    
+    this.log(`Session paused: ${sessionId}`)
+  }
+
+  resumeSession(sessionId: string): void {
+    const session = this.sessions.get(sessionId)
+    if (!session || (session.state !== SessionState.PAUSED && session.state !== SessionState.BACKGROUND)) {
+      this.log(`Cannot resume session ${sessionId}: not found or not paused`)
+      return
+    }
+
+    this.log(`Resuming session: ${sessionId}`)
+    
+    // Clear termination timeout
+    if (session.pauseTimeout) {
+      clearTimeout(session.pauseTimeout)
+      this.sessionTimeouts.delete(sessionId)
+      session.pauseTimeout = undefined
+    }
+    
+    // Restore audio states
+    if (session.originalAudioStates) {
+      // Re-enable local audio tracks
+      session.originalAudioStates.localTracks.forEach(({ track, enabled }) => {
+        if (track.readyState === 'live') {
+          track.enabled = enabled
+        }
+      })
+      
+      // Resume remote audio if it was playing
+      const audioElement = this.audioElements.get(sessionId)
+      if (audioElement && session.originalAudioStates.remoteAudio.playing) {
+        audioElement.currentTime = session.originalAudioStates.remoteAudio.currentTime
+        audioElement.play().catch(e => 
+          this.log(`Failed to resume audio playback: ${e}`)
+        )
+      }
+      
+      session.originalAudioStates = undefined
+    }
+    
+    // Update session state
+    session.state = SessionState.ACTIVE
+    
+    this.log(`Session resumed: ${sessionId}`)
+  }
+
+  terminateSession(sessionId: string): void {
+    this.log(`Terminating session: ${sessionId}`)
+    
+    const session = this.sessions.get(sessionId)
+    if (!session) {
+      this.log(`Session ${sessionId} not found`)
+      return
+    }
+    
+    // Clear any pending timeouts
+    if (session.pauseTimeout) {
+      clearTimeout(session.pauseTimeout)
+      this.sessionTimeouts.delete(sessionId)
+    }
+    
+    // Update state to terminated
+    session.state = SessionState.TERMINATED
+    
+    // Clean up all registered resources
     this.cleanupSessionResources(sessionId)
     
-    // Then call the cleanup callback if it exists
-    const cleanupCallback = this.cleanupCallbacks.get(sessionId)
-    if (cleanupCallback) {
+    // Call the cleanup callback if it exists
+    if (session.cleanupCallback) {
       try {
-        cleanupCallback()
+        session.cleanupCallback()
         this.log(`Session cleanup callback executed: ${sessionId}`)
       } catch (error) {
         this.log(`Error during session cleanup callback: ${error}`)
       }
     }
 
-    // Remove the cleanup callback
-    this.cleanupCallbacks.delete(sessionId)
+    // Remove the session
+    this.sessions.delete(sessionId)
     
-    // Clear active session if it's the one being cleaned up
-    if (this.activeSessionId === sessionId) {
-      this.activeSessionId = null
-      this.log(`Active session cleared: ${sessionId}`)
-    }
+    this.log(`Session terminated: ${sessionId}`)
   }
 
   isSessionActive(sessionId: string): boolean {
-    return this.activeSessionId === sessionId
+    const session = this.sessions.get(sessionId)
+    return session ? session.state === SessionState.ACTIVE : false
+  }
+  
+  isSessionPaused(sessionId: string): boolean {
+    const session = this.sessions.get(sessionId)
+    return session ? (session.state === SessionState.PAUSED || session.state === SessionState.BACKGROUND) : false
+  }
+
+  getSessionState(sessionId: string): SessionState | null {
+    const session = this.sessions.get(sessionId)
+    return session ? session.state : null
   }
 
   getActiveSessionId(): string | null {
-    return this.activeSessionId
+    const activeSession = Array.from(this.sessions.values()).find(s => s.state === SessionState.ACTIVE)
+    return activeSession ? activeSession.id : null
   }
 
   // Clean up all sessions (useful for testing or emergency cleanup)
-  cleanupAllSessions(): void {
-    this.log('Cleaning up all sessions')
-    const sessionIds = Array.from(this.cleanupCallbacks.keys())
-    sessionIds.forEach(sessionId => this.cleanupSession(sessionId))
+  terminateAllSessions(): void {
+    this.log('Terminating all sessions')
+    const sessionIds = Array.from(this.sessions.keys())
+    sessionIds.forEach(sessionId => this.terminateSession(sessionId))
   }
 
   // Get resource counts for debugging
   getResourceCounts(): { sessions: number; peerConnections: number; streams: number; audioElements: number } {
     return {
-      sessions: this.cleanupCallbacks.size,
+      sessions: this.sessions.size,
       peerConnections: this.peerConnections.size,
       streams: this.mediaStreams.size,
       audioElements: this.audioElements.size
     }
+  }
+  
+  // Check if a session exists (in any state)
+  hasSession(sessionId: string): boolean {
+    return this.sessions.has(sessionId)
   }
 }
 
