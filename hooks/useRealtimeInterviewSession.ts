@@ -534,6 +534,16 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
 
       const sessionData = await response.json()
       
+      // Handle duplicate prevention response
+      if (sessionData.isDuplicatePrevention) {
+        addDebugMessage(`Duplicate session prevention: ${sessionData.message}`)
+        console.warn("[useRealtimeInterviewSession] Duplicate session prevented:", sessionData)
+        
+        // Wait for the specified time before allowing retry
+        const waitTime = sessionData.waitSeconds || 10
+        throw new Error(`DUPLICATE_SESSION: Please wait ${waitTime} seconds before starting a new interview. ${sessionData.message}`)
+      }
+      
       if (!sessionData.id || !sessionData.token) {
         throw new Error("Invalid session data received")
       }
@@ -558,17 +568,36 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
   const start = useCallback(async (overrideJobTitle?: string) => {
     const effectiveJobTitle = overrideJobTitle || jobTitle
     
+    // Entry log
+    addDebugMessage(`[START ENTRY] Attempting to start. Current sessionStateRef.current.status: '${sessionStateRef.current.status}', isActive: ${sessionStateRef.current.isActive}, sessionData: ${sessionStateRef.current.sessionData ? 'exists' : 'null'}`)
+    
     // Enhanced guard: Check if session is already in progress (not just active)
     if (sessionStateRef.current.status !== "idle" && sessionStateRef.current.status !== "error") {
-      addDebugMessage(`Session is already in progress (status: ${sessionStateRef.current.status}), ignoring redundant start request.`)
+      addDebugMessage(`[GUARD HIT] Session is already in progress with status: '${sessionStateRef.current.status}'. Ignoring redundant start() request. This is likely due to a re-render or duplicate call.`)
+      console.warn(`[useRealtimeInterviewSession] GUARD HIT - Attempted to start session while status is '${sessionStateRef.current.status}' - blocked by guard`)
+      
+      // Log session manager state for debugging
+      if (interviewSessionManager) {
+        interviewSessionManager.logSessionStates()
+      }
+      
       return
     }
     
     // Guard against active sessions
     if (sessionStateRef.current.isActive && sessionStateRef.current.sessionData) {
-      addDebugMessage("Session already active, ignoring start request (likely from Clerk re-render)")
+      addDebugMessage(`[GUARD HIT] Session already active with sessionId: ${sessionStateRef.current.sessionData.id}. Ignoring start() request (likely from Clerk re-render or tab refocus)`)
+      console.warn(`[useRealtimeInterviewSession] GUARD HIT - Attempted to start while session is active - blocked by guard`)
+      
+      // Log session manager state for debugging
+      if (interviewSessionManager) {
+        interviewSessionManager.logSessionStates()
+      }
+      
       return
     }
+    
+    addDebugMessage(`[GUARD PASSED] Guards passed. Proceeding with start logic. Setting status to 'requesting_mic'.`)
     
     try {
       // Check if we have a paused session to resume
@@ -583,6 +612,8 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       
       // Register this session with the manager, providing cleanup callback
       if (interviewSessionManager) {
+        addDebugMessage(`Registering session ${hookSessionId.current} with manager...`)
+        
         interviewSessionManager.registerSession(hookSessionId.current, () => {
           // This will be called by the manager when terminating the session
           addDebugMessage(`Session ${hookSessionId.current} termination requested by manager`)
@@ -591,6 +622,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
             stopRef.current()
           }
         })
+        
         addDebugMessage(`Session ${hookSessionId.current} registered with manager`)
       }
       
@@ -608,7 +640,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       // Setup WebRTC
       await setupWebRTC(sessionData)
       
-      addDebugMessage("Interview session started successfully")
+      addDebugMessage(`[START EXIT] Interview session started successfully. Status: '${sessionStateRef.current.status}'`)
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
@@ -624,6 +656,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
         !errorMessage.includes("API key not configured") &&
         !errorMessage.includes("Invalid OpenAI API key") &&
         !errorMessage.includes("RATE_LIMIT_ERROR") && // Don't retry rate limit errors
+        !errorMessage.includes("DUPLICATE_SESSION") && // Don't retry duplicate session errors
         (errorMessage.includes("temporarily unavailable") || 
          errorMessage.includes("timeout") ||
          errorMessage.includes("taking longer") ||

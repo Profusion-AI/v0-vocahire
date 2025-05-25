@@ -65,6 +65,14 @@ export default function InterviewPageClient({
   const [hasResumeData, setHasResumeData] = useState<boolean>(false);
   const [skipResume, setSkipResume] = useState(initialSkipResume);
   const [currentView, setCurrentView] = useState<"interview" | "profile">("interview");
+  
+  // Unified UI state management
+  const [uiLoadingState, setUiLoadingState] = useState<'idle' | 'preparing' | 'active'>('idle');
+  
+  // Track interview process initiation intent (survives re-renders)
+  const interviewProcessInitiatedRef = useRef(false);
+  
+  // Legacy states (will be phased out)
   const [interviewActive, setInterviewActive] = useState(false);
   const [creatingSession, setCreatingSession] = useState(false);
   const [loadingStages] = useState<LoadingStage[]>([
@@ -175,6 +183,17 @@ export default function InterviewPageClient({
     };
   }, []);
   
+  // Debug effect to log state changes
+  useEffect(() => {
+    console.log('[InterviewPageClient] State update:', {
+      interviewIntent: interviewProcessInitiatedRef.current,
+      uiLoadingState,
+      interviewActive,
+      showLoadingScreen,
+      loadingInProgress: loadingStateRef.current.isLoadingInProgress
+    });
+  }, [uiLoadingState, interviewActive, showLoadingScreen]);
+  
   // Display a notification when fallback database is being used
   useEffect(() => {
     if (isUsingFallbackDb) {
@@ -244,6 +263,16 @@ export default function InterviewPageClient({
       if (typeof window !== 'undefined') {
         localStorage.setItem("vocahire_interview_messages", JSON.stringify(messages));
       }
+      
+      // Reset all interview states
+      console.log('[InterviewPageClient] Interview completed - resetting all states...');
+      interviewProcessInitiatedRef.current = false;
+      console.log('[InterviewPageClient] Intent reset to FALSE');
+      
+      const prevUiState = uiLoadingState;
+      setUiLoadingState('idle');
+      console.log('[InterviewPageClient] UI state changed:', prevUiState, '->', 'idle');
+      
       setInterviewActive(false); // Reset the interview state
       router.push("/feedback");
     },
@@ -251,17 +280,46 @@ export default function InterviewPageClient({
   );
   
   const handleStartInterviewAttempt = () => {
+    // Check if interview is already initiated
+    if (interviewProcessInitiatedRef.current) {
+      console.log('[InterviewPageClient] Interview already initiated - ignoring start attempt');
+      return;
+    }
+    
+    // Immediately set creating session to disable button
+    setCreatingSession(true);
+    
     if (!isPremium && credits !== null && Number(credits) > 0) {
       setIsConfirmStartModalOpen(true);
+      // Reset if modal is opened instead of starting
+      setCreatingSession(false);
     } else if (isPremium || (credits !== null && Number(credits) > 0)) {
       startInterview();
+    } else {
+      // Reset if conditions not met
+      setCreatingSession(false);
     }
   };
 
   const startInterview = async () => {
+    // Set interview intent - this survives re-renders
+    const wasInitiated = interviewProcessInitiatedRef.current;
+    if (!interviewProcessInitiatedRef.current) {
+      interviewProcessInitiatedRef.current = true;
+      console.log('[InterviewPageClient] Interview process initiated - intent set to TRUE (was:', wasInitiated, ')');
+    } else {
+      console.log('[InterviewPageClient] Interview already initiated - keeping intent as TRUE');
+    }
+    
     console.log('[InterviewPageClient] Starting interview - initializing loading screen');
     setIsConfirmStartModalOpen(false);
-    setCreatingSession(false); // InterviewRoom will handle session creation loading
+    // Don't set creatingSession to false here - let handleSessionCreationStatus manage it
+    // setCreatingSession(false); // REMOVED: This could cause race conditions
+    
+    // Update UI state
+    const prevState = uiLoadingState;
+    setUiLoadingState('preparing');
+    console.log('[InterviewPageClient] UI state changed:', prevState, '->', 'preparing');
     
     // Show loading screen immediately and mark loading as in progress
     loadingStateRef.current.isLoadingInProgress = true;
@@ -278,13 +336,21 @@ export default function InterviewPageClient({
   };
 
   const handleSessionCreationStatus = (isCreating: boolean, error?: string, status?: string) => {
+    console.log('[InterviewPageClient] handleSessionCreationStatus called:', {
+      isCreating,
+      error: error || 'none',
+      status: status || 'none',
+      currentIntent: interviewProcessInitiatedRef.current,
+      currentUiState: uiLoadingState
+    });
+    
     setCreatingSession(isCreating);
     
     // Protect against state resets during loading
     if (loadingStateRef.current.isLoadingInProgress && !isCreating && !error) {
       // Loading was in progress and now we're getting a non-creating status without error
       // This might be a re-render artifact - don't reset the loading state
-      console.log('[InterviewPageClient] Ignoring potential loading state reset during active loading');
+      console.log('[InterviewPageClient] PROTECTION: Ignoring potential loading state reset during active loading');
       return;
     }
     
@@ -374,6 +440,10 @@ export default function InterviewPageClient({
             clearTimeout(stageTimeoutRef.current);
             stageTimeoutRef.current = null;
           }
+          
+          // Transition UI state to active
+          setUiLoadingState('active');
+          
           setCompletedLoadingStageIds(['mic_check', 'session_init', 'ai_connect', 'finalizing']);
           loadingStateRef.current.lastCompletedStages = ['mic_check', 'session_init', 'ai_connect', 'finalizing'];
           setTimeout(() => {
@@ -443,6 +513,15 @@ export default function InterviewPageClient({
       if (error.includes("Insufficient VocahireCredits") || 
           error.includes("Unauthorized") ||
           error.includes("API key not configured")) {
+        // Reset all states on fatal error
+        console.log('[InterviewPageClient] Fatal error detected - resetting all states...');
+        interviewProcessInitiatedRef.current = false;
+        console.log('[InterviewPageClient] Intent reset to FALSE due to fatal error');
+        
+        const prevUiState = uiLoadingState;
+        setUiLoadingState('idle');
+        console.log('[InterviewPageClient] UI state changed:', prevUiState, '->', 'idle');
+        
         setInterviewActive(false);
       }
     }
@@ -552,8 +631,8 @@ export default function InterviewPageClient({
               </Card>
             )}
 
-            {/* Interview interface - only show when active */}
-            {interviewActive ? (
+            {/* Interview interface - show based on interview intent and UI state */}
+            {interviewProcessInitiatedRef.current && (uiLoadingState === 'preparing' || uiLoadingState === 'active') ? (
               <>
                 {/* Always mount InterviewRoom to handle the session lifecycle */}
                 <motion.div 
@@ -669,7 +748,12 @@ export default function InterviewPageClient({
       />
 
       {isConfirmStartModalOpen && (
-        <Dialog open={isConfirmStartModalOpen} onOpenChange={setIsConfirmStartModalOpen}>
+        <Dialog open={isConfirmStartModalOpen} onOpenChange={(open) => {
+          setIsConfirmStartModalOpen(open);
+          if (!open) {
+            setCreatingSession(false); // Reset creating state when dialog closes
+          }
+        }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Confirm Start Interview</DialogTitle>
@@ -678,7 +762,10 @@ export default function InterviewPageClient({
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsConfirmStartModalOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => {
+                setIsConfirmStartModalOpen(false);
+                setCreatingSession(false); // Reset creating state on cancel
+              }}>Cancel</Button>
               <Button onClick={startInterview}>Proceed</Button>
             </DialogFooter>
           </DialogContent>

@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
   
   // Enhanced logging with more details
   console.log(`\n=== REALTIME SESSION REQUEST START [${requestId}] ===`)
+  console.log(`🎯 NEW SESSION REQUEST`)
   console.log(`Timestamp: ${new Date().toISOString()}`)
   console.log(`Environment: ${process.env.NODE_ENV}`)
   console.log(`Vercel: ${process.env.VERCEL ? 'Yes' : 'No'}`)
@@ -187,7 +188,64 @@ export async function POST(request: NextRequest) {
     
     perfLog("DB_QUERY_COMPLETE", { credits: user.credits, isPremium: user.isPremium })
     
-    // 7. Credit validation and granting
+    // 7. Check for recent session creation to prevent double charges (non-premium users only)
+    if (!user.isPremium) {
+      perfLog("CHECKING_RECENT_SESSIONS")
+      console.log(`[${requestId}] 🔍 IDEMPOTENCY CHECK: Looking for sessions created in last 30 seconds for user ${userId}`)
+      try {
+        // Check if a session was created in the last 30 seconds
+        const recentSession = await prisma.interviewSession.findFirst({
+          where: {
+            userId,
+            createdAt: {
+              gte: new Date(Date.now() - 30000) // 30 seconds ago
+            },
+            status: {
+              in: ['pending', 'active'] // Don't count completed/failed sessions
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          select: {
+            id: true,
+            createdAt: true
+          }
+        })
+        
+        if (recentSession) {
+          const secondsAgo = Math.floor((Date.now() - recentSession.createdAt.getTime()) / 1000)
+          perfLog("RECENT_SESSION_FOUND", { 
+            sessionId: recentSession.id, 
+            secondsAgo
+          })
+          
+          console.log(`[${requestId}] 🛡️ DUPLICATE PREVENTION: Blocking potential double charge - found session ${recentSession.id} created ${secondsAgo}s ago`)
+          console.log(`[${requestId}] 💳 NO CREDIT DEDUCTED - Returning duplicate prevention response`)
+          
+          // Return a special response that the client can handle
+          return NextResponse.json({ 
+            success: true,
+            id: `duplicate-prevention-${recentSession.id}`,
+            token: "session-already-active", // The client should handle this gracefully
+            expires_at: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
+            message: "A session was recently created. Please wait before starting a new one.",
+            requestId,
+            isDuplicatePrevention: true,
+            existingSessionId: recentSession.id,
+            waitSeconds: Math.max(30 - secondsAgo, 5) // Tell client how long to wait
+          }, { status: 200 }) // Return 200 to avoid triggering client retries
+        } else {
+          perfLog("NO_RECENT_SESSION_FOUND")
+          console.log(`[${requestId}] ✅ IDEMPOTENCY CHECK PASSED: No recent sessions found - proceeding with new session creation`)
+        }
+      } catch (error) {
+        console.error(`[${requestId}] Failed to check recent sessions:`, error)
+        // Continue with normal flow if check fails
+      }
+    }
+    
+    // 8. Credit validation and granting
     if (!user.isPremium) {
       // Grant initial credits for new users
       if (user.credits === 0) {
@@ -225,7 +283,7 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // 8. Create OpenAI session with circuit breaker protection
+    // 9. Create OpenAI session with circuit breaker protection
     perfLog("OPENAI_SESSION_START")
     
     const instructions = `You are an experienced technical interviewer conducting a mock job interview for a ${jobTitle} position. ${resumeText ? `The candidate has provided this background: ${resumeText.substring(0, 500)}` : ''} 
@@ -336,37 +394,84 @@ Begin by greeting the candidate and asking them to introduce themselves briefly.
       }, { status: 502 })
     }
     
-    // 9. Deduct credits synchronously to ensure it happens
+    // 10. Create interview session record BEFORE deducting credits (for idempotency)
+    let interviewSessionId: string | null = null
+    try {
+      perfLog("CREATING_INTERVIEW_SESSION_RECORD")
+      const newSession = await prisma.interviewSession.create({
+        data: {
+          userId,
+          jobTitle,
+          status: 'active',
+          feedbackStatus: 'pending'
+        },
+        select: {
+          id: true
+        }
+      })
+      interviewSessionId = newSession.id
+      perfLog("INTERVIEW_SESSION_CREATED", { sessionId: interviewSessionId })
+    } catch (error) {
+      console.error(`[${requestId}] Failed to create interview session record:`, error)
+      // Continue without session record, but log the issue
+    }
+    
+    // 11. Deduct credits synchronously to ensure it happens
     if (!user.isPremium) {
       perfLog("CREDIT_DEDUCTION_START")
       try {
-        const updateResult = await prisma.$executeRaw`
-          UPDATE "User" 
-          SET credits = credits - ${INTERVIEW_COST}
-          WHERE id = ${userId} AND credits >= ${INTERVIEW_COST}
-        `
-        
-        if (updateResult === 0) {
-          console.error("Failed to deduct credits - no rows updated")
-          // Don't fail the request, but log the issue
-        } else {
-          perfLog("CREDIT_DEDUCTION_SUCCESS", { rowsUpdated: updateResult })
+        // Use a transaction to ensure atomicity
+        const result = await prisma.$transaction(async (tx) => {
+          // First, deduct the credits
+          const updateResult = await tx.$executeRaw`
+            UPDATE "User" 
+            SET credits = credits - ${INTERVIEW_COST}
+            WHERE id = ${userId} AND credits >= ${INTERVIEW_COST}
+          `
           
-          // Invalidate cache after successful credit deduction
-          try {
-            const { invalidateUserCache } = await import("@/lib/user-cache")
-            await invalidateUserCache(userId)
-          } catch (cacheError) {
-            console.warn("Failed to invalidate user cache:", cacheError)
+          if (updateResult === 0) {
+            throw new Error("Insufficient credits or user not found")
           }
+          
+          // Then, mark the session as having deducted credits (if we created one)
+          if (interviewSessionId) {
+            await tx.$executeRaw`
+              UPDATE "InterviewSession"
+              SET "updatedAt" = NOW()
+              WHERE id = ${interviewSessionId}
+            `
+          }
+          
+          return updateResult
+        })
+        
+        perfLog("CREDIT_DEDUCTION_SUCCESS", { rowsUpdated: result })
+        console.log(`[${requestId}] 💳 CREDIT DEDUCTED: ${INTERVIEW_COST} VocahireCredits deducted from user ${userId}`)
+        
+        // Invalidate cache after successful credit deduction
+        try {
+          const { invalidateUserCache } = await import("@/lib/user-cache")
+          await invalidateUserCache(userId)
+        } catch (cacheError) {
+          console.warn("Failed to invalidate user cache:", cacheError)
         }
       } catch (error) {
-        console.error("Failed to deduct credits:", error)
+        console.error(`[${requestId}] Failed to deduct credits:`, error)
+        // If credit deduction fails, delete the session record
+        if (interviewSessionId) {
+          try {
+            await prisma.interviewSession.delete({
+              where: { id: interviewSessionId }
+            })
+          } catch (deleteError) {
+            console.error(`[${requestId}] Failed to delete session after credit deduction failure:`, deleteError)
+          }
+        }
         // Don't fail the request, but log the issue
       }
     }
     
-    // 10. Track usage (non-blocking)
+    // 12. Track usage (non-blocking)
     setImmediate(() => {
       trackUsage(userId, UsageType.INTERVIEW_SESSION).catch(console.error)
       incrementRateLimit(userId, RATE_LIMIT_CONFIGS.REALTIME_SESSION).catch(console.error)

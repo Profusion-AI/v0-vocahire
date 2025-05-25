@@ -66,21 +66,35 @@ class InterviewSessionManager {
   registerSession(sessionId: string, cleanupCallback: () => void): void {
     this.log(`Registering session: ${sessionId}`)
     
-    // Check if this session already exists and is paused
+    // Check if this session already exists
     const existingSession = this.sessions.get(sessionId)
+    
+    // Case 1: Session exists and is already active - just update the callback
+    if (existingSession && existingSession.state === SessionState.ACTIVE) {
+      this.log(`[RE-REGISTRATION] Session ${sessionId} is already active. Updating cleanup callback only.`)
+      console.warn(`[SessionManager] Re-registration attempt for already active session: ${sessionId}`)
+      existingSession.cleanupCallback = cleanupCallback
+      
+      // Log full state for debugging
+      this.logSessionStates()
+      
+      return
+    }
+    
+    // Case 2: Session exists and is paused/background - will be resumed
     if (existingSession && (existingSession.state === SessionState.PAUSED || existingSession.state === SessionState.BACKGROUND)) {
       this.log(`Found existing paused session: ${sessionId}, will resume instead of creating new`)
       return
     }
     
-    // Find any active session and pause it instead of terminating
+    // Case 3: Different session is active - pause it
     const activeSession = Array.from(this.sessions.values()).find(s => s.state === SessionState.ACTIVE)
     if (activeSession && activeSession.id !== sessionId) {
-      this.log(`Pausing currently active session: ${activeSession.id}`)
+      this.log(`Pausing currently active session: ${activeSession.id} to make way for ${sessionId}`)
       this.pauseSession(activeSession.id)
     }
 
-    // Create new session info
+    // Case 4: Create new session (or overwrite terminated session)
     const sessionInfo: SessionInfo = {
       id: sessionId,
       state: SessionState.ACTIVE,
@@ -388,6 +402,20 @@ class InterviewSessionManager {
   // Check if a session exists (in any state)
   hasSession(sessionId: string): boolean {
     return this.sessions.has(sessionId)
+  }
+  
+  // Debug method to log current session states
+  logSessionStates(): void {
+    this.log('=== Current Session States ===')
+    if (this.sessions.size === 0) {
+      this.log('No sessions registered')
+    } else {
+      this.sessions.forEach((session, id) => {
+        this.log(`Session ${id}: state=${session.state}, hasCallback=${!!session.cleanupCallback}`)
+      })
+    }
+    this.log(`Resource counts: ${JSON.stringify(this.getResourceCounts())}`)
+    this.log('=============================')
   }
 }
 
