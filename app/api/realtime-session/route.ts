@@ -200,9 +200,10 @@ export async function POST(request: NextRequest) {
             createdAt: {
               gte: new Date(Date.now() - 30000) // 30 seconds ago
             },
-            status: {
-              in: ['pending', 'active'] // Don't count completed/failed sessions
-            }
+            OR: [
+              { status: 'pending' },
+              { status: 'active' }
+            ]
           },
           orderBy: {
             createdAt: 'desc'

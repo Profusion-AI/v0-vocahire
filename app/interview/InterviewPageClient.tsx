@@ -276,7 +276,7 @@ export default function InterviewPageClient({
       setInterviewActive(false); // Reset the interview state
       router.push("/feedback");
     },
-    [router]
+    [router, uiLoadingState]
   );
   
   const handleStartInterviewAttempt = () => {

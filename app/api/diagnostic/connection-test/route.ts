@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../../../../prisma/generated/client';
 
 export async function GET(_request: NextRequest) {
   const results: Record<string, any> = {};

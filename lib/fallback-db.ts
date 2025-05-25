@@ -4,8 +4,8 @@
  * with limited capabilities when the database is unavailable.
  */
 
-import { Prisma } from '@prisma/client';
-import type { User, UserRole } from '@prisma/client';
+import { Prisma } from '../prisma/generated/client';
+import type { User, UserRole } from '../prisma/generated/client';
 
 // Basic in-memory storage for users created during the session
 const users = new Map<string, any>();
@@ -13,6 +13,7 @@ const users = new Map<string, any>();
 // Default user object when no stored user is found
 const getDefaultUser = (id: string, name: string | null = null, email: string | null = null): User => ({
   id,
+  clerkId: id, // In our schema, id and clerkId are the same
   name,
   email,
   image: null,

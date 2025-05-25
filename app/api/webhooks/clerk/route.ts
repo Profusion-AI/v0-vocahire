@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
         const _dbUser = await prisma.user.create({
           data: {
             id: clerkId,
+            clerkId: clerkId,
             email: email,
             name: name,
             image: image,

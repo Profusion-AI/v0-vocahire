@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../../../../prisma/generated/client';
 
 export async function GET() {
   const dbUrl = process.env.DATABASE_URL;

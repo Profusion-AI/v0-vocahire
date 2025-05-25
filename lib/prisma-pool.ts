@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client"
+import { PrismaClient } from "../prisma/generated/client"
 
 // Connection pool configuration for production
 const connectionPoolConfig = {

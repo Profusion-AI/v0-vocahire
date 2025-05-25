@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
 import { NextRequest } from "next/server"
 import { prisma, withDatabaseFallback, isUsingFallbackDb } from "@/lib/prisma"
-import { Prisma, UserRole } from "@prisma/client"
+import { Prisma, UserRole } from "../../../prisma/generated/client"
 import { z } from "zod"
 import { getConsistentCreditValue, createPrismaDecimal } from "@/lib/prisma-types"
 import { invalidateUserCache, prefetchUserCredentials } from "@/lib/user-cache"
@@ -185,6 +185,7 @@ export async function GET(request: NextRequest) {
       async () => await prisma.user.create({
         data: {
           id: auth.userId,
+          clerkId: auth.userId,
           name: clerkUser?.firstName && clerkUser?.lastName ? 
                 `${clerkUser.firstName} ${clerkUser.lastName}` : 
                 clerkUser?.firstName || clerkUser?.lastName || null,
@@ -352,6 +353,7 @@ export async function PATCH(request: NextRequest) {
         async () => await prisma.user.create({
           data: {
             id: auth.userId,
+            clerkId: auth.userId,
             name: clerkUser?.firstName && clerkUser?.lastName ? 
                   `${clerkUser.firstName} ${clerkUser.lastName}` : 
                   clerkUser?.firstName || clerkUser?.lastName || null,
@@ -367,6 +369,7 @@ export async function PATCH(request: NextRequest) {
           // Return a fallback object with all required User fields
           const fallbackCreationUser = {
             id: auth.userId,
+            clerkId: auth.userId,
             name: clerkUser?.firstName && clerkUser?.lastName ? 
                   `${clerkUser.firstName} ${clerkUser.lastName}` : 
                   clerkUser?.firstName || clerkUser?.lastName || null,

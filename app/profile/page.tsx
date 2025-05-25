@@ -1,7 +1,7 @@
 // No "use client"; here - this makes it a Server Component by default
 import { prisma } from "@/lib/prisma";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { type User as PrismaUser } from "@prisma/client"; // Alias Prisma User type
+import { type User as PrismaUser } from "../../prisma/generated/client"; // Alias Prisma User type
 import ProfilePageClient from "./ProfilePageClient";
 import { type ProfileFormData } from "@/components/ProfileSettingsForm"; // Correct import for the type
 import { Navbar } from "@/components/navbar";
@@ -77,6 +77,7 @@ export default async function ProfilePage() {
           initialDbUser = await prisma.user.create({
             data: {
               id: currentAuthUserId,
+              clerkId: currentAuthUserId,
               email: clerkUser?.emailAddresses?.[0]?.emailAddress || null,
               name: clerkUser?.firstName 
                 ? (clerkUser.lastName 

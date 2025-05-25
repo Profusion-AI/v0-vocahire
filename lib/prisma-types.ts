@@ -3,7 +3,7 @@
  * across regular database operations and fallback paths
  */
 
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../prisma/generated/client';
 
 /**
  * Get a consistent credit value for API responses

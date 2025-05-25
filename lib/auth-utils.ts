@@ -20,6 +20,7 @@ export async function getOrCreatePrismaUser(clerkUserId: string) {
     return await prisma.user.create({
       data: {
         id: clerkUserId,
+        clerkId: clerkUserId,
         email: clerkUser.emailAddresses[0]?.emailAddress || null,
         name: clerkUser.firstName && clerkUser.lastName 
           ? `${clerkUser.firstName} ${clerkUser.lastName}`
