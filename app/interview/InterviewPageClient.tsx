@@ -583,35 +583,80 @@ export default function InterviewPageClient({
 
         <TabsContent value="interview" className="mt-0">
           <SessionLayout>
-            <h1 className="text-3xl md:text-4xl tracking-tight font-extrabold text-gray-900 dark:text-white text-center mb-6">Interview Session</h1>
-            <div className="mb-6 text-center text-gray-700 dark:text-gray-300">
-              <p>Position: <strong>{jobTitle}</strong> {hasResumeData && " • Resume data loaded"}</p>
-              {isUsingFallbackDb && (
-                <div className="mt-2 px-4 py-2 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded-md inline-block">
-                  <span className="font-medium">Limited Mode:</span> Database connection unavailable
-                </div>
-              )}
+            <div className="text-center mb-8">
+              <div className="flex items-center justify-center gap-3 mb-3">
+                <Mic className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+                <h1 className="text-3xl md:text-4xl tracking-tight font-extrabold text-gray-900 dark:text-white">Interview Session</h1>
+              </div>
+              <p className="text-lg text-gray-600 dark:text-gray-400">Practice with your AI-powered interview coach</p>
             </div>
-
-            {isPremium ? (
-              <div className="text-center my-6">
-                <div className="inline-block bg-gradient-to-r from-green-400 to-blue-500 text-white px-5 py-3 rounded-lg shadow-md font-semibold text-md mb-2">
-                  Premium Access: Unlimited Interviews
+            
+            {/* Pre-flight check card */}
+            <Card className="max-w-md mx-auto mb-8 shadow-sm border-gray-200 dark:border-gray-700">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  Interview Ready!
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-start gap-3 text-sm">
+                  <div className="mt-0.5 h-2 w-2 rounded-full bg-green-500 flex-shrink-0" />
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400">Position:</span>{" "}
+                    <span className="font-semibold text-gray-900 dark:text-white">{jobTitle}</span>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Enjoy your premium benefits!</p>
-              </div>
-            ) : isUserDataLoading ? ( // Use isUserDataLoading from the hook
-                <div className="text-center my-6"><Skeleton className="h-8 w-48 inline-block" /></div>
-            ) : credits !== null && Number(credits) > 0 ? (
-              <div className="text-center my-6">
-                <p className="text-lg">
-                  You have <span className="font-bold text-indigo-600 dark:text-indigo-400">{typeof credits === 'number' ? credits.toFixed(2) : Number(credits).toFixed(2)}</span> VocahireCredits remaining.
-                </p>
-                <Button onClick={handlePurchaseCreditsClick} variant="link" className="text-indigo-600 dark:text-indigo-400 p-0 h-auto">
-                  Purchase More VocahireCredits
-                </Button>
-              </div>
-            ) : ( // This covers credits === 0 or credits === null (and not premium, not loading)
+                <div className="flex items-start gap-3 text-sm">
+                  <div className="mt-0.5 h-2 w-2 rounded-full bg-green-500 flex-shrink-0" />
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400">Context:</span>{" "}
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {hasResumeData ? "Resume data loaded" : "General interview"}
+                    </span>
+                  </div>
+                </div>
+                {isUsingFallbackDb && (
+                  <div className="mt-2 px-3 py-2 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded-md text-xs">
+                    <span className="font-medium">Limited Mode:</span> Database connection unavailable
+                  </div>
+                )}
+                
+                {/* Credits section */}
+                <div className="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700">
+                  {isPremium ? (
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                      <span className="text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 bg-clip-text text-transparent">
+                        Premium Access: Unlimited Interviews
+                      </span>
+                    </div>
+                  ) : isUserDataLoading ? (
+                    <Skeleton className="h-4 w-32" />
+                  ) : credits !== null && Number(credits) > 0 ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Credits:</span>
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {typeof credits === 'number' ? credits.toFixed(2) : Number(credits).toFixed(2)} remaining
+                        </span>
+                      </div>
+                      <Button 
+                        onClick={handlePurchaseCreditsClick} 
+                        variant="ghost" 
+                        size="sm"
+                        className="w-full text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950"
+                      >
+                        Purchase More VocahireCredits
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Conditional messaging for different states */}
+            {!isPremium && !isUserDataLoading && credits !== null && Number(credits) === 0 && (
               <Card className="max-w-lg mx-auto my-8 shadow-xl border-2 border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20">
                 <CardHeader className="text-center">
                   <CardTitle className="text-2xl font-bold text-red-600 dark:text-red-400">Premium Access Required</CardTitle>
@@ -677,19 +722,30 @@ export default function InterviewPageClient({
                 </AnimatePresence>
               </>
             ) : (isPremium || (credits !== null && Number(credits) >= 0.50)) ? (
-              <div className="mt-8">
+              <div className="mt-8 space-y-4">
+                {/* What to expect section */}
+                <div className="text-center max-w-md mx-auto">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">~10 min session</span> • Real-time voice practice • AI-generated feedback
+                  </p>
+                </div>
+                
+                {/* Enhanced start button */}
                 <Button
                   onClick={handleStartInterviewAttempt}
-                  className="w-full max-w-md mx-auto flex justify-center py-3 text-lg bg-green-500 hover:bg-green-600"
+                  className="w-full max-w-md mx-auto flex justify-center items-center gap-3 py-4 text-lg bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg hover:shadow-xl transition-all duration-200 group"
                   disabled={isUserDataLoading || creatingSession}
                 >
                   {creatingSession ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader2 className="h-5 w-5 animate-spin" />
                       Starting Interview...
                     </>
                   ) : (
-                    "Start Mock Interview"
+                    <>
+                      <Mic className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                      Start Mock Interview
+                    </>
                   )}
                 </Button>
               </div>

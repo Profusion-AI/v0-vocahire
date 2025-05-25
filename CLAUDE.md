@@ -153,6 +153,87 @@ All Prisma migrations have been successfully applied to the production database:
 - `20250519143501_update_credits_to_decimal`
 - `20250523204427_add_feedback_status_and_performance_indexes`
 
+## Feedback System Enhancement (January 2025)
+
+### Structured Feedback Generation
+- **Implemented JSON-based feedback**: Moved from regex parsing to structured JSON output using OpenAI's JSON mode for reliability
+- **Created Zod schemas**: Type-safe validation for feedback data with comprehensive error handling
+- **Backward compatibility**: Maintains fallback to legacy parsing to ensure system stability
+- **Database schema updates**: Added structured fields for individual scores and enhanced feedback data
+
+### Enhanced Feedback Feature (0.50 VocahireCredits)
+Premium feedback tier implementation for users seeking deeper insights:
+
+**Features Included:**
+- Question-by-question breakdown with alternative phrasings
+- Emotional tone analysis (text-inferred from language patterns)
+- STAR method adherence scoring for behavioral questions
+- Industry benchmarking with percentile ranking
+- Personalized 30-day action plan with immediate/short/long-term goals
+- Keyword relevance scoring against job description
+
+**Technical Implementation:**
+- **API Endpoint**: `/api/feedback/enhance` with synchronous credit deduction
+- **Credit Management**: Following CLAUDE.md patterns for atomic credit operations
+- **Duplicate Prevention**: `enhancedFeedbackGenerated` flag prevents double charges
+- **Transaction Logging**: All credit operations logged for audit trail
+- **Error Handling**: Comprehensive Sentry logging with request IDs
+
+**UI Components:**
+- `EnhancedFeedbackCTA.tsx`: Professional upsell component with clear value proposition
+- `EnhancedFeedbackDisplay.tsx`: Three-tab interface for comprehensive analysis display
+- Visual progress bars and performance metrics for engagement
+
+### Transcription Architecture (No SDK)
+VocaHire uses direct API calls to OpenAI Realtime API without SDK dependency:
+
+**Implementation Details:**
+- **Session Creation**: Direct HTTP POST to `https://api.openai.com/v1/realtime/sessions`
+- **WebRTC Exchange**: Direct SDP exchange via `https://api.openai.com/v1/realtime`
+- **Manual WebRTC**: Native browser RTCPeerConnection and RTCDataChannel management
+- **No Audio Storage**: Only text transcripts persisted for privacy/efficiency
+
+**Transcription Events:**
+```typescript
+// User speech events
+"conversation.item.input_audio_transcription.completed"
+"conversation.item.input_audio_transcription.delta"
+
+// AI response events
+"response.audio_transcript.delta"
+"response.audio_transcript.done"
+```
+
+### Database Schema Enhancements
+```prisma
+model Feedback {
+  // Existing fields...
+  
+  // Structured feedback data
+  structuredData           Json?            // Full structured feedback JSON
+  clarityScore             Float?           // 0-4 scale
+  concisenessScore         Float?           // 0-4 scale  
+  technicalDepthScore      Float?           // 0-4 scale
+  starMethodScore          Float?           // 0-4 scale
+  overallScore             Float?           // 0-4 scale average
+  
+  // Enhanced feedback fields
+  enhancedFeedbackGenerated Boolean         @default(false)
+  enhancedReportData       Json?            // Enhanced feedback JSON
+  toneAnalysis             Json?            // Emotional tone insights
+  keywordRelevanceScore    Float?           // 0-100 scale
+  sentimentProgression     Json?            // Sentiment over time
+  enhancedGeneratedAt      DateTime?        // When enhanced was generated
+}
+```
+
+### Key Implementation Decisions
+- **JSON over Regex**: Structured JSON ensures reliable parsing and type safety
+- **Synchronous Credits**: Atomic credit deduction prevents race conditions
+- **Fallback Strategy**: LocalStorage backup ensures no interview data is lost
+- **No Audio Files**: Text-only storage reduces costs and privacy concerns
+- **Direct API Calls**: Avoiding SDK dependencies reduces bundle size and gives more control
+
 ### Database Performance Optimizations (January 2025)
 
 **🚀 Connection Pool Optimization (early May 2025)**
