@@ -164,40 +164,9 @@ function FeedbackPageContent() {
     setError(null)
 
     try {
-      // Get interview ID from localStorage or create one
-      let interviewId = safeLocalStorageGet("vocahire_interview_id")
-      
-      if (!interviewId) {
-        // Create a new interview session
-        const createResponse = await fetch("/api/interviews", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            jobTitle: resumeData?.jobTitle || "Software Engineer",
-            company: resumeData?.companyName || null,
-            interviewType: "behavioral",
-            jdContext: resumeData?.jobDescription || null,
-          }),
-        })
-        
-        if (!createResponse.ok) {
-          throw new Error("Failed to create interview session")
-        }
-        
-        const { id } = await createResponse.json()
-        interviewId = id
-        
-        // Safe localStorage write
-        try {
-          if (interviewId && typeof window !== 'undefined') {
-            localStorage.setItem("vocahire_interview_id", interviewId)
-          }
-        } catch (err) {
-          console.error("Error storing interview ID in localStorage:", err)
-        }
-      }
+      // For localStorage-based feedback, we'll generate feedback without creating a database session
+      // The feedback API now supports fromLocalStorage flag to handle this case
+      const interviewId = null // We don't need an interview ID for localStorage-based feedback
       
       const response = await fetch("/api/generate-feedback", {
         method: "POST",
@@ -207,6 +176,7 @@ function FeedbackPageContent() {
         body: JSON.stringify({
           interviewId,
           transcript: messages,
+          fromLocalStorage: true, // Flag to indicate this is localStorage-based feedback
         }),
       })
 
