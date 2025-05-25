@@ -14,6 +14,8 @@ import { useAuth } from "@clerk/nextjs"
 
 import AuthGuard from "@/components/auth/AuthGuard";
 import SessionLayout from "@/components/SessionLayout";
+import EnhancedFeedbackCTA from "@/components/EnhancedFeedbackCTA";
+import EnhancedFeedbackDisplay from "@/components/EnhancedFeedbackDisplay";
 
 // Safe localStorage access wrapped in try/catch
 const safeLocalStorageGet = (key: string): string | null => {
@@ -94,8 +96,15 @@ function FeedbackPageContent() {
   // Sync functionality states
   const [hasLocalData, setHasLocalData] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
+  
+  // Enhanced feedback states
+  const [userCredits, setUserCredits] = useState(0)
+  const [showEnhancedFeedback, setShowEnhancedFeedback] = useState(false)
+  const [isProcessingEnhanced, setIsProcessingEnhanced] = useState(false)
+  const [enhancedFeedback, setEnhancedFeedback] = useState(null)
+  
   const searchParams = useSearchParams()
-  const { getToken } = useAuth()
+  const { getToken, userId } = useAuth()
 
   // Add a mounting check for client-side only code
   const [isMounted, setIsMounted] = useState(false)
@@ -109,6 +118,38 @@ function FeedbackPageContent() {
     }
   }, [])
   
+  // Fetch user credits when component mounts
+  useEffect(() => {
+    if (userId) {
+      fetchUserCredits()
+    }
+  }, [userId])
+  
+  const fetchUserCredits = async () => {
+    try {
+      const response = await fetch('/api/user')
+      if (response.ok) {
+        const data = await response.json()
+        setUserCredits(data.credits || 0)
+      }
+    } catch (error) {
+      console.error('Failed to fetch user credits:', error)
+    }
+  }
+  
+  const loadFeedbackFromDatabase = async (sessionId: string) => {
+    try {
+      // TODO: Create API endpoint to fetch interview session with feedback
+      // For now, we'll use the existing feedback generation approach
+      setIsLoading(false)
+      setError("Database loading not yet implemented. Please use the interview completion flow.")
+    } catch (error) {
+      console.error('Failed to load feedback:', error)
+      setError("Failed to load feedback. Please try again.")
+      setIsLoading(false)
+    }
+  }
+  
   useEffect(() => {
     // Skip during server-side rendering or if component is not mounted
     if (!isMounted) {
@@ -119,10 +160,9 @@ function FeedbackPageContent() {
     const sessionId = searchParams.get('session')
     
     if (sessionId) {
-      // Load from database - this will be handled by existing logic
+      // Load from database
       setIsLoading(true)
-      // TODO: Implement database loading
-      setIsLoading(false)
+      loadFeedbackFromDatabase(sessionId)
       return
     }
     
@@ -181,69 +221,59 @@ function FeedbackPageContent() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to generate feedback")
+        const errorData = await response.json().catch(() => ({ error: "Failed to parse error response" }))
+        throw new Error(errorData.error || errorData.message || `Failed to generate feedback (${response.status})`)
       }
 
       const data = await response.json()
       
       // Convert the API response to the format expected by the UI
       if (data.feedback) {
-        const formattedFeedback = [
+        const formattedFeedback = []
+        
+        // Add interview metrics if available (for edge cases)
+        if (data.feedback.interviewMetrics?.completeness === "partial") {
+          formattedFeedback.push({
+            category: "Interview Completion",
+            rating: "Info",
+            feedback: `This was a ${data.feedback.interviewMetrics.completeness} interview with ${data.feedback.interviewMetrics.userResponses} responses. Complete interviews typically have 5+ substantive responses for comprehensive feedback.`
+          })
+        }
+        
+        // Add main feedback sections
+        formattedFeedback.push(
           {
             category: "Overall Summary",
             rating: "Feedback",
-            feedback: data.feedback.summary
+            feedback: data.feedback.summary || "Unable to generate detailed summary. Please complete a full interview for comprehensive feedback."
           },
           {
             category: "Strengths",
             rating: "Good",
-            feedback: data.feedback.strengths || "Review above for your key strengths in this interview."
+            feedback: data.feedback.strengths || "Continue practicing to identify and build upon your strengths."
           },
           {
             category: "Areas for Improvement",
             rating: "Consider",
-            feedback: data.feedback.areasForImprovement || "Review above for areas where you can improve."
+            feedback: data.feedback.areasForImprovement || "Complete a full interview session to receive specific improvement recommendations."
           },
           {
-            category: "Communication Score",
-            rating: data.feedback.transcriptScore >= 3 ? "Good" : "Satisfactory",
-            feedback: `Your overall communication score is ${data.feedback.transcriptScore?.toFixed(2) || 'N/A'} out of 4.`
+            category: "Performance Score",
+            rating: data.feedback.transcriptScore >= 3 ? "Good" : data.feedback.transcriptScore >= 2 ? "Satisfactory" : "Needs Improvement",
+            feedback: `Your overall performance score is ${data.feedback.transcriptScore?.toFixed(2) || 'N/A'} out of 4.${
+              data.feedback.transcriptScore < 2 ? " Focus on providing more detailed and relevant responses." : ""
+            }`
           }
-        ]
+        )
+        
         setFeedback(formattedFeedback)
+      } else {
+        throw new Error("Invalid feedback response format")
       }
     } catch (err) {
       console.error("Error generating feedback:", err)
       setError(err instanceof Error ? err.message : "An unknown error occurred")
-
-      // Fall back to mock feedback if generation fails
-      setFeedback([
-        {
-          category: "Communication Skills",
-          rating: "Good",
-          feedback:
-            "You articulated your thoughts clearly and provided specific examples to support your points. Your responses were well-structured, though occasionally you could be more concise. Continue practicing active listening and responding directly to the questions asked.",
-        },
-        {
-          category: "Technical Knowledge",
-          rating: "Excellent",
-          feedback:
-            "You demonstrated strong understanding of the technical concepts discussed and explained complex ideas in an accessible way. Your examples of past projects showed both depth and breadth of knowledge. Keep up with current trends to maintain this strength.",
-        },
-        {
-          category: "Problem-Solving Approach",
-          rating: "Good",
-          feedback:
-            "You approached problems methodically, breaking them down into manageable components. You asked clarifying questions when needed and considered multiple solutions. To improve, try to verbalize your thought process more clearly as you work through problems.",
-        },
-        {
-          category: "Areas for Improvement",
-          rating: "Consider",
-          feedback:
-            "Focus on being more concise in your responses while still providing sufficient detail. Practice quantifying your achievements with specific metrics. Work on maintaining consistent eye contact and reducing filler words like 'um' and 'like' in your speech.",
-        },
-      ])
+      // Don't set mock feedback - let the error be visible
     } finally {
       setIsLoading(false)
       setIsGenerating(false)
@@ -276,6 +306,71 @@ function FeedbackPageContent() {
     }
     
     generateFeedback(data.messages, data.fillerWordCounts, data.resumeData)
+  }
+  
+  const handleEnhancedFeedbackPurchase = async () => {
+    if (userCredits < 0.5) {
+      toast.error("Insufficient VocahireCredits", {
+        description: "You need at least 0.50 VocahireCredits to unlock enhanced feedback."
+      })
+      return
+    }
+    
+    setIsProcessingEnhanced(true)
+    
+    try {
+      // Get interview ID from search params or localStorage
+      const sessionId = searchParams.get('session')
+      const localInterviewId = safeLocalStorageGet("vocahire_interview_id")
+      const interviewId = sessionId || localInterviewId
+      
+      if (!interviewId) {
+        toast.error("No interview found", {
+          description: "Please complete an interview first."
+        })
+        return
+      }
+      
+      // Call enhanced feedback API
+      const response = await fetch('/api/feedback/enhance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ interviewId })
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to generate enhanced feedback')
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        // Update user credits display
+        setUserCredits(prev => prev - (data.creditsDeducted || 0))
+        
+        // Store enhanced feedback
+        setEnhancedFeedback(data.enhancedFeedback)
+        setShowEnhancedFeedback(true)
+        
+        toast.success("Enhanced feedback unlocked!", {
+          description: "Your detailed analysis is ready."
+        })
+        
+        // Optionally refresh user data to get updated credits
+        fetchUserCredits()
+      }
+      
+    } catch (error) {
+      console.error("Failed to generate enhanced feedback:", error)
+      toast.error("Failed to generate enhanced feedback", {
+        description: error instanceof Error ? error.message : "Please try again later."
+      })
+    } finally {
+      setIsProcessingEnhanced(false)
+    }
   }
 
   // Sync localStorage data to database
@@ -456,6 +551,20 @@ function FeedbackPageContent() {
               )}
             </CardContent>
           </Card>
+        )}
+        
+        {/* Enhanced Feedback CTA - Show after basic feedback */}
+        {feedback && !showEnhancedFeedback && !enhancedFeedback && (
+          <EnhancedFeedbackCTA
+            onPurchase={handleEnhancedFeedbackPurchase}
+            userCredits={userCredits}
+            isProcessing={isProcessingEnhanced}
+          />
+        )}
+        
+        {/* Enhanced Feedback Display - Show when available */}
+        {showEnhancedFeedback && enhancedFeedback && (
+          <EnhancedFeedbackDisplay enhancedFeedback={enhancedFeedback} />
         )}
 
         {recordingUrl && (

@@ -5347,11 +5347,23 @@ export namespace Prisma {
   export type FeedbackAvgAggregateOutputType = {
     fillerWordCount: number | null
     transcriptScore: number | null
+    clarityScore: number | null
+    concisenessScore: number | null
+    technicalDepthScore: number | null
+    starMethodScore: number | null
+    overallScore: number | null
+    keywordRelevanceScore: number | null
   }
 
   export type FeedbackSumAggregateOutputType = {
     fillerWordCount: number | null
     transcriptScore: number | null
+    clarityScore: number | null
+    concisenessScore: number | null
+    technicalDepthScore: number | null
+    starMethodScore: number | null
+    overallScore: number | null
+    keywordRelevanceScore: number | null
   }
 
   export type FeedbackMinAggregateOutputType = {
@@ -5363,6 +5375,14 @@ export namespace Prisma {
     areasForImprovement: string | null
     fillerWordCount: number | null
     transcriptScore: number | null
+    clarityScore: number | null
+    concisenessScore: number | null
+    technicalDepthScore: number | null
+    starMethodScore: number | null
+    overallScore: number | null
+    enhancedFeedbackGenerated: boolean | null
+    keywordRelevanceScore: number | null
+    enhancedGeneratedAt: Date | null
     expiresAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -5377,6 +5397,14 @@ export namespace Prisma {
     areasForImprovement: string | null
     fillerWordCount: number | null
     transcriptScore: number | null
+    clarityScore: number | null
+    concisenessScore: number | null
+    technicalDepthScore: number | null
+    starMethodScore: number | null
+    overallScore: number | null
+    enhancedFeedbackGenerated: boolean | null
+    keywordRelevanceScore: number | null
+    enhancedGeneratedAt: Date | null
     expiresAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -5391,6 +5419,18 @@ export namespace Prisma {
     areasForImprovement: number
     fillerWordCount: number
     transcriptScore: number
+    structuredData: number
+    clarityScore: number
+    concisenessScore: number
+    technicalDepthScore: number
+    starMethodScore: number
+    overallScore: number
+    enhancedFeedbackGenerated: number
+    enhancedReportData: number
+    toneAnalysis: number
+    keywordRelevanceScore: number
+    sentimentProgression: number
+    enhancedGeneratedAt: number
     expiresAt: number
     createdAt: number
     updatedAt: number
@@ -5401,11 +5441,23 @@ export namespace Prisma {
   export type FeedbackAvgAggregateInputType = {
     fillerWordCount?: true
     transcriptScore?: true
+    clarityScore?: true
+    concisenessScore?: true
+    technicalDepthScore?: true
+    starMethodScore?: true
+    overallScore?: true
+    keywordRelevanceScore?: true
   }
 
   export type FeedbackSumAggregateInputType = {
     fillerWordCount?: true
     transcriptScore?: true
+    clarityScore?: true
+    concisenessScore?: true
+    technicalDepthScore?: true
+    starMethodScore?: true
+    overallScore?: true
+    keywordRelevanceScore?: true
   }
 
   export type FeedbackMinAggregateInputType = {
@@ -5417,6 +5469,14 @@ export namespace Prisma {
     areasForImprovement?: true
     fillerWordCount?: true
     transcriptScore?: true
+    clarityScore?: true
+    concisenessScore?: true
+    technicalDepthScore?: true
+    starMethodScore?: true
+    overallScore?: true
+    enhancedFeedbackGenerated?: true
+    keywordRelevanceScore?: true
+    enhancedGeneratedAt?: true
     expiresAt?: true
     createdAt?: true
     updatedAt?: true
@@ -5431,6 +5491,14 @@ export namespace Prisma {
     areasForImprovement?: true
     fillerWordCount?: true
     transcriptScore?: true
+    clarityScore?: true
+    concisenessScore?: true
+    technicalDepthScore?: true
+    starMethodScore?: true
+    overallScore?: true
+    enhancedFeedbackGenerated?: true
+    keywordRelevanceScore?: true
+    enhancedGeneratedAt?: true
     expiresAt?: true
     createdAt?: true
     updatedAt?: true
@@ -5445,6 +5513,18 @@ export namespace Prisma {
     areasForImprovement?: true
     fillerWordCount?: true
     transcriptScore?: true
+    structuredData?: true
+    clarityScore?: true
+    concisenessScore?: true
+    technicalDepthScore?: true
+    starMethodScore?: true
+    overallScore?: true
+    enhancedFeedbackGenerated?: true
+    enhancedReportData?: true
+    toneAnalysis?: true
+    keywordRelevanceScore?: true
+    sentimentProgression?: true
+    enhancedGeneratedAt?: true
     expiresAt?: true
     createdAt?: true
     updatedAt?: true
@@ -5546,6 +5626,18 @@ export namespace Prisma {
     areasForImprovement: string | null
     fillerWordCount: number | null
     transcriptScore: number | null
+    structuredData: JsonValue | null
+    clarityScore: number | null
+    concisenessScore: number | null
+    technicalDepthScore: number | null
+    starMethodScore: number | null
+    overallScore: number | null
+    enhancedFeedbackGenerated: boolean
+    enhancedReportData: JsonValue | null
+    toneAnalysis: JsonValue | null
+    keywordRelevanceScore: number | null
+    sentimentProgression: JsonValue | null
+    enhancedGeneratedAt: Date | null
     expiresAt: Date | null
     createdAt: Date
     updatedAt: Date
@@ -5579,6 +5671,18 @@ export namespace Prisma {
     areasForImprovement?: boolean
     fillerWordCount?: boolean
     transcriptScore?: boolean
+    structuredData?: boolean
+    clarityScore?: boolean
+    concisenessScore?: boolean
+    technicalDepthScore?: boolean
+    starMethodScore?: boolean
+    overallScore?: boolean
+    enhancedFeedbackGenerated?: boolean
+    enhancedReportData?: boolean
+    toneAnalysis?: boolean
+    keywordRelevanceScore?: boolean
+    sentimentProgression?: boolean
+    enhancedGeneratedAt?: boolean
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -5595,6 +5699,18 @@ export namespace Prisma {
     areasForImprovement?: boolean
     fillerWordCount?: boolean
     transcriptScore?: boolean
+    structuredData?: boolean
+    clarityScore?: boolean
+    concisenessScore?: boolean
+    technicalDepthScore?: boolean
+    starMethodScore?: boolean
+    overallScore?: boolean
+    enhancedFeedbackGenerated?: boolean
+    enhancedReportData?: boolean
+    toneAnalysis?: boolean
+    keywordRelevanceScore?: boolean
+    sentimentProgression?: boolean
+    enhancedGeneratedAt?: boolean
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -5611,6 +5727,18 @@ export namespace Prisma {
     areasForImprovement?: boolean
     fillerWordCount?: boolean
     transcriptScore?: boolean
+    structuredData?: boolean
+    clarityScore?: boolean
+    concisenessScore?: boolean
+    technicalDepthScore?: boolean
+    starMethodScore?: boolean
+    overallScore?: boolean
+    enhancedFeedbackGenerated?: boolean
+    enhancedReportData?: boolean
+    toneAnalysis?: boolean
+    keywordRelevanceScore?: boolean
+    sentimentProgression?: boolean
+    enhancedGeneratedAt?: boolean
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -5627,12 +5755,24 @@ export namespace Prisma {
     areasForImprovement?: boolean
     fillerWordCount?: boolean
     transcriptScore?: boolean
+    structuredData?: boolean
+    clarityScore?: boolean
+    concisenessScore?: boolean
+    technicalDepthScore?: boolean
+    starMethodScore?: boolean
+    overallScore?: boolean
+    enhancedFeedbackGenerated?: boolean
+    enhancedReportData?: boolean
+    toneAnalysis?: boolean
+    keywordRelevanceScore?: boolean
+    sentimentProgression?: boolean
+    enhancedGeneratedAt?: boolean
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type FeedbackOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "sessionId" | "userId" | "summary" | "strengths" | "areasForImprovement" | "fillerWordCount" | "transcriptScore" | "expiresAt" | "createdAt" | "updatedAt", ExtArgs["result"]["feedback"]>
+  export type FeedbackOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "sessionId" | "userId" | "summary" | "strengths" | "areasForImprovement" | "fillerWordCount" | "transcriptScore" | "structuredData" | "clarityScore" | "concisenessScore" | "technicalDepthScore" | "starMethodScore" | "overallScore" | "enhancedFeedbackGenerated" | "enhancedReportData" | "toneAnalysis" | "keywordRelevanceScore" | "sentimentProgression" | "enhancedGeneratedAt" | "expiresAt" | "createdAt" | "updatedAt", ExtArgs["result"]["feedback"]>
   export type FeedbackInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     session?: boolean | InterviewSessionDefaultArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -5661,6 +5801,18 @@ export namespace Prisma {
       areasForImprovement: string | null
       fillerWordCount: number | null
       transcriptScore: number | null
+      structuredData: Prisma.JsonValue | null
+      clarityScore: number | null
+      concisenessScore: number | null
+      technicalDepthScore: number | null
+      starMethodScore: number | null
+      overallScore: number | null
+      enhancedFeedbackGenerated: boolean
+      enhancedReportData: Prisma.JsonValue | null
+      toneAnalysis: Prisma.JsonValue | null
+      keywordRelevanceScore: number | null
+      sentimentProgression: Prisma.JsonValue | null
+      enhancedGeneratedAt: Date | null
       expiresAt: Date | null
       createdAt: Date
       updatedAt: Date
@@ -6097,6 +6249,18 @@ export namespace Prisma {
     readonly areasForImprovement: FieldRef<"Feedback", 'String'>
     readonly fillerWordCount: FieldRef<"Feedback", 'Int'>
     readonly transcriptScore: FieldRef<"Feedback", 'Float'>
+    readonly structuredData: FieldRef<"Feedback", 'Json'>
+    readonly clarityScore: FieldRef<"Feedback", 'Float'>
+    readonly concisenessScore: FieldRef<"Feedback", 'Float'>
+    readonly technicalDepthScore: FieldRef<"Feedback", 'Float'>
+    readonly starMethodScore: FieldRef<"Feedback", 'Float'>
+    readonly overallScore: FieldRef<"Feedback", 'Float'>
+    readonly enhancedFeedbackGenerated: FieldRef<"Feedback", 'Boolean'>
+    readonly enhancedReportData: FieldRef<"Feedback", 'Json'>
+    readonly toneAnalysis: FieldRef<"Feedback", 'Json'>
+    readonly keywordRelevanceScore: FieldRef<"Feedback", 'Float'>
+    readonly sentimentProgression: FieldRef<"Feedback", 'Json'>
+    readonly enhancedGeneratedAt: FieldRef<"Feedback", 'DateTime'>
     readonly expiresAt: FieldRef<"Feedback", 'DateTime'>
     readonly createdAt: FieldRef<"Feedback", 'DateTime'>
     readonly updatedAt: FieldRef<"Feedback", 'DateTime'>
@@ -7714,6 +7878,18 @@ export namespace Prisma {
     areasForImprovement: 'areasForImprovement',
     fillerWordCount: 'fillerWordCount',
     transcriptScore: 'transcriptScore',
+    structuredData: 'structuredData',
+    clarityScore: 'clarityScore',
+    concisenessScore: 'concisenessScore',
+    technicalDepthScore: 'technicalDepthScore',
+    starMethodScore: 'starMethodScore',
+    overallScore: 'overallScore',
+    enhancedFeedbackGenerated: 'enhancedFeedbackGenerated',
+    enhancedReportData: 'enhancedReportData',
+    toneAnalysis: 'toneAnalysis',
+    keywordRelevanceScore: 'keywordRelevanceScore',
+    sentimentProgression: 'sentimentProgression',
+    enhancedGeneratedAt: 'enhancedGeneratedAt',
     expiresAt: 'expiresAt',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
@@ -8309,6 +8485,18 @@ export namespace Prisma {
     areasForImprovement?: StringNullableFilter<"Feedback"> | string | null
     fillerWordCount?: IntNullableFilter<"Feedback"> | number | null
     transcriptScore?: FloatNullableFilter<"Feedback"> | number | null
+    structuredData?: JsonNullableFilter<"Feedback">
+    clarityScore?: FloatNullableFilter<"Feedback"> | number | null
+    concisenessScore?: FloatNullableFilter<"Feedback"> | number | null
+    technicalDepthScore?: FloatNullableFilter<"Feedback"> | number | null
+    starMethodScore?: FloatNullableFilter<"Feedback"> | number | null
+    overallScore?: FloatNullableFilter<"Feedback"> | number | null
+    enhancedFeedbackGenerated?: BoolFilter<"Feedback"> | boolean
+    enhancedReportData?: JsonNullableFilter<"Feedback">
+    toneAnalysis?: JsonNullableFilter<"Feedback">
+    keywordRelevanceScore?: FloatNullableFilter<"Feedback"> | number | null
+    sentimentProgression?: JsonNullableFilter<"Feedback">
+    enhancedGeneratedAt?: DateTimeNullableFilter<"Feedback"> | Date | string | null
     expiresAt?: DateTimeNullableFilter<"Feedback"> | Date | string | null
     createdAt?: DateTimeFilter<"Feedback"> | Date | string
     updatedAt?: DateTimeFilter<"Feedback"> | Date | string
@@ -8325,6 +8513,18 @@ export namespace Prisma {
     areasForImprovement?: SortOrderInput | SortOrder
     fillerWordCount?: SortOrderInput | SortOrder
     transcriptScore?: SortOrderInput | SortOrder
+    structuredData?: SortOrderInput | SortOrder
+    clarityScore?: SortOrderInput | SortOrder
+    concisenessScore?: SortOrderInput | SortOrder
+    technicalDepthScore?: SortOrderInput | SortOrder
+    starMethodScore?: SortOrderInput | SortOrder
+    overallScore?: SortOrderInput | SortOrder
+    enhancedFeedbackGenerated?: SortOrder
+    enhancedReportData?: SortOrderInput | SortOrder
+    toneAnalysis?: SortOrderInput | SortOrder
+    keywordRelevanceScore?: SortOrderInput | SortOrder
+    sentimentProgression?: SortOrderInput | SortOrder
+    enhancedGeneratedAt?: SortOrderInput | SortOrder
     expiresAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -8344,6 +8544,18 @@ export namespace Prisma {
     areasForImprovement?: StringNullableFilter<"Feedback"> | string | null
     fillerWordCount?: IntNullableFilter<"Feedback"> | number | null
     transcriptScore?: FloatNullableFilter<"Feedback"> | number | null
+    structuredData?: JsonNullableFilter<"Feedback">
+    clarityScore?: FloatNullableFilter<"Feedback"> | number | null
+    concisenessScore?: FloatNullableFilter<"Feedback"> | number | null
+    technicalDepthScore?: FloatNullableFilter<"Feedback"> | number | null
+    starMethodScore?: FloatNullableFilter<"Feedback"> | number | null
+    overallScore?: FloatNullableFilter<"Feedback"> | number | null
+    enhancedFeedbackGenerated?: BoolFilter<"Feedback"> | boolean
+    enhancedReportData?: JsonNullableFilter<"Feedback">
+    toneAnalysis?: JsonNullableFilter<"Feedback">
+    keywordRelevanceScore?: FloatNullableFilter<"Feedback"> | number | null
+    sentimentProgression?: JsonNullableFilter<"Feedback">
+    enhancedGeneratedAt?: DateTimeNullableFilter<"Feedback"> | Date | string | null
     expiresAt?: DateTimeNullableFilter<"Feedback"> | Date | string | null
     createdAt?: DateTimeFilter<"Feedback"> | Date | string
     updatedAt?: DateTimeFilter<"Feedback"> | Date | string
@@ -8360,6 +8572,18 @@ export namespace Prisma {
     areasForImprovement?: SortOrderInput | SortOrder
     fillerWordCount?: SortOrderInput | SortOrder
     transcriptScore?: SortOrderInput | SortOrder
+    structuredData?: SortOrderInput | SortOrder
+    clarityScore?: SortOrderInput | SortOrder
+    concisenessScore?: SortOrderInput | SortOrder
+    technicalDepthScore?: SortOrderInput | SortOrder
+    starMethodScore?: SortOrderInput | SortOrder
+    overallScore?: SortOrderInput | SortOrder
+    enhancedFeedbackGenerated?: SortOrder
+    enhancedReportData?: SortOrderInput | SortOrder
+    toneAnalysis?: SortOrderInput | SortOrder
+    keywordRelevanceScore?: SortOrderInput | SortOrder
+    sentimentProgression?: SortOrderInput | SortOrder
+    enhancedGeneratedAt?: SortOrderInput | SortOrder
     expiresAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -8382,6 +8606,18 @@ export namespace Prisma {
     areasForImprovement?: StringNullableWithAggregatesFilter<"Feedback"> | string | null
     fillerWordCount?: IntNullableWithAggregatesFilter<"Feedback"> | number | null
     transcriptScore?: FloatNullableWithAggregatesFilter<"Feedback"> | number | null
+    structuredData?: JsonNullableWithAggregatesFilter<"Feedback">
+    clarityScore?: FloatNullableWithAggregatesFilter<"Feedback"> | number | null
+    concisenessScore?: FloatNullableWithAggregatesFilter<"Feedback"> | number | null
+    technicalDepthScore?: FloatNullableWithAggregatesFilter<"Feedback"> | number | null
+    starMethodScore?: FloatNullableWithAggregatesFilter<"Feedback"> | number | null
+    overallScore?: FloatNullableWithAggregatesFilter<"Feedback"> | number | null
+    enhancedFeedbackGenerated?: BoolWithAggregatesFilter<"Feedback"> | boolean
+    enhancedReportData?: JsonNullableWithAggregatesFilter<"Feedback">
+    toneAnalysis?: JsonNullableWithAggregatesFilter<"Feedback">
+    keywordRelevanceScore?: FloatNullableWithAggregatesFilter<"Feedback"> | number | null
+    sentimentProgression?: JsonNullableWithAggregatesFilter<"Feedback">
+    enhancedGeneratedAt?: DateTimeNullableWithAggregatesFilter<"Feedback"> | Date | string | null
     expiresAt?: DateTimeNullableWithAggregatesFilter<"Feedback"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Feedback"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Feedback"> | Date | string
@@ -8960,6 +9196,18 @@ export namespace Prisma {
     areasForImprovement?: string | null
     fillerWordCount?: number | null
     transcriptScore?: number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: number | null
+    concisenessScore?: number | null
+    technicalDepthScore?: number | null
+    starMethodScore?: number | null
+    overallScore?: number | null
+    enhancedFeedbackGenerated?: boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: Date | string | null
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -8976,6 +9224,18 @@ export namespace Prisma {
     areasForImprovement?: string | null
     fillerWordCount?: number | null
     transcriptScore?: number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: number | null
+    concisenessScore?: number | null
+    technicalDepthScore?: number | null
+    starMethodScore?: number | null
+    overallScore?: number | null
+    enhancedFeedbackGenerated?: boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: Date | string | null
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -8988,6 +9248,18 @@ export namespace Prisma {
     areasForImprovement?: NullableStringFieldUpdateOperationsInput | string | null
     fillerWordCount?: NullableIntFieldUpdateOperationsInput | number | null
     transcriptScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    concisenessScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    technicalDepthScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    starMethodScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    overallScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    enhancedFeedbackGenerated?: BoolFieldUpdateOperationsInput | boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -9004,6 +9276,18 @@ export namespace Prisma {
     areasForImprovement?: NullableStringFieldUpdateOperationsInput | string | null
     fillerWordCount?: NullableIntFieldUpdateOperationsInput | number | null
     transcriptScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    concisenessScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    technicalDepthScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    starMethodScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    overallScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    enhancedFeedbackGenerated?: BoolFieldUpdateOperationsInput | boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -9018,6 +9302,18 @@ export namespace Prisma {
     areasForImprovement?: string | null
     fillerWordCount?: number | null
     transcriptScore?: number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: number | null
+    concisenessScore?: number | null
+    technicalDepthScore?: number | null
+    starMethodScore?: number | null
+    overallScore?: number | null
+    enhancedFeedbackGenerated?: boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: Date | string | null
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -9030,6 +9326,18 @@ export namespace Prisma {
     areasForImprovement?: NullableStringFieldUpdateOperationsInput | string | null
     fillerWordCount?: NullableIntFieldUpdateOperationsInput | number | null
     transcriptScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    concisenessScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    technicalDepthScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    starMethodScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    overallScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    enhancedFeedbackGenerated?: BoolFieldUpdateOperationsInput | boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -9044,6 +9352,18 @@ export namespace Prisma {
     areasForImprovement?: NullableStringFieldUpdateOperationsInput | string | null
     fillerWordCount?: NullableIntFieldUpdateOperationsInput | number | null
     transcriptScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    concisenessScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    technicalDepthScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    starMethodScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    overallScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    enhancedFeedbackGenerated?: BoolFieldUpdateOperationsInput | boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -9725,6 +10045,18 @@ export namespace Prisma {
     areasForImprovement?: SortOrder
     fillerWordCount?: SortOrder
     transcriptScore?: SortOrder
+    structuredData?: SortOrder
+    clarityScore?: SortOrder
+    concisenessScore?: SortOrder
+    technicalDepthScore?: SortOrder
+    starMethodScore?: SortOrder
+    overallScore?: SortOrder
+    enhancedFeedbackGenerated?: SortOrder
+    enhancedReportData?: SortOrder
+    toneAnalysis?: SortOrder
+    keywordRelevanceScore?: SortOrder
+    sentimentProgression?: SortOrder
+    enhancedGeneratedAt?: SortOrder
     expiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -9733,6 +10065,12 @@ export namespace Prisma {
   export type FeedbackAvgOrderByAggregateInput = {
     fillerWordCount?: SortOrder
     transcriptScore?: SortOrder
+    clarityScore?: SortOrder
+    concisenessScore?: SortOrder
+    technicalDepthScore?: SortOrder
+    starMethodScore?: SortOrder
+    overallScore?: SortOrder
+    keywordRelevanceScore?: SortOrder
   }
 
   export type FeedbackMaxOrderByAggregateInput = {
@@ -9744,6 +10082,14 @@ export namespace Prisma {
     areasForImprovement?: SortOrder
     fillerWordCount?: SortOrder
     transcriptScore?: SortOrder
+    clarityScore?: SortOrder
+    concisenessScore?: SortOrder
+    technicalDepthScore?: SortOrder
+    starMethodScore?: SortOrder
+    overallScore?: SortOrder
+    enhancedFeedbackGenerated?: SortOrder
+    keywordRelevanceScore?: SortOrder
+    enhancedGeneratedAt?: SortOrder
     expiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -9758,6 +10104,14 @@ export namespace Prisma {
     areasForImprovement?: SortOrder
     fillerWordCount?: SortOrder
     transcriptScore?: SortOrder
+    clarityScore?: SortOrder
+    concisenessScore?: SortOrder
+    technicalDepthScore?: SortOrder
+    starMethodScore?: SortOrder
+    overallScore?: SortOrder
+    enhancedFeedbackGenerated?: SortOrder
+    keywordRelevanceScore?: SortOrder
+    enhancedGeneratedAt?: SortOrder
     expiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -9766,6 +10120,12 @@ export namespace Prisma {
   export type FeedbackSumOrderByAggregateInput = {
     fillerWordCount?: SortOrder
     transcriptScore?: SortOrder
+    clarityScore?: SortOrder
+    concisenessScore?: SortOrder
+    technicalDepthScore?: SortOrder
+    starMethodScore?: SortOrder
+    overallScore?: SortOrder
+    keywordRelevanceScore?: SortOrder
   }
 
   export type UserNullableScalarRelationFilter = {
@@ -10447,6 +10807,18 @@ export namespace Prisma {
     areasForImprovement?: string | null
     fillerWordCount?: number | null
     transcriptScore?: number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: number | null
+    concisenessScore?: number | null
+    technicalDepthScore?: number | null
+    starMethodScore?: number | null
+    overallScore?: number | null
+    enhancedFeedbackGenerated?: boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: Date | string | null
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -10461,6 +10833,18 @@ export namespace Prisma {
     areasForImprovement?: string | null
     fillerWordCount?: number | null
     transcriptScore?: number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: number | null
+    concisenessScore?: number | null
+    technicalDepthScore?: number | null
+    starMethodScore?: number | null
+    overallScore?: number | null
+    enhancedFeedbackGenerated?: boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: Date | string | null
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -10600,6 +10984,18 @@ export namespace Prisma {
     areasForImprovement?: StringNullableFilter<"Feedback"> | string | null
     fillerWordCount?: IntNullableFilter<"Feedback"> | number | null
     transcriptScore?: FloatNullableFilter<"Feedback"> | number | null
+    structuredData?: JsonNullableFilter<"Feedback">
+    clarityScore?: FloatNullableFilter<"Feedback"> | number | null
+    concisenessScore?: FloatNullableFilter<"Feedback"> | number | null
+    technicalDepthScore?: FloatNullableFilter<"Feedback"> | number | null
+    starMethodScore?: FloatNullableFilter<"Feedback"> | number | null
+    overallScore?: FloatNullableFilter<"Feedback"> | number | null
+    enhancedFeedbackGenerated?: BoolFilter<"Feedback"> | boolean
+    enhancedReportData?: JsonNullableFilter<"Feedback">
+    toneAnalysis?: JsonNullableFilter<"Feedback">
+    keywordRelevanceScore?: FloatNullableFilter<"Feedback"> | number | null
+    sentimentProgression?: JsonNullableFilter<"Feedback">
+    enhancedGeneratedAt?: DateTimeNullableFilter<"Feedback"> | Date | string | null
     expiresAt?: DateTimeNullableFilter<"Feedback"> | Date | string | null
     createdAt?: DateTimeFilter<"Feedback"> | Date | string
     updatedAt?: DateTimeFilter<"Feedback"> | Date | string
@@ -10688,6 +11084,18 @@ export namespace Prisma {
     areasForImprovement?: string | null
     fillerWordCount?: number | null
     transcriptScore?: number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: number | null
+    concisenessScore?: number | null
+    technicalDepthScore?: number | null
+    starMethodScore?: number | null
+    overallScore?: number | null
+    enhancedFeedbackGenerated?: boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: Date | string | null
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -10702,6 +11110,18 @@ export namespace Prisma {
     areasForImprovement?: string | null
     fillerWordCount?: number | null
     transcriptScore?: number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: number | null
+    concisenessScore?: number | null
+    technicalDepthScore?: number | null
+    starMethodScore?: number | null
+    overallScore?: number | null
+    enhancedFeedbackGenerated?: boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: Date | string | null
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11470,6 +11890,18 @@ export namespace Prisma {
     areasForImprovement?: string | null
     fillerWordCount?: number | null
     transcriptScore?: number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: number | null
+    concisenessScore?: number | null
+    technicalDepthScore?: number | null
+    starMethodScore?: number | null
+    overallScore?: number | null
+    enhancedFeedbackGenerated?: boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: Date | string | null
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11518,6 +11950,18 @@ export namespace Prisma {
     areasForImprovement?: NullableStringFieldUpdateOperationsInput | string | null
     fillerWordCount?: NullableIntFieldUpdateOperationsInput | number | null
     transcriptScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    concisenessScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    technicalDepthScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    starMethodScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    overallScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    enhancedFeedbackGenerated?: BoolFieldUpdateOperationsInput | boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11532,6 +11976,18 @@ export namespace Prisma {
     areasForImprovement?: NullableStringFieldUpdateOperationsInput | string | null
     fillerWordCount?: NullableIntFieldUpdateOperationsInput | number | null
     transcriptScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    concisenessScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    technicalDepthScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    starMethodScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    overallScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    enhancedFeedbackGenerated?: BoolFieldUpdateOperationsInput | boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11545,6 +12001,18 @@ export namespace Prisma {
     areasForImprovement?: NullableStringFieldUpdateOperationsInput | string | null
     fillerWordCount?: NullableIntFieldUpdateOperationsInput | number | null
     transcriptScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    concisenessScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    technicalDepthScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    starMethodScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    overallScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    enhancedFeedbackGenerated?: BoolFieldUpdateOperationsInput | boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11670,6 +12138,18 @@ export namespace Prisma {
     areasForImprovement?: string | null
     fillerWordCount?: number | null
     transcriptScore?: number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: number | null
+    concisenessScore?: number | null
+    technicalDepthScore?: number | null
+    starMethodScore?: number | null
+    overallScore?: number | null
+    enhancedFeedbackGenerated?: boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: Date | string | null
     expiresAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11695,6 +12175,18 @@ export namespace Prisma {
     areasForImprovement?: NullableStringFieldUpdateOperationsInput | string | null
     fillerWordCount?: NullableIntFieldUpdateOperationsInput | number | null
     transcriptScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    concisenessScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    technicalDepthScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    starMethodScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    overallScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    enhancedFeedbackGenerated?: BoolFieldUpdateOperationsInput | boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11709,6 +12201,18 @@ export namespace Prisma {
     areasForImprovement?: NullableStringFieldUpdateOperationsInput | string | null
     fillerWordCount?: NullableIntFieldUpdateOperationsInput | number | null
     transcriptScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    concisenessScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    technicalDepthScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    starMethodScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    overallScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    enhancedFeedbackGenerated?: BoolFieldUpdateOperationsInput | boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11722,6 +12226,18 @@ export namespace Prisma {
     areasForImprovement?: NullableStringFieldUpdateOperationsInput | string | null
     fillerWordCount?: NullableIntFieldUpdateOperationsInput | number | null
     transcriptScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    structuredData?: NullableJsonNullValueInput | InputJsonValue
+    clarityScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    concisenessScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    technicalDepthScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    starMethodScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    overallScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    enhancedFeedbackGenerated?: BoolFieldUpdateOperationsInput | boolean
+    enhancedReportData?: NullableJsonNullValueInput | InputJsonValue
+    toneAnalysis?: NullableJsonNullValueInput | InputJsonValue
+    keywordRelevanceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    sentimentProgression?: NullableJsonNullValueInput | InputJsonValue
+    enhancedGeneratedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string

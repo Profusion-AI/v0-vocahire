@@ -97,22 +97,40 @@ model Transcript {
 }
 
 model Feedback {
-  id                  String           @id @default(uuid())
-  sessionId           String
-  userId              String
-  summary             String
-  strengths           String?
-  areasForImprovement String?
-  fillerWordCount     Int?
-  transcriptScore     Float?
-  expiresAt           DateTime?
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
-  session             InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                       String           @id @default(uuid())
+  sessionId                String
+  userId                   String
+  summary                  String
+  strengths                String?
+  areasForImprovement      String?
+  fillerWordCount          Int?
+  transcriptScore          Float?
+  
+  // Structured feedback data
+  structuredData           Json?            // Full structured feedback JSON
+  clarityScore             Float?           // 0-4 scale
+  concisenessScore         Float?           // 0-4 scale  
+  technicalDepthScore      Float?           // 0-4 scale
+  starMethodScore          Float?           // 0-4 scale
+  overallScore             Float?           // 0-4 scale average
+  
+  // Enhanced feedback fields
+  enhancedFeedbackGenerated Boolean         @default(false)
+  enhancedReportData       Json?            // Enhanced feedback JSON
+  toneAnalysis             Json?            // Emotional tone insights
+  keywordRelevanceScore    Float?           // 0-100 scale
+  sentimentProgression     Json?            // Sentiment over time
+  enhancedGeneratedAt      DateTime?        // When enhanced was generated
+  
+  expiresAt                DateTime?
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+  session                  InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user                     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
   @@index([userId])
+  @@index([enhancedFeedbackGenerated])
 }
 
 model UsageEvent {
