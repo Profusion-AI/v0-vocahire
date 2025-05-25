@@ -158,7 +158,7 @@ function FeedbackPageContent() {
   const generateFeedback = async (
     messages: Array<{ role: string; content: string }>,
     _fillerWordCounts: { [key: string]: number } = {},
-    resumeData: any = null,
+    _resumeData: any = null,
   ) => {
     setIsGenerating(true)
     setError(null)
