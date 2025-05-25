@@ -92,7 +92,7 @@ interface SessionContext {
 export async function generateEnhancedInterviewFeedback(
   transcript: InterviewMessage[],
   sessionContext: SessionContext,
-  existingStructuredFeedback?: any
+  _existingStructuredFeedback?: any
 ): Promise<EnhancedFeedbackData> {
   
   if (!process.env.OPENAI_API_KEY) {

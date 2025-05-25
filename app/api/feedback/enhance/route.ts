@@ -5,13 +5,15 @@ import { trackUsage, UsageType } from "@/lib/usage-tracking"
 import { prisma } from "@/lib/prisma"
 import { getOrCreatePrismaUser } from "@/lib/auth-utils"
 import { generateEnhancedInterviewFeedback } from "@/lib/enhancedFeedback"
-import { transactionLogger } from "@/lib/transaction-logger"
+import { transactionLogger, TransactionOperations } from "@/lib/transaction-logger"
 
 const ENHANCED_FEEDBACK_COST = 0.50
 
 export async function POST(request: NextRequest) {
   const requestId = `enhance_feedback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   console.log(`[${requestId}] Starting enhanced feedback generation`)
+  
+  let userId: string | null = null
   
   try {
     // 1. Authenticate user
@@ -23,7 +25,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const userId = auth.userId
+    userId = auth.userId
 
     // 2. Apply rate limiting
     const { isLimited, reset } = await checkRateLimit(userId, RATE_LIMIT_CONFIGS.GENERATE_FEEDBACK)
@@ -56,7 +58,7 @@ export async function POST(request: NextRequest) {
         userId
       },
       include: {
-        feedback: true,
+        feedbacks: true,
         transcripts: {
           orderBy: { timestamp: 'asc' }
         }
@@ -71,14 +73,14 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Check if basic feedback exists
-    if (!interview.feedback || interview.feedback.length === 0) {
+    if (!interview.feedbacks || interview.feedbacks.length === 0) {
       return NextResponse.json({ 
         success: false,
         error: "Basic feedback must be generated first" 
       }, { status: 400 })
     }
 
-    const feedback = interview.feedback[0] // Get the first (should be only) feedback
+    const feedback = interview.feedbacks[0] // Get the first (should be only) feedback
 
     // 6. Check if enhanced feedback already exists
     if (feedback.enhancedFeedbackGenerated) {
@@ -131,12 +133,14 @@ export async function POST(request: NextRequest) {
       console.log(`[${requestId}] Credits deducted:`, ENHANCED_FEEDBACK_COST)
       
       // Log transaction
-      await transactionLogger.logCreditTransaction(
-        userId,
-        -ENHANCED_FEEDBACK_COST,
-        "enhanced_feedback",
-        { interviewId }
-      )
+      transactionLogger.info(userId, TransactionOperations.CREDITS_DEDUCTED, {
+        amount: ENHANCED_FEEDBACK_COST,
+        currency: "credits",
+        metadata: { 
+          interviewId, 
+          type: "enhanced_feedback" 
+        }
+      })
     }
 
     // 9. Prepare transcript for enhanced analysis
@@ -151,7 +155,7 @@ export async function POST(request: NextRequest) {
       jdContext: interview.jdContext,
       resumeSnapshot: interview.resumeSnapshot,
       duration: interview.durationSeconds,
-      completedAt: interview.completedAt
+      completedAt: interview.endedAt
     }
 
     // 10. Generate enhanced feedback
@@ -228,7 +232,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error) {
       const sentryContext = {
         requestId,
-        userId: auth?.userId,
+        userId,
         errorMessage: error.message,
         errorStack: error.stack
       }

@@ -3,8 +3,7 @@ import { getAuth } from "@clerk/nextjs/server"
 import { checkRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit"
 import { trackUsage, UsageType } from "@/lib/usage-tracking" // Added UsageType import
 import { prisma } from "@/lib/prisma"
-import { generateInterviewFeedback, parseFeedback, generateInterviewFeedbackV2 } from "@/lib/openai"
-import type { BasicFeedback, FeedbackResponse } from "@/types/feedback"
+import { generateInterviewFeedbackV2 } from "@/lib/openai"
 
 // Rate limit configuration is now imported and used directly
 // const limiter = rateLimit({
@@ -16,9 +15,12 @@ import type { BasicFeedback, FeedbackResponse } from "@/types/feedback"
 import { NextRequest } from "next/server"
 
 export async function POST(request: NextRequest) {
+  let auth: any
+  let body: any
+  
   try {
     // Authenticate the user with Clerk
-    const auth = getAuth(request)
+    auth = getAuth(request)
     if (!auth.userId) {
       return NextResponse.json(
         {
@@ -42,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Process the request
-    const body = await request.json()
+    body = await request.json()
     const { interviewId, transcript, fromLocalStorage, generateAsync } = body
 
     if (!transcript) {
@@ -234,7 +236,7 @@ export async function POST(request: NextRequest) {
           return acc + (ratings[item.rating] || 0);
         }, 0) / parsedFeedback.length,
         // New structured fields
-        structuredData: feedbackResult.structured || null,
+        structuredData: feedbackResult.structured || undefined,
         clarityScore,
         concisenessScore,
         technicalDepthScore,
@@ -345,7 +347,7 @@ async function generateAndSaveFeedback(interviewId: string, userId: string, tran
           const ratings: Record<string, number> = { "Excellent": 4, "Good": 3, "Satisfactory": 2, "Needs Improvement": 1, "Not Evaluated": 0 };
           return acc + (ratings[item.rating] || 0);
         }, 0) / parsedFeedback.length,
-        structuredData: feedbackResult.structured || null,
+        structuredData: feedbackResult.structured || undefined,
         clarityScore,
         concisenessScore,
         technicalDepthScore,

@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Parse request body
     const body = await request.json()
-    const { sessionId, transcript } = body
+    const { sessionId: _sessionId, transcript } = body
 
     if (!transcript || !Array.isArray(transcript)) {
       return NextResponse.json({ 

@@ -137,7 +137,7 @@ function FeedbackPageContent() {
     }
   }
   
-  const loadFeedbackFromDatabase = async (sessionId: string) => {
+  const loadFeedbackFromDatabase = async (_sessionId: string) => {
     try {
       // TODO: Create API endpoint to fetch interview session with feedback
       // For now, we'll use the existing feedback generation approach

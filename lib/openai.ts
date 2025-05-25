@@ -205,7 +205,7 @@ export function parseFeedback(rawFeedback: string) {
 }
 
 // Helper function for category-specific default feedback
-function getDefaultFeedbackForCategory(category: string, rating: string): string {
+function getDefaultFeedbackForCategory(category: string, _rating: string): string {
   const defaults: Record<string, string> = {
     "Communication Skills": "Focus on providing clear, structured responses. Practice articulating your thoughts with specific examples from your experience.",
     "Technical Knowledge": "Prepare technical examples from your past work. Be ready to explain concepts in detail and demonstrate your expertise.",
