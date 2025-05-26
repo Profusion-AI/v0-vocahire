@@ -1,26 +1,52 @@
 // lib/session-store.ts
 
-// This is a placeholder for a proper, persistent session store (e.g., Redis, Database).
-// In a production environment, this Map will not persist data across server restarts or multiple instances.
-const sessionStore = new Map<string, any>();
+import { redis } from './redis';
 
-export const getSession = (sessionId: string) => {
-  return sessionStore.get(sessionId);
-};
+const SESSION_PREFIX = "session:";
+const SESSION_EXPIRY_SECONDS = 3600; // 1 hour, matches JWT token expiry
 
-export const setSession = (sessionId: string, sessionData: any) => {
-  sessionStore.set(sessionId, sessionData);
-};
-
-export const updateSession = (sessionId: string, updates: Partial<any>) => {
-  const existingSession = sessionStore.get(sessionId);
-  if (existingSession) {
-    sessionStore.set(sessionId, { ...existingSession, ...updates });
-    return sessionStore.get(sessionId);
+export const getSession = async (sessionId: string) => {
+  try {
+    const session = await redis.get(`${SESSION_PREFIX}${sessionId}`);
+    return session;
+  } catch (error) {
+    console.error(`Error getting session ${sessionId} from Redis:`, error);
+    return null;
   }
-  return null;
 };
 
-export const deleteSession = (sessionId: string) => {
-  sessionStore.delete(sessionId);
+export const setSession = async (sessionId: string, sessionData: any) => {
+  try {
+    // Set with expiry for automatic cleanup
+    await redis.setex(`${SESSION_PREFIX}${sessionId}`, SESSION_EXPIRY_SECONDS, sessionData);
+    return true;
+  } catch (error) {
+    console.error(`Error setting session ${sessionId} in Redis:`, error);
+    return false;
+  }
+};
+
+export const updateSession = async (sessionId: string, updates: Partial<any>) => {
+  try {
+    const existingSession = await getSession(sessionId);
+    if (existingSession) {
+      const updatedSession = { ...existingSession, ...updates };
+      await setSession(sessionId, updatedSession); // setSession already handles expiry
+      return updatedSession;
+    }
+    return null;
+  } catch (error) {
+    console.error(`Error updating session ${sessionId} in Redis:`, error);
+    return null;
+  }
+};
+
+export const deleteSession = async (sessionId: string) => {
+  try {
+    await redis.del(`${SESSION_PREFIX}${sessionId}`);
+    return true;
+  } catch (error) {
+    console.error(`Error deleting session ${sessionId} from Redis:`, error);
+    return false;
+  }
 };

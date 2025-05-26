@@ -12,7 +12,7 @@ import { WebSocketServer } from 'ws';
 const wss = new WebSocketServer({ noServer: true });
 
 wss.on('connection', (ws, request) => {
-  const sessionId = request.url?.split('/').pop(); // Extract sessionId from URL
+  const sessionId = request.url?.split('/').pop()?.split('?')[0]; // Extract sessionId from URL, remove query params
   console.log(`WebSocket client connected for session: ${sessionId}`);
 
   if (!sessionId) {
@@ -26,13 +26,14 @@ wss.on('connection', (ws, request) => {
     return;
   }
 
-  // TODO: Implement JWT token validation from query parameter: `?token=<jwt_token>`
-  // const urlParams = new URLSearchParams(request.url?.split('?')[1]);
-  // const token = urlParams.get('token');
-  // if (!token || !isValidJwt(token)) {
-  //   ws.close(1008, 'Authentication failed');
-  //   return;
-  // }
+  // Implement JWT token validation from query parameter: `?token=<jwt_token>`
+  const urlParams = new URLSearchParams(request.url?.split('?')[1]);
+  const token = urlParams.get('token');
+  // TODO: Replace with actual JWT validation logic
+  if (!token /* || !isValidJwt(token) */) {
+    ws.close(1008, 'Authentication failed: Missing or invalid token');
+    return;
+  }
 
   updateSession(sessionId, { status: "connected", lastActivity: new Date().toISOString() });
 
@@ -53,14 +54,48 @@ wss.on('connection', (ws, request) => {
 
       switch (parsedMessage.type) {
         case 'webrtc.offer':
-          // TODO: Process WebRTC offer (e.g., create RTCPeerConnection on server)
-          // Then generate and send webrtc.answer back to client
+          // TODO: Process WebRTC offer (e.g., create RTCPeerConnection on server) using `parsedMessage.data.sdp`
+          // For now, simulate a server's answer.
           ws.send(JSON.stringify({
             type: "webrtc.answer",
             timestamp: new Date().toISOString(),
             data: {
               sdp: "v=0
-o=- ... (placeholder for server's SDP answer)",
+o=- 12345 1 IN IP4 127.0.0.1
+s=-
+a=group:BUNDLE audio
+a=msid-semantic:WMS
+m=audio 9 UDP/TLS/RTP/SAVPF 111 103 104 96 97 98 99 100 101 102 105 106 107 108 109 110 112 113 114 115 116
+a=rtcp-mux
+a=ice-ufrag:serverufrag
+a=ice-pwd:serverpwd
+a=fingerprint:sha-256 A3:41:BB:06:58:D9:D2:C3:F5:CD:D0:A0:C6:1B:07:D9:E8:F4:D8:E5:A9:C3:B6:D2:C3:E5:D1:F3:D5:C3:B6:D1
+a=setup:actpass
+a=mid:0
+a=sendrecv
+a=rtcp:9 IN IP4 0.0.0.0
+a=rtpmap:111 OPUS/48000/2
+a=rtpmap:103 ISAC/16000
+a=rtpmap:104 ISAC/32000
+a=rtpmap:96 G722/8000
+a=rtpmap:97 PCMU/8000
+a=rtpmap:98 PCMA/8000
+a=rtpmap:99 CN/8000
+a=rtpmap:100 CN/16000
+a=rtpmap:101 CN/32000
+a=rtpmap:102 T140/90000
+a=rtpmap:105 G729/8000
+a=rtpmap:106 G729C/8000
+a=rtpmap:107 G729E/8000
+a=rtpmap:108 G729D/8000
+a=rtpmap:109 G729A/8000
+a=rtpmap:110 G729AC/8000
+a=rtpmap:112 telephone-event/8000
+a=rtpmap:113 DTMF/8000
+a=rtpmap:114 CELP/8000
+a=rtpmap:115 H264/90000
+a=rtpmap:116 VP8/90000
+", // Placeholder for server's SDP answer
               type: "answer"
             }
           }));
@@ -68,18 +103,19 @@ o=- ... (placeholder for server's SDP answer)",
           break;
 
         case 'webrtc.ice_candidate':
-          // TODO: Add ICE candidate to server's RTCPeerConnection
+          // TODO: Add ICE candidate to server's RTCPeerConnection using `parsedMessage.data`
+          console.log(`Session ${sessionId}: Received ICE candidate.`);
           // If server also has candidates, send them back to client
-          // Example: send server's ICE candidate
-          ws.send(JSON.stringify({
-            type: "webrtc.ice_candidate",
-            timestamp: new Date().toISOString(),
-            data: {
-              candidate: "candidate:1 1 UDP ... (placeholder for server's candidate)",
-              sdpMLineIndex: 0,
-              sdpMid: "0"
-            }
-          }));
+          // Example: send server's ICE candidate (conceptual)
+          // ws.send(JSON.stringify({
+          //   type: "webrtc.ice_candidate",
+          //   timestamp: new Date().toISOString(),
+          //   data: {
+          //     candidate: "candidate:1 1 UDP ... (placeholder for server's candidate)",
+          //     sdpMLineIndex: 0,
+          //     sdpMid: "0"
+          //   }
+          // }));
           break;
 
         case 'control.start_interview':
@@ -139,6 +175,7 @@ o=- ... (placeholder for server's SDP answer)",
             timestamp: new Date().toISOString(),
             data: { status: "ending", message: "Interview ending." }
           }));
+          // TODO: Make an HTTP POST request to /api/v1/sessions/:sessionId/end
           ws.close(1000, 'Client requested end');
           break;
 

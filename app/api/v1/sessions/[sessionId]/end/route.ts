@@ -1,42 +1,64 @@
-// app/api/v1/sessions/[sessionId]/end/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuth } from '@clerk/nextjs/server';
 import { getSession, updateSession, deleteSession } from 'lib/session-store';
 
-export async function POST(req: NextRequest, { params }: { params: { sessionId: string } }) {
+export async function POST(request: NextRequest, { params }: { params: { sessionId: string } }) {
+  const auth = getAuth(request);
   const { sessionId } = params;
 
-  let session = getSession(sessionId);
-
-  if (!session) {
-    return NextResponse.json({ code: "SESSION_NOT_FOUND", message: "Session ID doesn't exist" }, { status: 404 });
+  if (!auth.userId) {
+    return NextResponse.json({ code: "AUTH_INVALID", message: "Unauthorized" }, { status: 401 });
   }
 
-  // Update session status to completed and calculate duration
-  const startedAt = new Date(session.createdAt).getTime();
-  const duration = Math.floor((Date.now() - startedAt) / 1000); // Duration in seconds
+  try {
+    const session = await getSession(sessionId);
 
-  session = updateSession(sessionId, {
-    status: "completed",
-    duration,
-    endedAt: new Date().toISOString(),
-  });
+    if (!session) {
+      return NextResponse.json({ code: "SESSION_NOT_FOUND", message: "Session ID doesn't exist" }, { status: 404 });
+    }
 
-  if (!session) {
-    return NextResponse.json({ code: "INTERNAL_ERROR", message: "Failed to update session status" }, { status: 500 });
+    // Ensure the user ending the session is the owner of the session
+    if (session.userId !== auth.userId) {
+      return NextResponse.json({ code: "FORBIDDEN", message: "You do not have permission to end this session" }, { status: 403 });
+    }
+
+    // Update session status to completed
+    const now = new Date();
+    const updatedSession = await updateSession(sessionId, {
+      status: "completed",
+      endedAt: now.toISOString(),
+      // Calculate duration if startTime is available in session data
+      duration: session.startedAt ? Math.floor((now.getTime() - new Date(session.startedAt).getTime()) / 1000) : 0,
+      lastActivity: now.toISOString(),
+    });
+
+    if (!updatedSession) {
+      throw new Error("Failed to update session status to completed.");
+    }
+
+    // TODO: Trigger final transcript generation and persistence if not already done via WebSocket
+    // For now, return a placeholder transcript URL.
+    const transcriptUrl = `/api/v1/sessions/${sessionId}/transcript`;
+
+    // Optionally delete session from real-time store after a short delay 
+    // or when transcripts are fully persisted to avoid stale data, 
+    // but keep it in a long-term database for history.
+    // await deleteSession(sessionId);
+
+    return NextResponse.json({
+      sessionId: updatedSession.sessionId,
+      status: updatedSession.status,
+      duration: updatedSession.duration,
+      transcriptUrl,
+    }, { status: 200 });
+
+  } catch (error) {
+    console.error(`Error ending session ${sessionId}:`, error);
+
+    return NextResponse.json({ 
+      code: "INTERNAL_ERROR",
+      message: "Failed to end interview session",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, { status: 500 });
   }
-
-  // In a real application, you would also trigger:
-  // 1. Final transcript generation and storage (e.g., in a blob storage)
-  // 2. Any final feedback processing
-  // 3. Resource cleanup (e.g., closing WebRTC connections, releasing AI service resources)
-
-  // For now, we'll just provide a placeholder transcript URL.
-  const transcriptUrl = `/api/v1/sessions/${sessionId}/transcript`; // Placeholder
-
-  return NextResponse.json({
-    sessionId: session.sessionId,
-    status: session.status,
-    duration: session.duration,
-    transcriptUrl,
-  }, { status: 200 });
 }
