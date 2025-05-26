@@ -12,16 +12,13 @@ import { useRealtimeInterviewSession } from "@/hooks/useRealtimeInterviewSession
 import { AudioLevelIndicator } from "@/components/AudioLevelIndicator"
 import { MicToggle } from "@/components/MicToggle"
 import { toast } from "sonner"
-// import styles from "./InterviewRoom.module.css"
-// Removed ConnectionProgress import as we'll create a simple inline version
 
 interface InterviewRoomProps {
   onComplete?: (messages: Array<{ role: string; content: string; timestamp: number }>) => void
   jobTitle?: string
   resumeData?: ResumeData | null
   autoStart?: boolean
-  onSessionCreationStatus?: (isCreating: boolean, error?: string, status?: string) => void
-  hideLoadingUI?: boolean
+  onSessionStatus?: (status: string, error?: string) => void
 }
 
 export default function InterviewRoom({
@@ -29,8 +26,7 @@ export default function InterviewRoom({
   jobTitle = "Software Engineer",
   resumeData,
   autoStart = false,
-  onSessionCreationStatus,
-  hideLoadingUI = false,
+  onSessionStatus,
 }: InterviewRoomProps) {
   const router = useRouter()
   
@@ -44,10 +40,11 @@ export default function InterviewRoom({
     status,
     messages,
     error,
-    isConnecting: _isConnecting,
-    isActive: _isActive,
+    isConnecting,
+    isActive,
     isUserSpeaking,
     aiCaptions,
+    liveTranscript,
     isMuted,
     start: startSession,
     stop: stopSession,
@@ -62,6 +59,11 @@ export default function InterviewRoom({
   
   // Protect against re-renders resetting the start attempt
   const startAttemptTimeRef = useRef<number | null>(null)
+
+  // Duration tracking
+  const [duration, setDuration] = useState(0)
+  const durationIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const startTimeRef = useRef<number | null>(null)
   
   useEffect(() => {
     const savedState = localStorage.getItem('vocahire_active_interview')
@@ -121,20 +123,12 @@ export default function InterviewRoom({
   const handleStartInterview = useCallback(async () => {
     try {
       console.log("Starting interview session...")
-      onSessionCreationStatus?.(true, undefined, status) // Notify parent that session creation started
-      
-      await startSession(jobTitle)
-      
-      // Status update will be handled by the status tracking effect
-      console.log("Interview session started successfully")
-      
+      await startSession()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       console.error("Interview start failed:", errorMessage)
-      
-      onSessionCreationStatus?.(false, errorMessage, status) // Notify parent of error
     }
-  }, [startSession, jobTitle, onSessionCreationStatus, status])
+  }, [startSession])
 
   // Cleanup interview on actual navigation away
   useEffect(() => {
@@ -166,36 +160,10 @@ export default function InterviewRoom({
       // Stop the session which will save automatically
       await stopSession()
       
-      // Check if we have messages to save
-      if (messages.length > 0) {
-        // Success - redirect to feedback page
-        console.log("Interview saved successfully, redirecting to feedback")
-        toast.success("Interview saved successfully! Generating your feedback...", {
-          duration: 3000
-        })
-        router.push(result.redirectUrl || `/feedback?session=${result.id}`)
-      } else {
-        // Fallback to localStorage if save failed
-        console.warn("Failed to save to database, using localStorage fallback")
-        localStorage.setItem("vocahire_interview_messages", JSON.stringify(messages))
-        localStorage.setItem("vocahire_interview_metadata", JSON.stringify({
-          jobTitle,
-          timestamp: Date.now()
-        }))
-        
-        // Notify user about local save
-        toast.warning(
-          "Interview saved locally. We'll sync it when connection is restored.",
-          { 
-            duration: 5000,
-            description: "Your responses are safe and will be uploaded automatically."
-          }
-        )
-        
-        // Still redirect to feedback page
-        setTimeout(() => {
-          router.push("/feedback")
-        }, 2000)
+      // The hook will handle navigation to feedback page
+      // Just notify parent if callback exists
+      if (onComplete) {
+        onComplete(messages)
       }
       
     } catch (error) {
@@ -224,40 +192,42 @@ export default function InterviewRoom({
       
     } finally {
       setIsSaving(false)
-      
-      // Ensure session is properly stopped
-      console.log("Ensuring interview session is fully stopped")
-      stopSession()
-      
-      // Give time for cleanup before notifying completion
-      setTimeout(() => {
-        if (onComplete) {
-          onComplete(messages)
-        }
-      }, 100)
     }
-  }, [messages, jobTitle, saveInterviewSession, stopSession, router, onComplete])
-
-  // Handle errors from the hook
-  useEffect(() => {
-    if (error && onSessionCreationStatus) {
-      onSessionCreationStatus(false, error, status)
-    }
-  }, [error, onSessionCreationStatus, status])
+  }, [messages, jobTitle, stopSession, onComplete])
 
   // Track status changes and notify parent
   useEffect(() => {
-    if (onSessionCreationStatus && (
-      status === "requesting_mic" || 
-      status === "creating_session" || 
-      status === "connecting_websocket" || 
-      status === "establishing_webrtc" ||
-      status === "active"
-    )) {
-      const isCreating = status !== "active"
-      onSessionCreationStatus(isCreating, undefined, status)
+    if (onSessionStatus) {
+      onSessionStatus(status, error || undefined)
     }
-  }, [status, onSessionCreationStatus])
+  }, [status, error, onSessionStatus])
+
+  // Start duration tracking when interview becomes active
+  useEffect(() => {
+    if (status === "active" && !startTimeRef.current) {
+      startTimeRef.current = Date.now()
+      durationIntervalRef.current = setInterval(() => {
+        setDuration(Math.floor((Date.now() - (startTimeRef.current || 0)) / 1000))
+      }, 1000)
+    } else if (status !== "active" && durationIntervalRef.current) {
+      clearInterval(durationIntervalRef.current)
+      durationIntervalRef.current = null
+      startTimeRef.current = null
+    }
+
+    return () => {
+      if (durationIntervalRef.current) {
+        clearInterval(durationIntervalRef.current)
+      }
+    }
+  }, [status])
+
+  // Format duration to MM:SS
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
 
   // Render saving state
   if (status === "saving_results" || isSaving) {
@@ -276,73 +246,6 @@ export default function InterviewRoom({
         </CardContent>
       </Card>
     )
-  }
-
-  // Render connection progress during setup (unless parent is handling loading UI)
-  if (!hideLoadingUI && (status === "requesting_mic" || status === "creating_session" || 
-      status === "connecting_websocket" || status === "establishing_webrtc")) {
-    return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            {status === "requesting_mic" ? "Checking microphone..." : "Setting up interview..."}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="text-center">
-              <p className="text-sm text-gray-600">
-                {status === "requesting_mic" ? "Please allow microphone access when prompted" : 
-                 `Current step: ${status.replace(/_/g, ' ')}`}
-              </p>
-            </div>
-            
-            {/* Audio Level Indicator - shown during mic check and after */}
-            <div className="mt-4">
-              <AudioLevelIndicator 
-                isActive={true}
-                isMuted={isMuted}
-                height={40}
-                barCount={7}
-                showFeedback={status === "requesting_mic"}
-                className="mb-4"
-              />
-            </div>
-            
-            {/* Mic Toggle - visible after mic access is granted */}
-            {status !== "requesting_mic" && (
-              <div className="flex justify-center mt-4">
-                <MicToggle 
-                  isMuted={isMuted}
-                  onToggle={toggleMute}
-                  showReminder={false}
-                  size="sm"
-                />
-              </div>
-            )}
-            
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className={`bg-blue-600 h-2 rounded-full transition-all duration-300`}
-                style={{
-                  width: status === "requesting_mic" ? "25%" :
-                         status === "creating_session" ? "50%" :
-                         status === "connecting_websocket" ? "75%" :
-                         status === "establishing_webrtc" ? "90%" : "100%"
-                }}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  // Don't render anything during loading if parent is handling UI
-  if (hideLoadingUI && (status === "requesting_mic" || status === "testing_api" || status === "fetching_token" || 
-      status === "creating_offer" || status === "exchanging_sdp" || status === "connecting_webrtc")) {
-    return null;
   }
 
   // Render error state
@@ -388,7 +291,7 @@ export default function InterviewRoom({
   }
 
   // Render active interview interface
-  if (status === "active" || status === "data_channel_open") {
+  if (status === "active") {
     return (
       <div className="w-full max-w-4xl mx-auto space-y-6">
         {/* Interview Header */}
@@ -397,9 +300,9 @@ export default function InterviewRoom({
             <CardTitle className="flex items-center justify-between">
               <span>Mock Interview - {jobTitle}</span>
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Clock className="h-4 w-4" />
-                  <span className="text-sm">Active</span>
+                  <span>{formatDuration(duration)}</span>
                 </div>
                 <Button 
                   onClick={handleInterviewComplete}
@@ -407,143 +310,118 @@ export default function InterviewRoom({
                   size="sm"
                   disabled={isSaving}
                 >
-                  {isSaving ? "Saving..." : "End Interview"}
+                  End Interview
                 </Button>
               </div>
             </CardTitle>
           </CardHeader>
         </Card>
 
-        {/* Completion Error Alert */}
-        {completionError && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Save Error</AlertTitle>
-            <AlertDescription>
-              {completionError}
-              {showManualNavigation && (
-                <Button 
-                  onClick={() => router.push("/feedback")}
-                  variant="outline"
-                  size="sm"
-                  className="mt-2"
-                >
-                  Continue to Feedback
-                </Button>
+        {/* Main Interview Interface */}
+        <Card className="min-h-[400px]">
+          <CardContent className="pt-6">
+            <div className="space-y-6">
+              {/* Live Transcript Display */}
+              {liveTranscript && (
+                <div className={`p-4 rounded-lg ${
+                  liveTranscript.role === 'user' ? 'bg-blue-50' : 'bg-gray-50'
+                }`}>
+                  <p className="text-sm font-medium mb-1">
+                    {liveTranscript.role === 'user' ? 'You (speaking...)' : 'Interviewer (speaking...)'}
+                  </p>
+                  <p className="text-gray-700">{liveTranscript.content}</p>
+                </div>
               )}
-            </AlertDescription>
-          </Alert>
-        )}
 
-        {/* Connection Quality Indicator */}
-        <div className="flex justify-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm">
-            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-            <span>Connected</span>
-            {isTabHidden && (
-              <>
-                <span className="text-gray-500">•</span>
-                <span className="text-gray-600 text-xs">Running in background</span>
-              </>
-            )}
-          </div>
-        </div>
+              {/* AI Captions */}
+              {aiCaptions && (
+                <div className="text-center text-gray-500 italic">
+                  {aiCaptions}
+                </div>
+              )}
 
-        {/* Speaking Status with Audio Level Indicator */}
-        <Card>
-          <CardContent className="py-4">
-            <div className="space-y-4">
-              {/* Audio Level Indicator for active interview */}
-              <AudioLevelIndicator 
-                isActive={true}
-                isMuted={isMuted}
-                height={50}
-                barCount={9}
-                showFeedback={false}
-                className="mb-4"
-              />
-              
-              {/* Mic Toggle for active interview */}
-              <div className="flex justify-center">
+              {/* Message History */}
+              <div className="space-y-4 max-h-[300px] overflow-y-auto">
+                {messages.map((msg, idx) => (
+                  <div key={idx} className={`p-4 rounded-lg ${
+                    msg.role === 'user' ? 'bg-blue-50 ml-8' : 'bg-gray-50 mr-8'
+                  }`}>
+                    <p className="text-sm font-medium mb-1">
+                      {msg.role === 'user' ? 'You' : 'Interviewer'}
+                    </p>
+                    <p className="text-gray-700">{msg.content}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Speaking Indicator */}
+              {isUserSpeaking && (
+                <div className="text-center">
+                  <span className="inline-flex items-center gap-2 text-blue-600">
+                    <Mic className="h-4 w-4 animate-pulse" />
+                    <span className="text-sm">Listening...</span>
+                  </span>
+                </div>
+              )}
+
+              {/* Audio Controls */}
+              <div className="flex justify-center items-center gap-6 pt-4 border-t">
+                <AudioLevelIndicator 
+                  isActive={isActive}
+                  isMuted={isMuted}
+                  height={60}
+                  barCount={10}
+                  showFeedback={true}
+                />
                 <MicToggle 
                   isMuted={isMuted}
                   onToggle={toggleMute}
                   showReminder={true}
-                  size="default"
+                  size="lg"
                 />
               </div>
-              
-              <div className="flex items-center justify-center gap-4">
-                <div className={`flex items-center gap-2 ${isUserSpeaking ? 'text-green-600' : 'text-gray-400'}`}>
-                  <Mic className={`h-5 w-5 ${isUserSpeaking ? 'animate-pulse' : ''}`} />
-                  <span>{isUserSpeaking ? 'You are speaking' : 'Listening...'}</span>
-                </div>
-              </div>
-              
-              {/* AI Captions */}
-              {aiCaptions && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-800">{aiCaptions}</p>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Conversation History */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Conversation</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {messages.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">
-                  Conversation will appear here...
-                </p>
-              ) : (
-                messages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`p-3 rounded-lg ${
-                      message.role === "user"
-                        ? "bg-blue-100 ml-8"
-                        : "bg-gray-100 mr-8"
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <strong className="text-sm capitalize">
-                        {message.role === "user" ? "You" : "Interviewer"}:
-                      </strong>
-                      <span className="text-xs text-gray-500">
-                        {new Date(message.timestamp).toLocaleTimeString()}
-                      </span>
-                    </div>
-                    <p className="mt-1">{message.content}</p>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Tab Hidden Warning */}
+        {isTabHidden && (
+          <Alert variant="warning">
+            <AlertTitle>Interview Paused</AlertTitle>
+            <AlertDescription>
+              Your interview is paused while this tab is in the background. 
+              Return to this tab to continue.
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
     )
   }
 
-  // Default/idle state (shouldn't normally be rendered with autoStart=true)
-  return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <CardTitle>Ready to Start</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Button 
-          onClick={handleStartInterview}
-          className="w-full"
-        >
-          Start Interview
-        </Button>
-      </CardContent>
-    </Card>
-  )
+  // Show completion error with manual navigation
+  if (completionError && showManualNavigation) {
+    return (
+      <Card className="w-full max-w-md mx-auto">
+        <CardHeader>
+          <CardTitle>Interview Completed</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert variant="warning">
+            <AlertTitle>Saved Locally</AlertTitle>
+            <AlertDescription>{completionError}</AlertDescription>
+          </Alert>
+          
+          <Button 
+            onClick={() => router.push('/feedback')}
+            className="w-full"
+          >
+            Continue to Feedback
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Default state - shouldn't normally reach here
+  return null
 }

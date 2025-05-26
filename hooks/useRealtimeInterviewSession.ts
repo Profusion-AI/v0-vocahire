@@ -3,7 +3,6 @@
 import { useState, useRef, useCallback, useEffect } from "react"
 import { useAuth } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
-import { interviewSessionManager, SessionState } from "@/lib/interview-session-manager"
 
 export interface InterviewMessage {
   role: "user" | "assistant"
@@ -48,38 +47,16 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
   const { jobTitle = "Software Engineer", resumeData = null } = props
   
   // Authentication and routing
-  const { isLoaded, isSignedIn, getToken } = useAuth()
+  const { isLoaded, isSignedIn, getToken, userId } = useAuth()
   const router = useRouter()
   
-  // Preserve session state across Clerk re-renders
-  const sessionStateRef = useRef<{
-    isActive: boolean
-    status: InterviewStatus
-    sessionData: SessionData | null
-  }>({
-    isActive: false,
-    status: "idle",
-    sessionData: null
-  })
-
-  // Core state - initialize from ref to preserve across re-renders
-  const [status, setStatusState] = useState<InterviewStatus>(sessionStateRef.current.status)
+  // Core state
+  const [status, setStatus] = useState<InterviewStatus>("idle")
   const [messages, setMessages] = useState<InterviewMessage[]>([])
   const [error, setError] = useState<string | null>(null)
   const [debug, setDebug] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
-  const [isActiveState, setIsActiveState] = useState(sessionStateRef.current.isActive)
-  
-  // Wrapped setters that update both state and ref
-  const setStatus = useCallback((newStatus: InterviewStatus) => {
-    sessionStateRef.current.status = newStatus
-    setStatusState(newStatus)
-  }, [])
-  
-  const setIsActive = useCallback((active: boolean) => {
-    sessionStateRef.current.isActive = active
-    setIsActiveState(active)
-  }, [])
+  const [isActive, setIsActive] = useState(false)
   
   // Real-time state
   const [isUserSpeaking, setIsUserSpeaking] = useState(false)
@@ -94,6 +71,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
   const websocketRef = useRef<WebSocket | null>(null)
   const sessionDataRef = useRef<SessionData | null>(null)
+  const dataChannelRef = useRef<RTCDataChannel | null>(null)
   
   // Debug logging
   const debugLogRef = useRef<string>("")
@@ -103,11 +81,8 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
   // Prevent duplicate session creation attempts
   const sessionCreationInProgress = useRef(false)
   
-  // Unique session ID for this hook instance
-  const hookSessionId = useRef<string>(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
-  
-  // Ref to handle forward reference of stop function
-  const stopRef = useRef<(() => void) | null>(null)
+  // Heartbeat interval
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Add debug message
   const addDebugMessage = useCallback((message: string) => {
@@ -116,13 +91,6 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
     debugLogRef.current = `${timestamp} - ${message}\n${debugLogRef.current}`.substring(0, 5000)
     setDebug(debugLogRef.current)
   }, [])
-  
-  // Set up session manager debug callback
-  useEffect(() => {
-    if (interviewSessionManager) {
-      interviewSessionManager.setDebugCallback(addDebugMessage)
-    }
-  }, [addDebugMessage])
 
   // Add message to conversation
   const addMessage = useCallback((role: "user" | "assistant", content: string, confidence?: number) => {
@@ -143,25 +111,37 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
         ...message,
         timestamp: new Date().toISOString()
       }))
+      addDebugMessage(`Sent WS message: ${message.type}`)
+    } else {
+      addDebugMessage(`Cannot send WS message, socket not open: ${message.type}`)
     }
-  }, [])
+  }, [addDebugMessage])
 
   // Handle WebSocket messages
   const handleWebSocketMessage = useCallback(async (event: MessageEvent) => {
     try {
       const message = JSON.parse(event.data)
-      addDebugMessage(`WS message: ${message.type}`)
+      addDebugMessage(`WS message received: ${message.type}`)
       
       switch (message.type) {
         case "session.status":
+          addDebugMessage(`Session status: ${message.data.status}`)
           if (message.data.status === "connected") {
             setStatus("establishing_webrtc")
+            // Server is ready, we can now create WebRTC offer
+            if (!peerConnectionRef.current && sessionDataRef.current) {
+              await setupWebRTC(sessionDataRef.current)
+            }
+          } else if (message.data.status === "active") {
+            setStatus("active")
+            setIsActive(true)
+            setIsConnecting(false)
           }
           break
           
         case "webrtc.answer":
           if (peerConnectionRef.current) {
-            peerConnectionRef.current.setRemoteDescription(
+            await peerConnectionRef.current.setRemoteDescription(
               new RTCSessionDescription(message.data)
             )
             addDebugMessage("Set remote description (answer)")
@@ -170,7 +150,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
           
         case "webrtc.ice_candidate":
           if (peerConnectionRef.current) {
-            peerConnectionRef.current.addIceCandidate(
+            await peerConnectionRef.current.addIceCandidate(
               new RTCIceCandidate(message.data)
             )
             addDebugMessage("Added ICE candidate from server")
@@ -213,13 +193,72 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
           addDebugMessage(`Server error: ${message.data.message}`)
           if (message.data.severity === "critical") {
             setError(message.data.message)
+            setStatus("error")
           }
           break
       }
     } catch (error) {
       addDebugMessage(`Error handling WebSocket message: ${error}`)
     }
-  }, [addDebugMessage, addMessage, setStatus])
+  }, [addDebugMessage, addMessage])
+
+  // Setup WebRTC data channel
+  const setupDataChannel = useCallback((pc: RTCPeerConnection) => {
+    const dataChannel = pc.createDataChannel("vocahire-control", {
+      ordered: true
+    })
+    
+    dataChannelRef.current = dataChannel
+    
+    dataChannel.onopen = () => {
+      addDebugMessage("Data channel opened")
+      
+      // Send initial audio metadata
+      dataChannel.send(JSON.stringify({
+        type: "audio.metadata",
+        timestamp: new Date().toISOString(),
+        data: {
+          format: "opus",
+          sampleRate: 48000,
+          channels: 1,
+          chunkDuration: 20
+        }
+      }))
+      
+      // Start heartbeat
+      heartbeatIntervalRef.current = setInterval(() => {
+        if (dataChannel.readyState === "open") {
+          dataChannel.send(JSON.stringify({
+            type: "heartbeat",
+            timestamp: new Date().toISOString(),
+            data: {
+              ping: Date.now()
+            }
+          }))
+        }
+      }, 5000)
+    }
+    
+    dataChannel.onclose = () => {
+      addDebugMessage("Data channel closed")
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current)
+        heartbeatIntervalRef.current = null
+      }
+    }
+    
+    dataChannel.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data)
+        if (message.type === "heartbeat_ack") {
+          const latency = Date.now() - message.data.pong
+          addDebugMessage(`Heartbeat latency: ${latency}ms`)
+        }
+      } catch (error) {
+        addDebugMessage(`Error handling data channel message: ${error}`)
+      }
+    }
+  }, [addDebugMessage])
 
   // Setup WebRTC connection
   const setupWebRTC = useCallback(async (sessionData: SessionData): Promise<boolean> => {
@@ -234,26 +273,18 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       
       peerConnectionRef.current = pc
       
-      // Register peer connection with session manager
-      if (interviewSessionManager) {
-        interviewSessionManager.registerPeerConnection(hookSessionId.current, pc)
-      }
+      // Setup data channel
+      setupDataChannel(pc)
       
       // Setup connection state monitoring
       pc.onconnectionstatechange = () => {
         addDebugMessage(`WebRTC connection state: ${pc.connectionState}`)
         if (pc.connectionState === "connected") {
-          setStatus("active")
-          setIsActive(true)
-          setIsConnecting(false)
-          
-          // Start the interview
-          sendWebSocketMessage({
-            type: "control.start_interview",
-            data: {}
-          })
+          // Don't set active here - wait for server confirmation
+          addDebugMessage("WebRTC connected, waiting for server to activate session")
         } else if (pc.connectionState === "failed") {
-          throw new Error("WebRTC connection failed")
+          setError("WebRTC connection failed")
+          setStatus("error")
         }
       }
 
@@ -321,7 +352,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       setError(`WebRTC setup failed: ${error}`)
       return false
     }
-  }, [addDebugMessage, sendWebSocketMessage, setIsActive, setStatus, interviewSessionManager])
+  }, [addDebugMessage, sendWebSocketMessage, setupDataChannel])
 
   // Create session with orchestrator
   const createSession = useCallback(async (): Promise<SessionData> => {
@@ -347,19 +378,15 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
         throw new Error("No authentication token available")
       }
 
-      // TODO: [Gemini] - Update this endpoint to point to the new orchestrator service
-      // For now, using placeholder URL that will be replaced when orchestrator is deployed
-      const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || "http://localhost:5000"
-
-      // Create session
-      const response = await fetch(`${orchestratorUrl}/api/v1/sessions/create`, {
+      // Create session with the new orchestrator endpoints
+      const response = await fetch("/api/v1/sessions/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${authToken}`
         },
         body: JSON.stringify({
-          userId: sessionStateRef.current.sessionData?.sessionId || "temp_user_id", // TODO: Get actual user ID
+          userId: userId || "anonymous",
           jobTitle,
           resumeContext: resumeData ? `${resumeData.skills} ${resumeData.experience}` : "",
           interviewType: "behavioral",
@@ -392,7 +419,6 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       
       addDebugMessage(`Session created: ${sessionData.sessionId}`)
       sessionDataRef.current = sessionData
-      sessionStateRef.current.sessionData = sessionData
       
       return sessionData
       
@@ -402,7 +428,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
     } finally {
       sessionCreationInProgress.current = false
     }
-  }, [addDebugMessage, setStatus, isLoaded, isSignedIn, getToken, jobTitle, resumeData])
+  }, [addDebugMessage, isLoaded, isSignedIn, getToken, userId, jobTitle, resumeData])
 
   // Setup WebSocket connection
   const setupWebSocket = useCallback(async (sessionData: SessionData, authToken: string) => {
@@ -410,22 +436,17 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       setStatus("connecting_websocket")
       addDebugMessage("Connecting to WebSocket...")
       
-      const ws = new WebSocket(`${sessionData.websocketUrl}?token=${authToken}`)
+      // Add token as query parameter as per spec
+      const wsUrl = `${sessionData.websocketUrl}?token=${authToken}`
+      const ws = new WebSocket(wsUrl)
       websocketRef.current = ws
       
       ws.onopen = () => {
         addDebugMessage("WebSocket connected")
-        // Server will send session.status message, which triggers WebRTC setup
+        // Server will send session.status message when ready
       }
       
-      ws.onmessage = async (event) => {
-        await handleWebSocketMessage(event)
-        
-        // Check if we need to start WebRTC after status message
-        if (sessionStateRef.current.status === "establishing_webrtc" && !peerConnectionRef.current) {
-          await setupWebRTC(sessionData)
-        }
-      }
+      ws.onmessage = handleWebSocketMessage
       
       ws.onerror = (error) => {
         addDebugMessage(`WebSocket error: ${error}`)
@@ -443,7 +464,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       addDebugMessage(`WebSocket setup error: ${error}`)
       throw error
     }
-  }, [addDebugMessage, handleWebSocketMessage, setStatus, status])
+  }, [addDebugMessage, handleWebSocketMessage, status])
 
   // Start interview
   const start = useCallback(async () => {
@@ -477,7 +498,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       // Setup WebSocket connection
       await setupWebSocket(sessionData, authToken)
       
-      // WebRTC setup will happen after WebSocket connects
+      // WebRTC setup will happen after WebSocket connects and server sends status
       
     } catch (error: any) {
       addDebugMessage(`Start error: ${error.message}`)
@@ -486,12 +507,12 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       setIsConnecting(false)
       
       // Handle retry logic for transient errors
-      if (retryCount < maxRetries && !error.message.includes("RATE_LIMIT")) {
+      if (retryCount < maxRetries && !error.message.includes("RATE_LIMIT") && !error.message.includes("Insufficient")) {
         setRetryCount(prev => prev + 1)
         setTimeout(() => start(), 2000 * (retryCount + 1))
       }
     }
-  }, [isConnecting, status, addDebugMessage, setStatus, createSession, getToken, setupWebSocket, retryCount])
+  }, [isConnecting, status, addDebugMessage, createSession, getToken, setupWebSocket, retryCount])
 
   // Stop interview
   const stop = useCallback(async () => {
@@ -504,6 +525,18 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
           type: "control.end",
           data: {}
         })
+      }
+      
+      // Close data channel
+      if (dataChannelRef.current) {
+        dataChannelRef.current.close()
+        dataChannelRef.current = null
+      }
+      
+      // Clear heartbeat interval
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current)
+        heartbeatIntervalRef.current = null
       }
       
       // Close WebSocket
@@ -529,8 +562,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
         try {
           const authToken = await getToken()
           if (authToken) {
-            const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || "http://localhost:5000"
-            await fetch(`${orchestratorUrl}/api/v1/sessions/${sessionDataRef.current.sessionId}/end`, {
+            await fetch(`/api/v1/sessions/${sessionDataRef.current.sessionId}/end`, {
               method: "POST",
               headers: {
                 "Authorization": `Bearer ${authToken}`
@@ -542,17 +574,10 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
         }
       }
       
-      // Update session manager
-      if (interviewSessionManager) {
-        await interviewSessionManager.notifySessionEnd(hookSessionId.current)
-      }
-      
       // Reset state
       setStatus("ended")
       setIsActive(false)
       setIsConnecting(false)
-      sessionDataRef.current = null
-      sessionStateRef.current.sessionData = null
       
       // Save results if we have messages
       if (messages.length > 0) {
@@ -560,14 +585,16 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
         await saveSessionResults()
         
         // Navigate to feedback page
-        const sessionId = sessionDataRef.current?.sessionId || hookSessionId.current
+        const sessionId = sessionDataRef.current?.sessionId || Date.now().toString()
         router.push(`/feedback?sessionId=${sessionId}`)
       }
+      
+      sessionDataRef.current = null
       
     } catch (error) {
       addDebugMessage(`Stop error: ${error}`)
     }
-  }, [addDebugMessage, sendWebSocketMessage, getToken, setStatus, setIsActive, messages, router, interviewSessionManager])
+  }, [addDebugMessage, sendWebSocketMessage, getToken, messages, router])
 
   // Save session results
   const saveSessionResults = useCallback(async () => {
@@ -621,19 +648,14 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
     }
   }, [addDebugMessage])
 
-  // Set stop ref
-  useEffect(() => {
-    stopRef.current = stop
-  }, [stop])
-
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (stopRef.current && (status === "active" || isConnecting)) {
-        stopRef.current()
+      if (status === "active" || isConnecting) {
+        stop()
       }
     }
-  }, [status, isConnecting])
+  }, []) // Only on unmount
 
   // Handle auth changes
   useEffect(() => {
@@ -643,6 +665,16 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
     }
   }, [isLoaded, isSignedIn, status, stop, addDebugMessage])
 
+  // Start interview when connection is ready
+  useEffect(() => {
+    if (status === "active" && websocketRef.current?.readyState === WebSocket.OPEN) {
+      sendWebSocketMessage({
+        type: "control.start_interview",
+        data: {}
+      })
+    }
+  }, [status, sendWebSocketMessage])
+
   return {
     // State
     status,
@@ -650,7 +682,7 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
     error,
     debug,
     isConnecting,
-    isActive: isActiveState,
+    isActive,
     
     // Real-time state
     isUserSpeaking,

@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
 import type { ResumeData } from "@/components/resume-input";
-// import { Navbar } from "@/components/navbar"; // Navbar is in parent server component
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Loader2, Mic, Settings, Bot, Zap } from "lucide-react";
 import { InterviewLoadingScreen } from "@/components/InterviewLoadingScreen";
@@ -19,7 +18,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { useToast } from "@/hooks/use-toast";
 import { ProfileSettingsForm, type ProfileFormData } from "@/components/ProfileSettingsForm";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
-import { useUserData } from "@/hooks/useUserData"; // Import the new hook
+import { useUserData } from "@/hooks/useUserData";
 import {
   Dialog,
   DialogContent,
@@ -32,11 +31,10 @@ import {
 export interface InterviewPageClientProps {
   initialJobTitle: string;
   initialSkipResume: boolean;
-  // initialCredits, initialIsPremium are no longer needed as useUserData handles fetching
   initialProfileFormData: ProfileFormData;
   stripePublishableKey: string;
-  userId: string; // Still needed for some operations or if useUserData doesn't expose it directly
-  isUsingFallbackDb?: boolean; // Flag to indicate if we're using fallback database
+  userId: string;
+  isUsingFallbackDb?: boolean;
 }
 
 export default function InterviewPageClient({
@@ -44,18 +42,16 @@ export default function InterviewPageClient({
   initialSkipResume,
   initialProfileFormData,
   stripePublishableKey,
-  // userId, // userId can be sourced from useUserData if available there
   isUsingFallbackDb = false,
 }: InterviewPageClientProps) {
   const router = useRouter();
-  // const searchParams = useSearchParams(); // Not used currently
   const { toast } = useToast();
 
   const {
     user,
     credits,
     isPremium,
-    isLoading: isUserDataLoading, // Renamed to avoid conflict if another isLoading is used
+    isLoading: isUserDataLoading,
     refetchUserData
   } = useUserData();
 
@@ -66,15 +62,12 @@ export default function InterviewPageClient({
   const [skipResume, setSkipResume] = useState(initialSkipResume);
   const [currentView, setCurrentView] = useState<"interview" | "profile">("interview");
   
-  // Unified UI state management
-  const [uiLoadingState, setUiLoadingState] = useState<'idle' | 'preparing' | 'active'>('idle');
-  
-  // Track interview process initiation intent (survives re-renders)
-  const interviewProcessInitiatedRef = useRef(false);
-  
-  // Legacy states (will be phased out)
-  const [interviewActive, setInterviewActive] = useState(false);
+  // Simplified UI state management
+  const [showInterview, setShowInterview] = useState(false);
+  const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   const [creatingSession, setCreatingSession] = useState(false);
+  
+  // Loading stages for UI feedback
   const [loadingStages] = useState<LoadingStage[]>([
     { id: 'mic_check', label: 'Checking microphone...', icon: Mic },
     { id: 'session_init', label: 'Initializing session...', icon: Settings },
@@ -83,38 +76,25 @@ export default function InterviewPageClient({
   ]);
   const [currentLoadingStageId, setCurrentLoadingStageId] = useState<string | undefined>();
   const [completedLoadingStageIds, setCompletedLoadingStageIds] = useState<string[]>([]);
-  const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   const stageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Protect loading state from being reset by re-renders
-  const loadingStateRef = useRef<{
-    isLoadingInProgress: boolean;
-    lastCompletedStages: string[];
-    lastCurrentStage?: string;
-  }>({
-    isLoadingInProgress: false,
-    lastCompletedStages: [],
-    lastCurrentStage: undefined
-  });
 
   // Local state for modals
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [isConfirmStartModalOpen, setIsConfirmStartModalOpen] = useState(false);
   
-  // Profile form data state, initialized from props, potentially updated by useUserData
+  // Profile form data state
   const [profileDataForForm, setProfileDataForForm] = useState<ProfileFormData>(initialProfileFormData);
 
+  // Load resume data from localStorage
   useEffect(() => {
     setIsLoadingResume(true);
     try {
-      // Protect localStorage access for SSR
       if (typeof window !== 'undefined') {
         const storedResumeData = localStorage.getItem("vocahire_resume_data");
         if (storedResumeData) {
           const parsedData = JSON.parse(storedResumeData) as ResumeData;
           setResumeData(parsedData);
           setHasResumeData(true);
-          // Only set jobTitle from resume if initialJobTitle was the default placeholder
           if (initialJobTitle === "Software Engineer" && parsedData.jobTitle) {
                setJobTitle(parsedData.jobTitle);
           }
@@ -127,29 +107,9 @@ export default function InterviewPageClient({
       setHasResumeData(false);
     }
     setIsLoadingResume(false);
-  }, [initialJobTitle]); // Only re-run if initialJobTitle changes
+  }, [initialJobTitle]);
 
-  // Pre-fetch user credentials when component mounts to warm cache
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !isUserDataLoading) {
-      console.log('[InterviewPageClient] Pre-fetching user credentials to warm cache...');
-      
-      fetch('/api/prefetch-credentials')
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            console.log('[InterviewPageClient] Successfully pre-fetched credentials:', data);
-          } else {
-            console.warn('[InterviewPageClient] Failed to pre-fetch credentials:', data);
-          }
-        })
-        .catch(err => {
-          console.error('[InterviewPageClient] Error pre-fetching credentials:', err);
-        });
-    }
-  }, [isUserDataLoading]);
-
-  // Separate effect for profile data updates - only when user changes
+  // Update profile data when user changes
   useEffect(() => {
     if (user) {
       setProfileDataForForm(prev => ({
@@ -162,18 +122,6 @@ export default function InterviewPageClient({
     }
   }, [user]);
 
-  // Separate effect for skip resume setting
-  useEffect(() => {
-    setSkipResume(initialSkipResume);
-  }, [initialSkipResume]);
-
-  // Separate effect for job title synchronization
-  useEffect(() => {
-    if (initialJobTitle !== jobTitle && !resumeData?.jobTitle) {
-      setJobTitle(initialJobTitle);
-    }
-  }, [initialJobTitle, resumeData?.jobTitle, jobTitle]);
-  
   // Clean up timeouts on unmount
   useEffect(() => {
     return () => {
@@ -183,17 +131,6 @@ export default function InterviewPageClient({
     };
   }, []);
   
-  // Debug effect to log state changes
-  useEffect(() => {
-    console.log('[InterviewPageClient] State update:', {
-      interviewIntent: interviewProcessInitiatedRef.current,
-      uiLoadingState,
-      interviewActive,
-      showLoadingScreen,
-      loadingInProgress: loadingStateRef.current.isLoadingInProgress
-    });
-  }, [uiLoadingState, interviewActive, showLoadingScreen]);
-  
   // Display a notification when fallback database is being used
   useEffect(() => {
     if (isUsingFallbackDb) {
@@ -201,16 +138,15 @@ export default function InterviewPageClient({
         title: "Limited Functionality",
         description: "Database connection is currently unavailable. Some features may be limited.",
         variant: "destructive",
-        duration: 10000, // 10 seconds
+        duration: 10000,
       });
     }
   }, [isUsingFallbackDb, toast]);
 
-
   const handleProfileSaveSuccess = (updatedFormData: ProfileFormData) => {
     setProfileDataForForm(updatedFormData);
     toast({title: "Success", description: "Profile updated successfully!"});
-    refetchUserData(); // Refetch user data to ensure consistency, e.g. if name changed
+    refetchUserData();
   };
 
   const handleStripeAction = async (itemId: string) => {
@@ -264,251 +200,110 @@ export default function InterviewPageClient({
         localStorage.setItem("vocahire_interview_messages", JSON.stringify(messages));
       }
       
-      // Reset all interview states
-      console.log('[InterviewPageClient] Interview completed - resetting all states...');
-      interviewProcessInitiatedRef.current = false;
-      console.log('[InterviewPageClient] Intent reset to FALSE');
-      
-      const prevUiState = uiLoadingState;
-      setUiLoadingState('idle');
-      console.log('[InterviewPageClient] UI state changed:', prevUiState, '->', 'idle');
-      
-      setInterviewActive(false); // Reset the interview state
+      // Reset interview states
+      setShowInterview(false);
+      setShowLoadingScreen(false);
       router.push("/feedback");
     },
-    [router, uiLoadingState]
+    [router]
   );
   
   const handleStartInterviewAttempt = () => {
-    // Check if interview is already initiated
-    if (interviewProcessInitiatedRef.current) {
-      console.log('[InterviewPageClient] Interview already initiated - ignoring start attempt');
-      return;
-    }
+    if (creatingSession) return;
     
-    // Immediately set creating session to disable button
     setCreatingSession(true);
     
     if (!isPremium && credits !== null && Number(credits) > 0) {
       setIsConfirmStartModalOpen(true);
-      // Reset if modal is opened instead of starting
       setCreatingSession(false);
     } else if (isPremium || (credits !== null && Number(credits) > 0)) {
       startInterview();
     } else {
-      // Reset if conditions not met
       setCreatingSession(false);
     }
   };
 
   const startInterview = async () => {
-    // Set interview intent - this survives re-renders
-    const wasInitiated = interviewProcessInitiatedRef.current;
-    if (!interviewProcessInitiatedRef.current) {
-      interviewProcessInitiatedRef.current = true;
-      console.log('[InterviewPageClient] Interview process initiated - intent set to TRUE (was:', wasInitiated, ')');
-    } else {
-      console.log('[InterviewPageClient] Interview already initiated - keeping intent as TRUE');
-    }
-    
-    console.log('[InterviewPageClient] Starting interview - initializing loading screen');
     setIsConfirmStartModalOpen(false);
-    // Don't set creatingSession to false here - let handleSessionCreationStatus manage it
-    // setCreatingSession(false); // REMOVED: This could cause race conditions
-    
-    // Update UI state
-    const prevState = uiLoadingState;
-    setUiLoadingState('preparing');
-    console.log('[InterviewPageClient] UI state changed:', prevState, '->', 'preparing');
-    
-    // Show loading screen immediately and mark loading as in progress
-    loadingStateRef.current.isLoadingInProgress = true;
-    loadingStateRef.current.lastCurrentStage = 'mic_check';
-    loadingStateRef.current.lastCompletedStages = [];
-    
+    setShowInterview(true);
     setShowLoadingScreen(true);
+    
+    // Set initial loading stage
     setCurrentLoadingStageId('mic_check');
     setCompletedLoadingStageIds([]);
-    
-    // Mount InterviewRoom and let it handle the entire session lifecycle
-    setInterviewActive(true);
-    // Mount InterviewRoom with autoStart
   };
 
-  const handleSessionCreationStatus = (isCreating: boolean, error?: string, status?: string) => {
-    console.log('[InterviewPageClient] handleSessionCreationStatus called:', {
-      isCreating,
-      error: error || 'none',
-      status: status || 'none',
-      currentIntent: interviewProcessInitiatedRef.current,
-      currentUiState: uiLoadingState
-    });
+  const handleSessionStatus = (status: string, error?: string) => {
+    console.log('[InterviewPageClient] Session status:', status, error);
     
-    setCreatingSession(isCreating);
-    
-    // Protect against state resets during loading
-    if (loadingStateRef.current.isLoadingInProgress && !isCreating && !error) {
-      // Loading was in progress and now we're getting a non-creating status without error
-      // This might be a re-render artifact - don't reset the loading state
-      console.log('[InterviewPageClient] PROTECTION: Ignoring potential loading state reset during active loading');
-      return;
-    }
-    
-    // Clear any existing timeout when status changes
+    // Clear any existing timeout
     if (stageTimeoutRef.current) {
       clearTimeout(stageTimeoutRef.current);
       stageTimeoutRef.current = null;
     }
     
-    // Map interview statuses to loading stages
-    if (isCreating && status) {
-      loadingStateRef.current.isLoadingInProgress = true;
-      setShowLoadingScreen(true);
-      
-      // Set up auto-advancement after 10 seconds as fallback
-      const setupAutoAdvance = (nextStageId: string, completedIds: string[]) => {
-        stageTimeoutRef.current = setTimeout(() => {
-          // Auto-advancing after timeout
-          setCompletedLoadingStageIds(completedIds);
-          setCurrentLoadingStageId(nextStageId);
-          
-          // Set up next auto-advance
-          const stageIndex = loadingStages.findIndex(s => s.id === nextStageId);
-          if (stageIndex < loadingStages.length - 1) {
-            const nextNextStage = loadingStages[stageIndex + 1];
-            setupAutoAdvance(nextNextStage.id, [...completedIds, nextStageId]);
-          } else {
-            // Final stage reached via timeout
-            stageTimeoutRef.current = setTimeout(() => {
-              setCompletedLoadingStageIds([...completedIds, nextStageId]);
-              setTimeout(() => {
-                setShowLoadingScreen(false);
-                setTimeout(() => {
-                  setCurrentLoadingStageId(undefined);
-                  setCompletedLoadingStageIds([]);
-                }, 300);
-              }, 1000);
-            }, 10000);
-          }
-        }, 10000);
-      };
-      
-      switch (status) {
-        case 'requesting_mic':
-          setCurrentLoadingStageId('mic_check');
-          loadingStateRef.current.lastCurrentStage = 'mic_check';
-          loadingStateRef.current.lastCompletedStages = [];
-          setupAutoAdvance('session_init', ['mic_check']);
-          break;
-        case 'creating_session':
-          setCompletedLoadingStageIds(['mic_check']);
-          setCurrentLoadingStageId('session_init');
-          loadingStateRef.current.lastCurrentStage = 'session_init';
-          loadingStateRef.current.lastCompletedStages = ['mic_check'];
-          setupAutoAdvance('ai_connect', ['mic_check', 'session_init']);
-          break;
-        case 'connecting_websocket':
-        case 'establishing_webrtc':
-          setCompletedLoadingStageIds(['mic_check', 'session_init']);
-          setCurrentLoadingStageId('ai_connect');
-          loadingStateRef.current.lastCurrentStage = 'ai_connect';
-          loadingStateRef.current.lastCompletedStages = ['mic_check', 'session_init'];
-          setupAutoAdvance('finalizing', ['mic_check', 'session_init', 'ai_connect']);
-          break;
-        case 'active':
-          // Clear any pending timeout
-          if (stageTimeoutRef.current) {
-            clearTimeout(stageTimeoutRef.current);
-            stageTimeoutRef.current = null;
-          }
-          
-          // Transition UI state to active
-          setUiLoadingState('active');
-          
-          setCompletedLoadingStageIds(['mic_check', 'session_init', 'ai_connect', 'finalizing']);
-          loadingStateRef.current.lastCompletedStages = ['mic_check', 'session_init', 'ai_connect', 'finalizing'];
-          setTimeout(() => {
-            setShowLoadingScreen(false);
-            loadingStateRef.current.isLoadingInProgress = false;
-            // Clear loading state after transition
-            setTimeout(() => {
-              setCurrentLoadingStageId(undefined);
-              setCompletedLoadingStageIds([]);
-              loadingStateRef.current.lastCurrentStage = undefined;
-              loadingStateRef.current.lastCompletedStages = [];
-            }, 300);
-          }, 1000); // Show completion state for 1 second
-          break;
-      }
-    } else if (!isCreating) {
-      setShowLoadingScreen(false);
-      setCurrentLoadingStageId(undefined);
-      setCompletedLoadingStageIds([]);
-      loadingStateRef.current.isLoadingInProgress = false;
-      loadingStateRef.current.lastCurrentStage = undefined;
-      loadingStateRef.current.lastCompletedStages = [];
-      // Clear any pending timeout
-      if (stageTimeoutRef.current) {
-        clearTimeout(stageTimeoutRef.current);
-        stageTimeoutRef.current = null;
-      }
-    }
-    
     if (error) {
-      console.error("Session creation error:", error);
+      console.error("Session error:", error);
+      
+      // Handle different error types
       let toastTitle = "Interview Session Error";
       let toastDescription = "An unexpected error occurred. Please try again.";
-      let toastDuration = 5000; // Default duration
 
-      if (error.includes("database connectivity") || error.includes("cold start") || error.includes("timeout")) {
-        toastTitle = "Connection Issue";
-        toastDescription = "We're experiencing high load or a temporary database connection issue. Please wait a moment and try again.";
-        toastDuration = 10000; // Longer duration for transient issues
-      } else if (error.includes("Insufficient VocahireCredits") || error.includes("purchase more VocahireCredits")) {
+      if (error.includes("Insufficient VocahireCredits")) {
         toastTitle = "Insufficient Credits";
-        toastDescription = "You don't have enough VocahireCredits to start an interview. Please purchase more.";
-        toastDuration = 7000;
-      } else if (error.includes("Unauthorized")) {
+        toastDescription = "You don't have enough VocahireCredits to start an interview.";
+      } else if (error.includes("Authentication") || error.includes("Unauthorized")) {
         toastTitle = "Authentication Error";
-        toastDescription = "You are not authenticated. Please log in again.";
-        toastDuration = 7000;
-      } else if (error.includes("API key not configured") || error.includes("Invalid OpenAI API key format")) {
-        toastTitle = "Configuration Error";
-        toastDescription = "The AI service is not properly configured. Please contact support.";
-        toastDuration = 10000;
-      } else if (error.includes("Rate limit exceeded")) {
+        toastDescription = "Please log in again.";
+      } else if (error.includes("Rate limit")) {
         toastTitle = "Rate Limit Exceeded";
-        toastDescription = "You've made too many requests. Please wait a moment before trying again.";
-        toastDuration = 7000;
+        toastDescription = "Please wait a moment before trying again.";
       }
 
       toast({ 
         title: toastTitle, 
         description: toastDescription, 
         variant: "destructive",
-        duration: toastDuration
       });
       
-      // Don't unmount InterviewRoom on error - let it handle retries
-      // Only reset if it's a fatal error that can't be retried
-      if (error.includes("Insufficient VocahireCredits") || 
-          error.includes("Unauthorized") ||
-          error.includes("API key not configured")) {
-        // Reset all states on fatal error
-        console.log('[InterviewPageClient] Fatal error detected - resetting all states...');
-        interviewProcessInitiatedRef.current = false;
-        console.log('[InterviewPageClient] Intent reset to FALSE due to fatal error');
-        
-        const prevUiState = uiLoadingState;
-        setUiLoadingState('idle');
-        console.log('[InterviewPageClient] UI state changed:', prevUiState, '->', 'idle');
-        
-        setInterviewActive(false);
-      }
+      // Reset states on error
+      setShowInterview(false);
+      setShowLoadingScreen(false);
+      setCreatingSession(false);
+      return;
+    }
+    
+    // Map interview statuses to loading stages
+    switch (status) {
+      case 'requesting_mic':
+        setCurrentLoadingStageId('mic_check');
+        break;
+      case 'creating_session':
+        setCompletedLoadingStageIds(['mic_check']);
+        setCurrentLoadingStageId('session_init');
+        break;
+      case 'connecting_websocket':
+      case 'establishing_webrtc':
+        setCompletedLoadingStageIds(['mic_check', 'session_init']);
+        setCurrentLoadingStageId('ai_connect');
+        break;
+      case 'active':
+        // Interview is active, complete all stages and hide loading
+        setCompletedLoadingStageIds(['mic_check', 'session_init', 'ai_connect', 'finalizing']);
+        setTimeout(() => {
+          setShowLoadingScreen(false);
+          setCreatingSession(false);
+        }, 1000); // Show completion state briefly
+        break;
+      case 'ended':
+        setShowInterview(false);
+        setShowLoadingScreen(false);
+        setCreatingSession(false);
+        break;
     }
   };
 
-  if (isLoadingResume || isUserDataLoading) { // Check both resume and user data loading
+  if (isLoadingResume || isUserDataLoading) {
     return (
         <SessionLayout>
           <Skeleton className="h-12 w-3/4 mx-auto mb-8" />
@@ -553,7 +348,7 @@ export default function InterviewPageClient({
   }
 
   return (
-    <> {/* Navbar is now in the parent Server Component */}
+    <>
       <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "interview" | "profile")} className="w-full">
         <div className="flex justify-center py-4 bg-gray-100 dark:bg-gray-800 border-b">
           <TabsList className="grid w-full max-w-md grid-cols-2">
@@ -636,31 +431,10 @@ export default function InterviewPageClient({
               </CardContent>
             </Card>
 
-            {/* Conditional messaging for different states */}
-            {!isPremium && !isUserDataLoading && credits !== null && Number(credits) === 0 && (
-              <Card className="max-w-lg mx-auto my-8 shadow-xl border-2 border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20">
-                <CardHeader className="text-center">
-                  <CardTitle className="text-2xl font-bold text-red-600 dark:text-red-400">Premium Access Required</CardTitle>
-                  <CardDescription className="text-red-500 dark:text-red-300 mt-1">
-                    Upgrade to a premium subscription for unlimited AI interviews.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col sm:flex-row gap-3 p-6">
-                  <Button onClick={handleUpgradeToPremium} className="w-full sm:w-auto flex-1 bg-purple-600 hover:bg-purple-700">Upgrade to Premium</Button>
-                  {credits !== null && Number(credits) === 0 && (
-                    <Button onClick={handlePurchaseCreditsClick} className="w-full sm:w-auto flex-1 bg-indigo-600 hover:bg-indigo-700">Top-up Credits (Premium Only)</Button>
-                  )}
-                </CardContent>
-                 <CardFooter className="text-xs text-gray-500 dark:text-gray-400 justify-center">
-                    <Link href="/pricing" className="underline hover:text-indigo-500">View Pricing & Plans</Link>
-                </CardFooter>
-              </Card>
-            )}
-
-            {/* Interview interface - show based on interview intent and UI state */}
-            {interviewProcessInitiatedRef.current && (uiLoadingState === 'preparing' || uiLoadingState === 'active') ? (
+            {/* Show different UI based on state */}
+            {showInterview ? (
               <>
-                {/* Always mount InterviewRoom to handle the session lifecycle */}
+                {/* Interview Room */}
                 <motion.div 
                   className={showLoadingScreen ? "sr-only" : "mt-8"}
                   initial={{ opacity: 0 }}
@@ -672,12 +446,11 @@ export default function InterviewPageClient({
                     onComplete={handleInterviewComplete}
                     resumeData={resumeData}
                     autoStart={true}
-                    onSessionCreationStatus={handleSessionCreationStatus}
-                    hideLoadingUI={showLoadingScreen}
+                    onSessionStatus={handleSessionStatus}
                   />
                 </motion.div>
                 
-                {/* Show loading screen overlay when needed */}
+                {/* Loading screen overlay */}
                 <AnimatePresence>
                   {showLoadingScreen && (
                     <motion.div 
@@ -686,12 +459,6 @@ export default function InterviewPageClient({
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.5 }}
-                      style={{ pointerEvents: loadingStateRef.current.isLoadingInProgress ? 'auto' : 'none' }} // Allow pointer events only during active loading
-                      onClick={(e) => {
-                        // Prevent any click propagation during loading
-                        e.stopPropagation();
-                        e.preventDefault();
-                      }}
                     >
                       <InterviewLoadingScreen
                         stages={loadingStages}
@@ -702,65 +469,82 @@ export default function InterviewPageClient({
                   )}
                 </AnimatePresence>
               </>
-            ) : (isPremium || (credits !== null && Number(credits) >= 0.50)) ? (
-              <div className="mt-8 space-y-4">
-                {/* What to expect section */}
-                <div className="text-center max-w-md mx-auto">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">~10 min session</span> • Real-time voice practice • AI-generated feedback
-                  </p>
-                </div>
-                
-                {/* Enhanced start button */}
-                <Button
-                  onClick={handleStartInterviewAttempt}
-                  className="w-full max-w-md mx-auto flex justify-center items-center gap-3 py-4 text-lg bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg hover:shadow-xl transition-all duration-200 group"
-                  disabled={isUserDataLoading || creatingSession}
-                >
-                  {creatingSession ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      Starting Interview...
-                    </>
-                  ) : (
-                    <>
-                      <Mic className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                      Start Mock Interview
-                    </>
-                  )}
-                </Button>
-              </div>
-            ) : !isUserDataLoading && credits !== null && Number(credits) < 0.50 && !isPremium ? (
-              <Card className="max-w-lg mx-auto my-8 shadow-xl border-2 border-amber-500 dark:border-amber-400 bg-amber-50 dark:bg-amber-900/20">
-                <CardHeader className="text-center">
-                  <CardTitle className="text-2xl font-bold text-amber-600 dark:text-amber-400">Insufficient VocahireCredits</CardTitle>
-                  <CardDescription className="text-amber-700 dark:text-amber-300 mt-1">
-                    You need at least 0.50 VocahireCredits to start an interview.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="text-center p-6">
-                  <div className="mb-4">
-                    <p className="text-lg">
-                      Current Balance: <span className="font-bold text-amber-600 dark:text-amber-400">{credits !== null ? Number(credits).toFixed(2) : '0.00'}</span> VocahireCredits
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      Minimum Required: 0.50 VocahireCredits
-                    </p>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Button onClick={handlePurchaseCreditsClick} className="w-full sm:w-auto flex-1 bg-green-600 hover:bg-green-700">
-                      Purchase VocahireCredits
-                    </Button>
-                    <Button onClick={handleUpgradeToPremium} className="w-full sm:w-auto flex-1 bg-purple-600 hover:bg-purple-700">
-                      Upgrade to Premium
+            ) : (
+              /* Show start button or credit warnings */
+              <>
+                {!isPremium && !isUserDataLoading && credits !== null && Number(credits) === 0 && (
+                  <Card className="max-w-lg mx-auto my-8 shadow-xl border-2 border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20">
+                    <CardHeader className="text-center">
+                      <CardTitle className="text-2xl font-bold text-red-600 dark:text-red-400">Premium Access Required</CardTitle>
+                      <CardDescription className="text-red-500 dark:text-red-300 mt-1">
+                        Upgrade to a premium subscription for unlimited AI interviews.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col sm:flex-row gap-3 p-6">
+                      <Button onClick={handleUpgradeToPremium} className="w-full sm:w-auto flex-1 bg-purple-600 hover:bg-purple-700">Upgrade to Premium</Button>
+                      <Button onClick={handlePurchaseCreditsClick} className="w-full sm:w-auto flex-1 bg-indigo-600 hover:bg-indigo-700">Top-up Credits (Premium Only)</Button>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {(isPremium || (credits !== null && Number(credits) >= 0.50)) && (
+                  <div className="mt-8 space-y-4">
+                    <div className="text-center max-w-md mx-auto">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        <span className="font-medium">~10 min session</span> • Real-time voice practice • AI-generated feedback
+                      </p>
+                    </div>
+                    
+                    <Button
+                      onClick={handleStartInterviewAttempt}
+                      className="w-full max-w-md mx-auto flex justify-center items-center gap-3 py-4 text-lg bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg hover:shadow-xl transition-all duration-200 group"
+                      disabled={isUserDataLoading || creatingSession}
+                    >
+                      {creatingSession ? (
+                        <>
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          Starting Interview...
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                          Start Mock Interview
+                        </>
+                      )}
                     </Button>
                   </div>
-                </CardContent>
-                <CardFooter className="text-xs text-gray-500 dark:text-gray-400 justify-center">
-                  <Link href="/pricing" className="underline hover:text-indigo-500">View Pricing & Plans</Link>
-                </CardFooter>
-              </Card>
-            ) : null}
+                )}
+
+                {!isUserDataLoading && credits !== null && Number(credits) < 0.50 && !isPremium && (
+                  <Card className="max-w-lg mx-auto my-8 shadow-xl border-2 border-amber-500 dark:border-amber-400 bg-amber-50 dark:bg-amber-900/20">
+                    <CardHeader className="text-center">
+                      <CardTitle className="text-2xl font-bold text-amber-600 dark:text-amber-400">Insufficient VocahireCredits</CardTitle>
+                      <CardDescription className="text-amber-700 dark:text-amber-300 mt-1">
+                        You need at least 0.50 VocahireCredits to start an interview.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="text-center p-6">
+                      <div className="mb-4">
+                        <p className="text-lg">
+                          Current Balance: <span className="font-bold text-amber-600 dark:text-amber-400">{credits !== null ? Number(credits).toFixed(2) : '0.00'}</span> VocahireCredits
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          Minimum Required: 0.50 VocahireCredits
+                        </p>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Button onClick={handlePurchaseCreditsClick} className="w-full sm:w-auto flex-1 bg-green-600 hover:bg-green-700">
+                          Purchase VocahireCredits
+                        </Button>
+                        <Button onClick={handleUpgradeToPremium} className="w-full sm:w-auto flex-1 bg-purple-600 hover:bg-purple-700">
+                          Upgrade to Premium
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
           </SessionLayout>
         </TabsContent>
 
@@ -781,14 +565,13 @@ export default function InterviewPageClient({
       <PurchaseCreditsModal
         isOpen={isPurchaseModalOpen}
         onOpenChange={setIsPurchaseModalOpen}
-        // onPurchaseSuccess is handled by Stripe redirect and webhook, then refetchCreditsAndProfile
       />
 
       {isConfirmStartModalOpen && (
         <Dialog open={isConfirmStartModalOpen} onOpenChange={(open) => {
           setIsConfirmStartModalOpen(open);
           if (!open) {
-            setCreatingSession(false); // Reset creating state when dialog closes
+            setCreatingSession(false);
           }
         }}>
           <DialogContent>
@@ -801,7 +584,7 @@ export default function InterviewPageClient({
             <DialogFooter>
               <Button variant="outline" onClick={() => {
                 setIsConfirmStartModalOpen(false);
-                setCreatingSession(false); // Reset creating state on cancel
+                setCreatingSession(false);
               }}>Cancel</Button>
               <Button onClick={startInterview}>Proceed</Button>
             </DialogFooter>
