@@ -1,0 +1,148 @@
+version: '3.8'
+
+services:
+  # Phase 1: Monolithic deployment
+  vocahire-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+        - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+    ports:
+      - "3000:3000"
+    environment:
+      # Database
+      - DATABASE_URL=${DATABASE_URL}
+      - MIGRATE_DATABASE_URL=${MIGRATE_DATABASE_URL}
+      
+      # Redis
+      - REDIS_URL=${REDIS_URL}
+      - REDIS_TOKEN=${REDIS_TOKEN}
+      
+      # Authentication
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      - CLERK_WEBHOOK_SECRET=${CLERK_WEBHOOK_SECRET}
+      
+      # Payments
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      
+      # Google Cloud
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/service-account.json
+      - GOOGLE_PROJECT_ID=${GOOGLE_PROJECT_ID}
+      
+      # Monitoring
+      - SENTRY_DSN=${SENTRY_DSN}
+      - SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
+      - SENTRY_ORG=${SENTRY_ORG}
+      - SENTRY_PROJECT=${SENTRY_PROJECT}
+      
+      # Application
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+    volumes:
+      # Mount credentials for Google Cloud
+      - ./credentials:/app/credentials:ro
+      # For development, mount source code
+      # - ./app:/app/app
+      # - ./components:/app/components
+      # - ./lib:/app/lib
+      # - ./hooks:/app/hooks
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - vocahire-network
+
+  # Local PostgreSQL for development
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=vocahire_dev
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./prisma/migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - vocahire-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Local Redis for caching
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass redis_dev_password
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - vocahire-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Future Phase 2: Frontend service (commented out for now)
+  # frontend:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/frontend/Dockerfile
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - NEXT_PUBLIC_API_URL=http://api-gateway:4000
+  #   depends_on:
+  #     - api-gateway
+  #   networks:
+  #     - vocahire-network
+
+  # Future Phase 2: API Gateway (commented out for now)
+  # api-gateway:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/api-gateway/Dockerfile
+  #   ports:
+  #     - "4000:4000"
+  #   environment:
+  #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/vocahire_dev?schema=public
+  #     - REDIS_URL=redis://:redis_dev_password@redis:6379
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #     - ai-orchestrator
+  #   networks:
+  #     - vocahire-network
+
+  # Future Phase 3: AI Orchestrator (commented out for now)
+  # ai-orchestrator:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/ai-orchestrator/Dockerfile
+  #   ports:
+  #     - "5000:5000"
+  #   environment:
+  #     - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/service-account.json
+  #     - GOOGLE_PROJECT_ID=${GOOGLE_PROJECT_ID}
+  #   volumes:
+  #     - ./credentials:/app/credentials:ro
+  #   networks:
+  #     - vocahire-network
+
+networks:
+  vocahire-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

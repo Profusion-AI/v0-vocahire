@@ -1,0 +1,71 @@
+# Dependencies
+node_modules
+.pnpm-store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js build output
+.next
+out
+
+# Production
+build
+dist
+
+# Testing
+coverage
+.nyc_output
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+*.log
+
+# Local env files
+.env
+.env*.local
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS generated files
+Thumbs.db
+
+# Prisma - will be generated during build
+prisma/generated
+
+# Documentation
+*.md
+docs/
+
+# Scripts that shouldn't be in the container
+scripts/test-*.js
+scripts/test-*.ts
+
+# Development files
+__tests__
+*.test.tsx
+*.test.ts
