@@ -1,0 +1,62 @@
+{
+  "displayName": "VocaHire Staging PAB Policy",
+  "rules": [
+    {
+      "description": "Restrict staging service account to staging resources only",
+      "resources": [
+        "//cloudresourcemanager.googleapis.com/projects/${PROJECT_ID}"
+      ],
+      "permissions": [
+        "iam.serviceAccounts.actAs",
+        "iam.serviceAccounts.getAccessToken",
+        "iam.serviceAccounts.implicitDelegation"
+      ],
+      "inheritFromParent": true,
+      "condition": {
+        "title": "Staging Resources Only",
+        "description": "Allow access only to staging-labeled resources",
+        "expression": "resource.name.contains('-staging') || resource.labels.env == 'staging'"
+      }
+    },
+    {
+      "description": "Restrict secret access to staging secrets",
+      "resources": [
+        "//secretmanager.googleapis.com/projects/${PROJECT_ID}/secrets/*-staging",
+        "//secretmanager.googleapis.com/projects/${PROJECT_ID}/secrets/*-staging/versions/*"
+      ],
+      "permissions": [
+        "secretmanager.versions.access",
+        "secretmanager.secrets.get"
+      ],
+      "inheritFromParent": false
+    },
+    {
+      "description": "Restrict Cloud Run access to staging services",
+      "resources": [
+        "//run.googleapis.com/projects/${PROJECT_ID}/locations/*/services/vocahire-*-staging",
+        "//run.googleapis.com/projects/${PROJECT_ID}/locations/*/services/vocahire-*-staging/*"
+      ],
+      "permissions": [
+        "run.services.get",
+        "run.services.update",
+        "run.routes.invoke"
+      ],
+      "inheritFromParent": false
+    },
+    {
+      "description": "Restrict storage access to staging buckets",
+      "resources": [
+        "//storage.googleapis.com/projects/_/buckets/vocahire-staging-*",
+        "//storage.googleapis.com/projects/_/buckets/vocahire-staging-*/**"
+      ],
+      "permissions": [
+        "storage.objects.create",
+        "storage.objects.delete",
+        "storage.objects.get",
+        "storage.objects.list",
+        "storage.objects.update"
+      ],
+      "inheritFromParent": false
+    }
+  ]
+}
