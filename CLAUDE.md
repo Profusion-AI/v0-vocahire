@@ -1,7 +1,7 @@
 # CLAUDE.md - VocaHire Development Guide
 
 **Last Updated**: May 26, 2025  
-**Status**: Active Google Cloud Migration
+**Status**: Client Refactoring Complete ✅
 
 ## 🤝 Collaborative Development Protocol
 
@@ -22,53 +22,55 @@ git push origin main
 - Use TODO comments: `// TODO: [Claude/Gemini] - description`
 - Document decisions in commit messages
 - Mark critical tasks with `[PIVOT-CRITICAL]`
+- Create summary files (e.g., `first-tasks.md`, `next-steps1.md`)
 
 ## 🏗️ Current Architecture Status
 
-### Phase 1: Containerization (May 26, 2025) ✅
+### Phase 1: Containerization ✅
 - Monolithic Dockerfile created
 - Docker Compose for local development
 - Build scripts for Cloud Run deployment
 - API specification documented
 
-### Phase 2: Client Refactoring (In Progress)
-- Remove OpenAI dependencies
-- Update to use new orchestrator API
-- Simplify state management
+### Phase 2: Client Refactoring ✅ (Completed May 26, 2025)
+- ✅ Removed ALL OpenAI dependencies
+- ✅ Updated to use new orchestrator API
+- ✅ Simplified state management
+- ✅ WebRTC client implementation ready
 
-### Phase 3: Backend Orchestrator (Pending - Gemini)
+### Phase 3: Backend Orchestrator (In Progress - Gemini)
 - Implement WebRTC server
 - Integrate Google Cloud AI services
 - Deploy to Cloud Run
 
-## 📋 Active Development Tasks
+## 📋 Recent Accomplishments (May 26, 2025)
 
-### Claude's Immediate Focus (May 26, 2025)
-1. **[PIVOT-CRITICAL] Refactor `useRealtimeInterviewSession.ts`**
-   - Remove ALL OpenAI logic
-   - Implement WebRTC to our backend
-   - Maintain UI compatibility
+### Claude's Completed Tasks
+1. **✅ Refactored `useRealtimeInterviewSession.ts`**
+   - Removed all OpenAI logic
+   - Implemented WebRTC connection to backend
+   - Added WebSocket authentication
+   - Set up data channel for heartbeat
 
-2. **[PIVOT-CRITICAL] Update `InterviewPageClient.tsx`**
-   - Simplify state management
-   - Use new orchestrator endpoints
-   - Remove OpenAI-specific states
+2. **✅ Updated `InterviewPageClient.tsx`**
+   - Simplified state management
+   - Clean integration with new hook
+   - Better error handling
 
-3. **Enhance API Specification**
-   - Clarify SDP exchange flow
-   - Detail error handling
-   - Add example implementations
+3. **✅ Updated `InterviewRoom.tsx`**
+   - Works with new hook API
+   - Simplified prop interface
+   - Proper status tracking
 
-### Gemini's Tasks (Starting May 26)
-1. **[PIVOT-CRITICAL] Build AI Orchestrator Service**
-   - Implement endpoints from `/docs/orchestrator-api-spec.md`
-   - Handle WebRTC signaling
-   - Integrate Google STT/TTS/Vertex AI
+### Gemini's Completed Tasks (from first-tasks.md)
+1. **✅ Created all API endpoints**
+   - `/api/v1/sessions/create`
+   - `/api/v1/sessions/:sessionId`
+   - `/api/v1/sessions/:sessionId/end`
+   - `/health` and `/ready`
 
-2. **Create Google Cloud Utilities**
-   - Authentication helpers
-   - Service client initialization
-   - Stream processing utilities
+2. **✅ Redis session store implementation**
+3. **✅ Initial WebSocket endpoint setup**
 
 ## 🚀 New Architecture
 
@@ -81,13 +83,13 @@ Browser → WebRTC → Orchestrator → Google Cloud AI
 ```
 
 ### Key Services
-1. **Frontend**: Next.js client app
-2. **Orchestrator**: WebRTC + Google AI integration
-3. **API Gateway**: Authentication, credits, routing
+1. **Frontend**: Next.js client app (Ready ✅)
+2. **Orchestrator**: WebRTC + Google AI integration (Pending)
+3. **API Gateway**: Authentication, credits, routing (Ready ✅)
 
 ### API Contract
 - **Specification**: `/docs/orchestrator-api-spec.md`
-- **Session Creation**: `POST /api/sessions/create`
+- **Session Creation**: `POST /api/v1/sessions/create`
 - **WebSocket**: `wss://orchestrator/ws/{sessionId}`
 - **SDP Exchange**: Via WebSocket messages
 
@@ -105,6 +107,10 @@ docker build -t vocahire .
 # Database
 npx prisma migrate dev
 npx prisma studio
+
+# Testing
+pnpm test
+pnpm test:watch
 ```
 
 ## 🔑 Environment Variables
@@ -126,19 +132,24 @@ CLERK_SECRET_KEY=
 # Payments (Stripe)
 STRIPE_SECRET_KEY=
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+
+# Redis (for session store)
+REDIS_URL=
 ```
 
 ## 📁 Key Files
 
-### Client-Side (Claude's Domain)
+### Client-Side (Claude's Domain) ✅
 - `/hooks/useRealtimeInterviewSession.ts` - WebRTC management
 - `/app/interview/InterviewPageClient.tsx` - Session UI
 - `/components/InterviewRoom.tsx` - Interview interface
 
-### Backend (Gemini's Domain)
+### Backend (Gemini's Domain) 🚧
 - `/docs/orchestrator-api-spec.md` - API contract
-- Future: Orchestrator service repository
-- Future: `/lib/google-cloud-utils.ts`
+- `/app/api/v1/sessions/*` - Session endpoints
+- `/app/api/webrtc-exchange/[sessionId]/route.ts` - WebSocket handler
+- `/lib/redis.ts` - Session store
+- `/lib/google-cloud-utils.ts` - Google AI integration (TODO)
 
 ### Shared
 - `/prisma/schema.prisma` - Database schema
@@ -151,7 +162,7 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 - OpenAI Realtime API
 - `/lib/openai-*.ts` files
 - Direct WebRTC to OpenAI
-- Vercel-specific optimizations
+- `interview-session-manager.ts` (removed)
 
 ### Stable Components
 - Clerk authentication
@@ -175,24 +186,34 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 - Minimum required: 0.50 credits
 - Premium: Unlimited interviews
 
-### Database Models
-- `User`: Authentication & credits
-- `InterviewSession`: Session metadata
-- `Transcript`: Conversation records
-- `Feedback`: AI-generated analysis
+### WebSocket Message Types
+**Client → Server**:
+- `webrtc.offer`
+- `webrtc.ice_candidate`
+- `control.start_interview`
+- `control.end`
+
+**Server → Client**:
+- `session.status`
+- `webrtc.answer`
+- `webrtc.ice_candidate`
+- `transcript.user`
+- `transcript.ai`
+- `ai.thinking`
+- `error`
 
 ### Error Codes
 - `403`: Insufficient credits
 - `401`: Authentication failed
+- `429`: Rate limit exceeded
 - `500`: Server error
 - `502`: AI service error
 
 ## 🚦 Next Steps
 
-1. **Claude**: Complete client refactoring by May 27
-2. **Gemini**: Begin orchestrator implementation
-3. **Both**: Test integration by May 28-29
-4. **Deploy**: Cloud Run by May 30-31
+1. **Gemini**: Implement WebRTC server logic (see `next-steps1.md`)
+2. **Both**: Integration testing once backend is ready
+3. **Deploy**: Cloud Run by May 30-31
 
 ---
 
