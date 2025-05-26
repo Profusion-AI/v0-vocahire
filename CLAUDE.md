@@ -1,24 +1,272 @@
-# CLAUDE.md
+# CLAUDE.md for VocaHire Coach (Google Cloud & Cloud Run Pivot)
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides critical guidance to AI Developers (Claude & Gemini) for VocaHire. Adherence is paramount for stability and production readiness as we pivot to Google Cloud AI services and Cloud Run deployment.
 
-## 🚨 CRITICAL: Working MVP Configuration (May 2025)
+## 🤝 COLLABORATIVE DEVELOPMENT NOTICE (As of May 25, 2025)
 
-**After 100+ build attempts, the following configuration is PROVEN TO WORK. DO NOT MODIFY these settings without thorough testing.**
+Starting May 26, 2025, this repository will be developed collaboratively by:
+- **Claude** (Anthropic) - AI Developer
+- **Gemini** (Google) - AI Developer
 
-### Essential Working Components:
-1. **Model**: `gpt-4o-mini-realtime-preview` (exact string required)
+### Critical Collaboration Requirements:
+1. **ALWAYS fetch latest changes** before starting any new task: `git pull origin main --rebase` (prefer rebase for cleaner history)
+2. **ALWAYS commit and push changes** after completing a logical unit of work
+3. **Use descriptive, Conventional Commit messages** (e.g., `feat(gcp): implement STT streaming`)
+4. **Document major decisions** and API choices in commit messages or code comments for cross-AI understanding
+5. **Resolve conflicts locally** before pushing. Communicate with the other AI (via commit messages/comments) if blocked
+6. **Leave clear TODO comments**: `// TODO: [Claude/Gemini] - [description]` for handoffs or incomplete work
+7. **Prioritize tasks marked [PIVOT-CRITICAL]**
+
+### Asynchronous Workflow Protocol:
+```bash
+# Before starting ANY new task:
+git fetch origin
+git pull origin main --rebase  # Ensure you're on the correct branch
+
+# After completing ANY task:
+git add .
+git commit -m "type(scope): [clear description] - by Claude/Gemini - $(date +'%Y-%m-%d')"  # Add AI name and date
+git push origin main  # Or feature branch
+```
+
+## 📅 Major Update Timeline (May 25, 2025)
+
+### Strategic Pivot Initiated: May 25, 2025
+- **Decision**: Pivot from OpenAI to Google Cloud AI services
+- **Deployment Target**: Transition from Vercel to Google Cloud Run (via Docker)
+- **Documentation**: This CLAUDE.md updated to reflect new architecture and deployment
+- **Team Expansion**: Gemini AI assistant joins development team on May 26, 2025
+
+## 📜 LEGACY / DEPRECATED: OpenAI MVP Configuration (Prior to May 25, 2025 Pivot)
+
+The following configuration details pertain to the PREVIOUS OpenAI-based MVP. This setup WAS PROVEN TO WORK but is NOW DEPRECATED. This information is retained for historical reference ONLY and should NOT be used for new development. All new real-time AI development MUST use Google Cloud services.
+
+<details>
+<summary>Click to view DEPRECATED OpenAI MVP Configuration</summary>
+
+### Essential Working Components (OpenAI - DEPRECATED):
+1. **Model**: `gpt-4o-mini-realtime-preview` (exact string was required)
 2. **API Headers**: `'OpenAI-Beta': 'realtime=v1'` (note the =v1 format)
 3. **Session Creation**: NO `input_audio_transcription` parameter in the request body
 4. **Credit Deduction**: MUST be synchronous (await the database update)
 5. **Auto-Start Protection**: Use `hasAttemptedStart` ref to prevent loops
 6. **WebRTC Exchange**: Use ephemeral token from session, NOT the API key
 
-### Files That Must Not Be Modified Without Testing:
-- `/app/api/realtime-session/route.ts` - Session creation logic
-- `/app/api/webrtc-exchange/route.ts` - SDP exchange logic
-- `/hooks/useRealtimeInterviewSession.ts` - WebRTC management
-- `/components/InterviewRoom.tsx` - Auto-start protection
+### Files Related to DEPRECATED OpenAI Implementation:
+- `/app/api/realtime-session/route.ts` - (Old version) Session creation logic for OpenAI
+- `/app/api/webrtc-exchange/route.ts` - (Old version) SDP exchange logic for OpenAI
+- Parts of `/hooks/useRealtimeInterviewSession.ts` - (Old version) WebRTC management for OpenAI
+- `/lib/openai-realtime.ts`, `/lib/realtime-websocket.ts` - OpenAI specific utilities
+
+</details>
+
+## 🚀 ACTIVE DEVELOPMENT: Google Cloud & Cloud Run MVP (Target - In Development as of May 25, 2025)
+
+**[PIVOT-CRITICAL]** All new AI and deployment development MUST align with Google Cloud services and Dockerized Cloud Run deployment. Claude and Gemini, your collaborative efforts are essential here.
+
+### 🏗️ Modular Architecture Strategy (May 25, 2025 - CTO Directive)
+
+**Breaking the Monolith**: VocaHire is transitioning from a monolithic architecture to a modular, microservices-oriented design optimized for Cloud Run deployment. Each service will be independently scalable, maintainable, and testable.
+
+**Key Architectural Components:**
+
+1. **Client-Facing API Gateway/BFF** (Backend-for-Frontend)
+   - Handles authentication, pre-flight checks, and session initiation
+   - Simplifies client-side state management
+   - Routes requests to appropriate backend services
+   - Manages user credits and profile data
+
+2. **AI Orchestration Service** (Core Service)
+   - Dedicated Cloud Run service for the STT → LLM → TTS pipeline
+   - Manages WebRTC connections with clients
+   - Handles Google Cloud AI service interactions
+   - Implements turn-taking and conversation management
+   - Streams audio bidirectionally with clients
+
+3. **WebRTC Signaling Service** (Optional)
+   - May be integrated into the orchestrator or separate
+   - Handles SDP exchange and ICE candidate negotiation
+   - Manages peer connection lifecycle
+
+**Benefits of This Approach:**
+- **Scalability**: Each service scales independently based on load
+- **Maintainability**: Smaller, focused codebases are easier to understand and modify
+- **Team Collaboration**: Clear boundaries enable parallel development
+- **Testing**: Isolated services are easier to test comprehensively
+- **Deployment**: Independent deployment cycles for different components
+
+### Target Google Cloud AI Components:
+
+1. **Speech-to-Text (STT)**: Google Cloud Speech-to-Text API (streaming, Universal Speech Model)
+   - **Critical**: Custom vocabulary, model adaptation for interview jargon
+   - **Critical**: Robust handling of interim results and `enable_voice_activity_events`
+
+2. **Text-to-Speech (TTS)**: Google Cloud Text-to-Speech API (WaveNet/Neural2 voices, Chirp HD for streaming)
+   - **Critical**: Effective use of SSML for natural, expressive voice
+   - **Critical**: Low-latency streaming playback
+
+3. **Natural Language Understanding (NLU) & Conversational AI**: Google Vertex AI (Gemini models preferred, PaLM2 as fallback)
+   - **Critical**: Managing conversation history and context for the LLM
+   - **Critical**: Prompt engineering for interview coaching persona and question generation
+   - Integrate Google Cloud Natural Language API for supplementary sentiment/entity analysis on transcripts
+
+4. **Backend Orchestration**: A new or refactored VocaHire backend service to manage the STT → LLM → TTS pipeline and client-side WebRTC
+
+5. **Client-Side WebRTC**: Continue using WebRTC for client-to-VocaHire-backend audio streaming. `hooks/useRealtimeInterviewSession.ts` will be refactored for this
+
+6. **Turn-Taking & VAD**: Custom logic required, combining Google STT VAD events and potentially client-side VAD hints to manage interruptions and smooth conversational flow
+
+### Files for Google Cloud & Dockerization (Focus Areas):
+
+- **Dockerfile** (Root directory - TO BE CREATED) **[PIVOT-CRITICAL]**
+- **.dockerignore** (Root directory - TO BE CREATED) **[PIVOT-CRITICAL]**
+- **API Contract Documentation**: `/docs/orchestrator-api-spec.md` (TO BE CREATED by Claude) - Defines client-backend interface **[PIVOT-CRITICAL]**
+- **Backend Orchestration Service**: Standalone Cloud Run service (TO BE CREATED by Gemini) - Manages Google API interactions **[PIVOT-CRITICAL]**
+- **Simplified API Gateway**: `/app/api/interview/start-google-session` (TO BE CREATED) - Client-facing session initiation
+- `/hooks/useRealtimeInterviewSession.ts` - MAJOR REFACTOR REQUIRED for Google Cloud via our backend **[PIVOT-CRITICAL]**
+- `/components/InterviewRoom.tsx` - UI adapts to new hook. Auto-start protection remains
+- `/lib/google-cloud-utils.ts` (TO BE CREATED) - Google Cloud auth, API clients
+- `/app/api/interviews/route.ts` & `/app/api/generate-feedback/route.ts` - Adapt for Google LLMs
+- `/scripts/build-vercel-safe.sh` - May need renaming to `build-next-app.sh` or similar, as Vercel-specifics are removed
+
+## Guidance for AI Developers (Claude & Gemini) - Google Cloud & Cloud Run Pivot
+
+**Mission**: Collaboratively refactor VocaHire to use Google Cloud AI services and prepare it for Dockerized deployment on Cloud Run, maintaining production quality.
+
+### 🔄 Collaboration Best Practices (Effective May 26, 2025)
+
+When working on this codebase:
+1. **Start every session** with `git pull origin main` to get latest changes
+2. **Check recent commits** to understand what the other AI has been working on
+3. **Communicate through code**: Use clear comments, commit messages, and documentation
+4. **Flag handoffs**: Use `// TODO: [Claude/Gemini] - [description]` for work that needs the other AI's attention
+5. **Maintain consistency**: Follow established patterns and conventions
+6. **Test thoroughly**: Ensure changes don't break existing functionality
+7. **Document decisions**: Major architectural decisions should be documented in commit messages or code comments
+
+### 🎯 Task Allocation (May 25, 2025 - CTO Directive)
+
+**Claude's Focus Areas:**
+1. **API Contract Definition** [PIVOT-CRITICAL]
+   - Create `/docs/orchestrator-api-spec.md` defining the interface between client and backend orchestrator
+   - Document WebSocket/WebRTC message formats, events, and data schemas
+   - Define HTTP endpoints for session initiation and management
+   
+2. **Client-Side Refactoring** [PIVOT-CRITICAL]
+   - Refactor `InterviewPageClient.tsx` to simplify state management
+   - Remove direct OpenAI integration logic
+   - Implement connection to new backend orchestrator API
+   
+3. **Hook Modernization** [PIVOT-CRITICAL]
+   - Major refactor of `useRealtimeInterviewSession.ts`
+   - Remove all OpenAI-specific code
+   - Implement WebRTC connection to VocaHire backend
+   - Preserve existing UI contracts
+
+**Gemini's Focus Areas (Starting May 26, 2025):**
+1. **Backend Orchestration Service** [PIVOT-CRITICAL]
+   - Implement the API contract defined by Claude
+   - Build server-side WebRTC handling
+   - Integrate Google Cloud STT, Vertex AI, and TTS
+   - Implement conversation management and turn-taking logic
+   
+2. **Google Cloud Integration**
+   - Create robust integration with Google Cloud services
+   - Implement streaming pipelines for audio processing
+   - Handle authentication and service management
+   
+3. **Dockerization & Deployment**
+   - Create optimized Docker images for each service
+   - Configure Cloud Run deployment settings
+   - Implement health checks and monitoring
+
+### General Approach & Workflow (Focus on Google Cloud Pivot & Dockerization):
+
+1. **Understand Task & Plan**: For any task, especially related to Google Cloud services or Docker:
+   - Clarify requirements with Kyle (CTO)
+   - **YOU MUST outline a plan** before significant coding. For Docker, this means proposing Dockerfile stages. For GCP services, outline API usage and error handling
+
+2. **Implement Incrementally**:
+   - **Google Cloud Services**: Tackle one service at a time (e.g., STT, then TTS, then LLM). Create focused utility functions in `/lib/google-cloud-utils.ts`
+   - **Dockerization**: Start with a basic Next.js Dockerfile, then iterate
+
+3. **Test Locally**:
+   - **Google Cloud**: Use service account keys for local testing (ensure `GOOGLE_APPLICATION_CREDENTIALS` is set)
+   - **Docker**: Build and run the container locally to verify
+
+4. **Adhere to CLAUDE.md**: This is your primary source of truth
+
+### Key Tasks for the Pivot:
+
+1. **[PIVOT-CRITICAL] Define API Contract** (`/docs/orchestrator-api-spec.md` - Claude):
+   - Document all endpoints, request/response schemas
+   - Define WebSocket/WebRTC message formats
+   - Specify event types and data structures
+   - Create clear interface for parallel development
+
+2. **[PIVOT-CRITICAL] Client-Side Refactoring** (Claude):
+   - Simplify `InterviewPageClient.tsx` state management
+   - Remove OpenAI-specific loading stages
+   - Update to work with new backend orchestrator API
+   - Preserve existing user experience
+
+3. **[PIVOT-CRITICAL] Refactor `hooks/useRealtimeInterviewSession.ts`** (Claude):
+   - Remove ALL OpenAI-specific logic
+   - Implement WebRTC connection to our backend orchestrator
+   - Handle data channel messages for transcripts, AI responses, and control signals
+   - Maintain compatibility with `InterviewRoom.tsx`
+
+4. **[PIVOT-CRITICAL] Backend Orchestrator Service** (Gemini):
+   - Implement as standalone Cloud Run service
+   - Build based on API contract from Claude
+   - Handle WebRTC, Google STT/TTS/Vertex AI integration
+   - Implement conversation management logic
+
+5. **[PIVOT-CRITICAL] Dockerize Services** (Claude initial, Gemini review):
+   - Create `Dockerfile` for each service
+   - Optimize for Cloud Run deployment
+   - Handle environment variables correctly
+   - Implement multi-stage builds
+
+6. **Create `/lib/google-cloud-utils.ts`** (Gemini):
+   - Functions for authenticating with Google Cloud
+   - Client initialization for STT, TTS, Vertex AI
+   - Error handling wrappers for Google API calls
+   - Streaming utilities for audio processing
+
+7. **Adapt Feedback Generation** (Either AI):
+   - Modify `/app/api/generate-feedback/route.ts` to use Vertex AI (Gemini) instead of OpenAI
+   - Maintain existing feedback structure
+
+### Understanding the VocaHire Codebase (Post-Pivot Context):
+
+**Core Logic (Shifting)**:
+- `hooks/useRealtimeInterviewSession.ts` is undergoing a major refactor. It will now handle WebRTC to our backend, which then orchestrates Google Cloud services
+- New files/services in `/lib` or `/app/api` will emerge for Google Cloud interactions
+
+**Stable Components**: 
+- `lib/prisma.ts`, `lib/payment-config.ts`
+- Clerk auth (`middleware.ts`, `/app/api/webhooks/clerk`)
+- Stripe webhooks
+- Most UI components in `/components/ui` and `/components/landing`
+
+**This File (CLAUDE.md)**: Your primary guide
+
+### Making Changes:
+
+- **Code Style**: Existing TypeScript, ESLint, Prettier standards apply
+- **Testing**: Emphasize testing for the new Google Cloud pipeline components
+- **Commits**: Conventional Commits
+- **Error Handling**: Robust error handling for each step in the Google STT-LLM-TTS chain. Sentry integration remains vital
+
+### Git & GitHub Workflow:
+
+- **Standard**: `feature/...`, `fix/...`, `refactor/google-pivot/...` branches. `gh` CLI
+
+### Debugging and Verification:
+
+- Utilize existing diagnostic endpoints. We may need new ones for Google Cloud service checks
+- Sentry for production
 
 ## Project Overview
 
@@ -33,7 +281,7 @@ VocaHire is an AI interview coaching platform that enables human users to practi
 - **Authentication**: Clerk for user management and session handling
 - **Payments**: Stripe for handling one-time purchases and subscriptions
 - **Frontend**: React 19, Shadcn/ui components, Tailwind CSS
-- **AI Services**: WebRTC-only integration with OpenAI Realtime API for low-latency voice interactions
+- **AI Services**: Google Cloud Speech-to-Text, Text-to-Speech, and Vertex AI (Gemini/PaLM) for NLU/conversation, orchestrated by our backend via WebRTC with clients
 - **Error Monitoring**: Sentry for comprehensive error tracking and performance monitoring  
 - **Deployment**: Vercel with intelligent build system and optimized timeout handling
 - **Performance**: Enhanced database performance monitoring with 503 Service Unavailable error targeting
@@ -44,7 +292,7 @@ VocaHire is an AI interview coaching platform that enables human users to practi
 2. **Database Schema**: Prisma ORM defines models for Users, InterviewSessions, Transcripts, Feedback
 3. **API Routes**: Next.js API routes for backend functionality
 4. **Payment Processing**: Stripe integration for handling credits and premium subscriptions
-5. **Real-time Voice**: Pure WebRTC implementation for OpenAI Realtime API interviews
+5. **Real-time Voice**: Client-to-backend WebRTC, with backend orchestrating Google Cloud AI speech services
 
 ## Development Commands
 
@@ -55,7 +303,7 @@ pnpm install
 # Start development server
 pnpm dev
 
-# Build for production (uses intelligent Vercel-safe build script)
+# Build for production
 pnpm build
 
 # Start production server
@@ -70,22 +318,35 @@ npx prisma generate
 # Run database migrations (development)
 npx prisma migrate dev
 
-# Deploy database migrations (production - handled automatically in build)
+# Deploy database migrations (production - run before Docker deployment)
 npx prisma migrate deploy
 
 # Open Prisma database viewer
 npx prisma studio
 
-# Test database connectivity
+# Docker commands (NEW)
+# Build Docker image
+docker build -t vocahire-coach .
+
+# Run Docker container locally
+docker run -p 3000:3000 --env-file .env.local vocahire-coach
+
+# Tag for Google Artifact Registry
+docker tag vocahire-coach YOUR_REGION-docker.pkg.dev/YOUR_PROJECT/vocahire/vocahire-coach:latest
+
+# Push to Google Artifact Registry
+docker push YOUR_REGION-docker.pkg.dev/YOUR_PROJECT/vocahire/vocahire-coach:latest
+
+# Deploy to Cloud Run
+gcloud run deploy vocahire-coach-service \
+  --image YOUR_REGION-docker.pkg.dev/YOUR_PROJECT/vocahire/vocahire-coach:latest \
+  --platform managed \
+  --region YOUR_REGION \
+  --port 3000
+
+# Test endpoints
 curl /api/diagnostic/connection-test
-
-# Test database performance and connection timing
 curl /api/diagnostic/db-performance
-
-# Test Vercel-Supabase connectivity patterns
-curl /api/diagnostic/vercel-db-test
-
-# Check Sentry error monitoring
 curl /api/sentry-example-api
 ```
 
@@ -93,8 +354,9 @@ curl /api/sentry-example-api
 
 - `/app`: Next.js application routes and components
   - `/app/api`: Backend API routes
+  - `/app/api/google-realtime-orchestrator`: (TO BE CREATED) Google Cloud AI orchestration
   - `/app/api/interviews`: Interview session persistence endpoint
-  - `/app/api/generate-feedback`: AI feedback generation endpoint
+  - `/app/api/generate-feedback`: AI feedback generation endpoint (will use Google LLMs)
   - `/app/api/webhooks`: Webhook handlers for Clerk and Stripe
   - `/app/api/diagnostic`: Database and system health check endpoints
 - `/prisma`: Database schema and migrations
@@ -108,8 +370,11 @@ curl /api/sentry-example-api
   - `/lib/fallback-db.ts`: Fallback database implementation for resilience
   - `/lib/auth-utils.ts`: User management utilities including getOrCreatePrismaUser
   - `/lib/usage-tracking.ts`: Usage analytics and tracking utilities
+  - `/lib/google-cloud-utils.ts`: (TO BE CREATED) Google Cloud authentication and API utilities
+  - ~~`/lib/openai-realtime.ts`~~ (DEPRECATED)
+  - ~~`/lib/realtime-websocket.ts`~~ (DEPRECATED)
 - `/hooks`: Custom React hooks
-  - `/hooks/useRealtimeInterviewSession.ts`: WebRTC session management with transcript persistence
+  - `/hooks/useRealtimeInterviewSession.ts`: WebRTC session management (MAJOR REFACTOR for Google Cloud)
 - `/scripts`: Build and deployment scripts
   - `/scripts/build-vercel-safe.sh`: Intelligent build script for Vercel deployment
 - **Sentry Configuration**: Error monitoring setup
@@ -156,7 +421,7 @@ All Prisma migrations have been successfully applied to the production database:
 ## Feedback System Enhancement (January 2025)
 
 ### Structured Feedback Generation
-- **Implemented JSON-based feedback**: Moved from regex parsing to structured JSON output using OpenAI's JSON mode for reliability
+- **Implemented JSON-based feedback**: Moved from regex parsing to structured JSON output using AI's JSON mode for reliability
 - **Created Zod schemas**: Type-safe validation for feedback data with comprehensive error handling
 - **Backward compatibility**: Maintains fallback to legacy parsing to ensure system stability
 - **Database schema updates**: Added structured fields for individual scores and enhanced feedback data
@@ -184,26 +449,6 @@ Premium feedback tier implementation for users seeking deeper insights:
 - `EnhancedFeedbackDisplay.tsx`: Three-tab interface for comprehensive analysis display
 - Visual progress bars and performance metrics for engagement
 
-### Transcription Architecture (No SDK)
-VocaHire uses direct API calls to OpenAI Realtime API without SDK dependency:
-
-**Implementation Details:**
-- **Session Creation**: Direct HTTP POST to `https://api.openai.com/v1/realtime/sessions`
-- **WebRTC Exchange**: Direct SDP exchange via `https://api.openai.com/v1/realtime`
-- **Manual WebRTC**: Native browser RTCPeerConnection and RTCDataChannel management
-- **No Audio Storage**: Only text transcripts persisted for privacy/efficiency
-
-**Transcription Events:**
-```typescript
-// User speech events
-"conversation.item.input_audio_transcription.completed"
-"conversation.item.input_audio_transcription.delta"
-
-// AI response events
-"response.audio_transcript.delta"
-"response.audio_transcript.done"
-```
-
 ### Database Schema Enhancements
 ```prisma
 model Feedback {
@@ -227,14 +472,7 @@ model Feedback {
 }
 ```
 
-### Key Implementation Decisions
-- **JSON over Regex**: Structured JSON ensures reliable parsing and type safety
-- **Synchronous Credits**: Atomic credit deduction prevents race conditions
-- **Fallback Strategy**: LocalStorage backup ensures no interview data is lost
-- **No Audio Files**: Text-only storage reduces costs and privacy concerns
-- **Direct API Calls**: Avoiding SDK dependencies reduces bundle size and gives more control
-
-### Database Performance Optimizations (January 2025)
+### Database Performance Optimizations (January 2025 - May 2025)
 
 **🚀 Connection Pool Optimization (early May 2025)**
 - **Connection Pool Size**: Increased from 5 to 25 connections
@@ -248,7 +486,7 @@ model Feedback {
 
 1. **Enhanced Error Handling & Timeout Management**
    - Database queries: 12s timeout (optimized for Vercel's 15s function limit)
-   - OpenAI API calls: 20s timeout (under Vercel's 30s Pro limit)
+   - Google Cloud API calls: Will require similar timeout management
    - WebRTC exchange: 15s timeout with AbortController
    - Systematic replacement of generic 500 errors with specific error codes
 
@@ -259,76 +497,26 @@ model Feedback {
    - `/api/diagnostic/vercel-db-test`: Vercel-Supabase connectivity analysis
    - Detailed error categorization (503 database, 504 timeout, 502 API errors)
 
-3. **Root Cause Analysis & Resolution**
-   - **503 Service Unavailable**: Progress indicator showing database timeouts are now properly detected
-   - **Vercel Cold Starts**: Database connections take longer during serverless function initialization
-   - **Connection Pool Saturation**: Supabase connection pooling optimization during high load
-   - **Network Latency**: Regional Vercel → Supabase connectivity improvements
-
-4. **Redis Caching Implementation (January 2025)**
+3. **Redis Caching Implementation (January 2025)**
    - **User Credentials Caching**: 30-second TTL cache for frequently accessed user data
    - **Cache-First Pattern**: Reduces database load for repeated user credential checks
    - **Automatic Cache Invalidation**: Updates/deletes trigger cache refresh
    - **Fallback Mechanisms**: Graceful degradation when cache is unavailable
    - **Performance Gains**: ~90% reduction in database queries for cached operations
 
-5. **Cold Start & Connection Optimization (January 2025)**
+4. **Cold Start & Connection Optimization (January 2025)**
    - **Database Connection Pooling**: Reuse connections across function invocations
    - **Connection Warming**: Pre-establish database connections during initialization
    - **Retry Utilities**: Automatic retry with exponential backoff for transient failures
    - **Fallback Database**: Secondary database instance for critical operations
    - **Performance Logging**: Detailed timing metrics for all database operations
 
-6. **Raw SQL Optimizations for Critical Paths (January 2025)**
+5. **Raw SQL Optimizations for Critical Paths (January 2025)**
    - **Direct SQL Queries**: Bypass Prisma ORM overhead for session creation
    - **Aggressive Timeouts**: 5-second database timeout (down from 12s)
    - **Non-blocking Operations**: Credit deductions happen asynchronously
    - **Optimized User Fetch**: Raw SQL with float8 casting for credits
    - **Fire-and-Forget Pattern**: Usage tracking doesn't block response
-
-**Performance Monitoring Features:**
-```typescript
-// Request tracing with performance logging
-const perfLog = (phase: string, data?: any) => {
-  const elapsed = Date.now() - requestStartTime;
-  console.log(`[${requestId}] ${phase} - ${elapsed}ms elapsed`, data);
-};
-
-// Enhanced timeout handling with raw SQL optimization
-const user = await Promise.race([
-  prisma.$queryRaw`
-    SELECT id, credits::float8 as credits, "isPremium" 
-    FROM "User" 
-    WHERE id = ${userId}
-    LIMIT 1
-  `,
-  new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('Database timeout')), 5000) // Reduced from 12s to 5s
-  )
-]);
-
-// Redis caching pattern
-const cachedUser = await getUserFromCache(userId);
-if (cachedUser) {
-  perfLog('CACHE_HIT', { userId });
-  return cachedUser;
-}
-
-// Optimized credit operations with raw SQL
-await prisma.$executeRaw`
-  UPDATE "User" 
-  SET credits = credits - ${INTERVIEW_COST}
-  WHERE id = ${userId} AND credits >= ${INTERVIEW_COST}
-`;
-```
-
-**Key Success Metrics:**
-- ✅ 503 errors instead of 500 errors (indicates timeout detection is working)
-- ✅ Specific error codes provide actionable user feedback
-- ✅ Enhanced debugging capabilities for production issue resolution
-- ✅ Timeout handling prevents Vercel function termination
-- ✅ 90% cache hit rate for user credential operations
-- ✅ Reduced cold start impact with connection pooling
 
 ## Environment Variables
 
@@ -353,14 +541,17 @@ await prisma.$executeRaw`
 - `STRIPE_WEBHOOK_SECRET`: Secret for verifying Stripe webhook events
 
 **AI & Monitoring:**
-- `OPENAI_API_KEY`: OpenAI API key for AI interview functionality
+- ~~`OPENAI_API_KEY`~~ (DEPRECATED): OpenAI API key (no longer used)
+- `GOOGLE_APPLICATION_CREDENTIALS`: Path to Google Cloud service account JSON key file (primarily for local/non-Cloud Run environments)
+- `GOOGLE_PROJECT_ID`: Your Google Cloud Project ID
+- `CLOUD_RUN_SERVICE_URL`: (Once deployed) The URL of your Cloud Run service
 - `SENTRY_DSN`: Sentry Data Source Name for error monitoring
 - `SENTRY_AUTH_TOKEN`: Sentry authentication token for source map uploads
 - `SENTRY_ORG`: profusion-ai-ny
 - `SENTRY_PROJECT`: sentry-indigo-zebra
 
 **Deployment:**
-- `VERCEL`: Automatically set to "1" in Vercel environment (used by build script)
+- ~~`VERCEL`~~ (DEPRECATED): Previously used for Vercel deployment detection
 
 ## Webhook Integrations
 
@@ -401,22 +592,43 @@ When a user authenticates via Clerk, a corresponding user record is created in t
 
 ## Deployment & Production Infrastructure
 
-### Vercel Deployment
+### 🚨 MIGRATION IN PROGRESS: Vercel → Google Cloud Run (May 25, 2025)
 
-The application is deployed on Vercel with automatic CI/CD from GitHub and production-grade infrastructure:
+The application is transitioning from Vercel to Google Cloud Run deployment.
+
+### Legacy: Vercel Deployment (DEPRECATED)
+
+<details>
+<summary>Click to view deprecated Vercel deployment information</summary>
+
+The application was previously deployed on Vercel with automatic CI/CD from GitHub:
 
 **Build Process:**
-- Uses intelligent build script (`/scripts/build-vercel-safe.sh`) that handles network restrictions
-- Automatically handles database migrations with fallback strategies
-- Generates Prisma client and optimizes for serverless deployment
-- Uploads source maps to Sentry for enhanced error tracking
+- Used intelligent build script (`/scripts/build-vercel-safe.sh`) that handled network restrictions
+- Automatically handled database migrations with fallback strategies
+- Generated Prisma client and optimized for serverless deployment
+- Uploaded source maps to Sentry for enhanced error tracking
+
+</details>
+
+### NEW: Google Cloud Run Deployment
+
+The application will be deployed as a Docker container on Google Cloud Run:
+
+**Build Process:**
+- Multi-stage Docker build for optimized image size
+- Prisma client generation during build
+- Environment variables injected at runtime
+- Migrations run as separate CI/CD step before deployment
 
 **Production Readiness Features:**
 - Real-time error monitoring via Sentry with session replay
-- Database connection pooling optimized for serverless
+- Database connection pooling optimized for containerized deployment
 - Comprehensive health check endpoints (`/api/diagnostic/connection-test`)
 - Automated payment processing with Stripe webhooks
 - Secure authentication with Clerk custom domain
+- Auto-scaling based on request volume
+- Regional deployment for low latency
 
 ### Post-Deployment Verification
 
@@ -425,6 +637,7 @@ After each deployment, verify these endpoints:
 2. `/api/user` - User authentication and data consistency
 3. `/api/sentry-example-api` - Error monitoring functionality
 4. Health checks for Stripe webhooks and Clerk integration
+5. Cloud Run service health check endpoint
 
 ## Key Dependencies
 
@@ -443,7 +656,7 @@ After each deployment, verify these endpoints:
 - Tailwind CSS for utility-first styling
 
 **AI & Monitoring:**
-- OpenAI for advanced AI interview capabilities
+- Google Cloud Speech-to-Text, Text-to-Speech, and Vertex AI for conversational AI
 - Sentry for comprehensive error tracking and performance monitoring
 
 **Build & Deployment:**
@@ -616,397 +829,271 @@ The application uses a sophisticated build strategy optimized for Vercel's serve
 - Sentry integration: ✅ READY (duplicate Session Replay instances resolved)
 - Admin functionality: ✅ READY (uses correct Prisma models)
 - API routes: ✅ READY (all type errors resolved)
-- Interview system: ✅ READY (authentication and UX issues resolved)
+- Interview system: 🔄 REFACTORING for Google Cloud pivot
 
-## Interview System Architecture (WebRTC-Only)
+## 🐳 Dockerization & Cloud Run Deployment Guidance
 
-### 🚨 CRITICAL: Working Implementation Details (DO NOT MODIFY)
+**Objective**: Containerize VocaHire using Docker for deployment on Google Cloud Run. This ensures a consistent environment and leverages Cloud Run's scalability.
 
-After 100+ build attempts, the following configuration is PROVEN TO WORK. These settings are critical for the full-duplex conversation functionality.
+### AI Developers (Claude & Gemini), your tasks:
 
-### OpenAI Realtime API Integration
+#### 1. Create Dockerfile (in project root):
 
-VocaHire uses **WebRTC exclusively** for all real-time communication with OpenAI's Realtime API:
+Use a multi-stage build for optimized image size.
 
-**🚨 Architecture Decision**: All WebSocket implementations have been removed to eliminate conflicts and optimize for low-latency audio streaming.
+**builder Stage:**
+- Start from an official Node.js image (e.g., `node:20-alpine` or `node:20-slim`)
+- Set `WORKDIR /app`
+- Copy `package.json`, `pnpm-lock.yaml` (and `pnpm-workspace.yaml` if still relevant)
+- Install pnpm: `npm install -g pnpm`
+- Install dependencies: `pnpm install --frozen-lockfile`
+- Copy the entire codebase: `COPY . .`
+- **Crucially**, run `pnpm prisma generate` to ensure Prisma Client is built for the target architecture
+- Build the Next.js application: `pnpm build` (this should use our existing build script)
 
-**Key Components:**
-- `/app/api/realtime-session/route.ts`: Creates OpenAI Realtime sessions with enhanced timeout handling
-- `/app/api/webrtc-exchange/route.ts`: Backend proxy for SDP offer/answer exchange with OpenAI
-- `/hooks/useRealtimeInterviewSession.ts`: Centralized WebRTC session management hook
-- `/components/InterviewRoom.tsx`: Real-time interview interface using WebRTC hook
+**runner Stage:**
+- Start from a lean Node.js image (e.g., `node:20-alpine`)
+- Set `WORKDIR /app`
+- Set `NODE_ENV=production`
+- Copy `package.json` and `pnpm-lock.yaml`
+- Install only production dependencies: `pnpm install --prod --frozen-lockfile`
+- Copy build artifacts from the builder stage:
+  - `.next/standalone` (for Next.js Output File Tracing output)
+  - `public` directory
+  - `.next/static` directory
+  - **Prisma Client**: Ensure the generated Prisma Client from the builder stage is correctly copied. The path is typically `node_modules/.prisma/client`
+- Expose the port Next.js runs on (default 3000): `EXPOSE 3000`
+- Set the command to start the application: `CMD ["node", "server.js"]` (assuming standalone output)
+- **User**: Consider running as a non-root user for security: `USER node`
 
-### 🔴 CRITICAL CONFIGURATION FOR WORKING IMPLEMENTATION
+#### 2. Create .dockerignore (in project root):
 
-#### 1. OpenAI Model Configuration
+```
+node_modules
+.next
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.tsbuildinfo
+# Add any other local development files/folders
+.git
+.DS_Store
+# Local environment files (should be passed as env vars to Cloud Run)
+.env
+.env*.local 
+# Docker specific
+Dockerfile
+.dockerignore
+# Prisma generated files (will be generated during build)
+prisma/generated
+```
+
+### Local Docker Testing Workflow:
+
+1. **Build**: `docker build -t vocahire-coach .`
+2. **Run**: 
+   ```bash
+   docker run -p 3000:3000 \
+     -e DATABASE_URL="your_local_or_dev_db_url" \
+     -e GOOGLE_APPLICATION_CREDENTIALS="/path/to/keyfile.json" \
+     -e GOOGLE_PROJECT_ID="your-gcp-project" \
+     ... (other env vars) \
+     vocahire-coach
+   ```
+   **Note**: For `GOOGLE_APPLICATION_CREDENTIALS`, you'll need to mount the keyfile into the container or use other secure methods for local Docker runs.
+
+### Cloud Run Deployment (via gcloud CLI - for CI/CD automation):
+
+1. **Push image to Google Artifact Registry**:
+   ```bash
+   gcloud auth configure-docker YOUR_REGION-docker.pkg.dev
+   docker tag vocahire-coach YOUR_REGION-docker.pkg.dev/YOUR_GCP_PROJECT_ID/vocahire/vocahire-coach:latest
+   docker push YOUR_REGION-docker.pkg.dev/YOUR_GCP_PROJECT_ID/vocahire/vocahire-coach:latest
+   ```
+
+2. **Deploy to Cloud Run**:
+   ```bash
+   gcloud run deploy vocahire-coach-service \
+     --image YOUR_REGION-docker.pkg.dev/YOUR_GCP_PROJECT_ID/vocahire/vocahire-coach:latest \
+     --platform managed \
+     --region YOUR_GCP_REGION \
+     --allow-unauthenticated \ # Or configure IAM for authentication
+     --set-env-vars="DATABASE_URL=your_prod_db_url,GOOGLE_PROJECT_ID=your_gcp_project,..." \
+     --port 3000 \
+     --cpu=1 \
+     --memory=512Mi \  # Adjust as needed
+     --concurrency=80  # Adjust based on performance testing
+   ```
+
+**IMPORTANT for DATABASE_URL on Cloud Run**: Use the Cloud SQL Proxy connection string format if Supabase/Postgres is running in Cloud SQL, or the standard connection string if it's an external Supabase instance (ensure Cloud Run outbound IP is whitelisted in Supabase).
+
+**GOOGLE_APPLICATION_CREDENTIALS on Cloud Run**: Not needed if the Cloud Run service account has the necessary IAM permissions for Google Cloud AI services. Best practice is to grant specific roles (e.g., "Cloud AI Service User", "Speech-to-Text User", "Text-to-Speech User", "Vertex AI User") to the Cloud Run service's runtime service account.
+
+### Build Script Adaptation:
+
+The existing build script focuses on `next build` and Prisma migrations. For CI/CD:
+1. `pnpm install`
+2. `pnpm prisma generate`
+3. `pnpm build` (runs Next.js build)
+4. `docker build ...` (uses artifacts from step 3)
+5. `docker push ...`
+6. `gcloud run deploy ...`
+
+Database migrations (`npx prisma migrate deploy` using `MIGRATE_DATABASE_URL`) should run as a separate, earlier step in CI/CD, or carefully managed if part of the container deployment.
+
+### Guidance for AI Developers on this task:
+
+**Claude**: Please generate an initial `Dockerfile` and `.dockerignore` based on the structure outlined above. Focus on the multi-stage build and ensuring `prisma generate` and `pnpm build` are correctly placed.
+
+**Gemini**: Once Claude provides the initial Docker setup, please review it for Google Cloud best practices, especially regarding environment variable handling for Cloud Run, and optimization for image size and build speed. Also, advise on the best way to manage `GOOGLE_APPLICATION_CREDENTIALS` for local Docker runs versus Cloud Run deployment (service accounts).
+
+**Both**: Update our Development Commands section to include Docker build/run commands and common `gcloud run` commands.
+
+This Dockerization effort is **[PIVOT-CRITICAL]** and should be prioritized.
+
+## Interview System Architecture (Google Cloud STT-LLM-TTS Pipeline)
+
+### 🚀 NEW ARCHITECTURE: Google Cloud Integration (Pivot initiated May 25, 2025)
+
+VocaHire is transitioning from a direct OpenAI WebRTC integration to a modular Google Cloud-based architecture:
+
+**New Architecture Overview:**
+```
+Client (Browser) 
+  ↓ WebRTC Audio Stream
+VocaHire Backend Orchestrator
+  ↓ Audio chunks
+Google Speech-to-Text (streaming)
+  ↓ Transcript + VAD events
+VocaHire Logic Layer (turn-taking, context management)
+  ↓ Text prompt
+Google Vertex AI (Gemini/PaLM)
+  ↓ Response text
+SSML Generation
+  ↓ SSML markup
+Google Text-to-Speech
+  ↓ Audio stream
+VocaHire Backend
+  ↓ WebRTC Audio Stream
+Client (Browser)
+```
+
+### Key Implementation Areas
+
+#### 1. API Contract Documentation (`/docs/orchestrator-api-spec.md`)
+```markdown
+// TO BE CREATED by Claude - Target: May 26, 2025
+// This document will define:
+// - HTTP endpoints for session management
+// - WebSocket message formats and events
+// - Data schemas for all client-backend communication
+// - Error codes and handling patterns
+// - State transition diagrams
+```
+
+#### 2. Backend Orchestration Service (Standalone Cloud Run Service)
 ```typescript
-// MUST use this exact model name - other variations will fail
-const model = "gpt-4o-mini-realtime-preview"
+// TO BE IMPLEMENTED by Gemini - Target: May 26-30, 2025
+// Based on API contract from Claude
+// Responsibilities:
+// - Expose API endpoints defined in orchestrator-api-spec.md
+// - Manage WebRTC connection with client
+// - Stream audio to Google STT
+// - Handle turn-taking logic
+// - Manage conversation context
+// - Call Vertex AI for responses
+// - Generate SSML and call TTS
+// - Stream audio back to client
+// - Be fully Dockerized for Cloud Run
 ```
 
-#### 2. Session Creation Parameters (app/api/realtime-session/route.ts)
+#### 2. Google Cloud Utils (`/lib/google-cloud-utils.ts`)
 ```typescript
-// WORKING CONFIGURATION - DO NOT ADD input_audio_transcription here!
-const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${apiKey}`,
-    'Content-Type': 'application/json',
-    'OpenAI-Beta': 'realtime=v1',
-  },
-  body: JSON.stringify({
-    model,
-    voice: "alloy",
-    instructions,
-    turn_detection: {
-      type: "server_vad",
-      threshold: 0.5,
-      prefix_padding_ms: 300,
-      silence_duration_ms: 200
-    }
-    // DO NOT add input_audio_transcription here - it causes 400 errors
-  }),
-})
+// TO BE IMPLEMENTED - Target: May 26-27, 2025
+// TODO: Initial setup by Claude, enhanced by Gemini
+// - Google Cloud authentication
+// - Speech-to-Text client setup
+// - Text-to-Speech client setup
+// - Vertex AI client setup
+// - SSML generation utilities
+// - Stream handling utilities
 ```
 
-#### 3. WebRTC Exchange Configuration (app/api/webrtc-exchange/route.ts)
+#### 3. Refactored Hook (`/hooks/useRealtimeInterviewSession.ts`)
 ```typescript
-// Use ephemeral token from session creation
-const url = `https://api.openai.com/v1/realtime?model=${modelToUse}`
-headers: {
-  "Content-Type": "application/sdp",
-  Authorization: `Bearer ${token}`, // Use ephemeral token, NOT API key
-  "OpenAI-Beta": "realtime=v1",
-}
+// MAJOR REFACTOR REQUIRED - Target: May 28-31, 2025
+// TODO: Coordinate between Claude and Gemini for smooth transition
+// Changes needed:
+// - Remove OpenAI-specific logic
+// - Connect to our backend orchestrator
+// - Handle new event structure
+// - Maintain existing UI contract
 ```
 
-#### 4. Credit Deduction (MUST be synchronous)
-```typescript
-// Synchronous credit deduction to ensure it happens
-const updateResult = await prisma.$executeRaw`
-  UPDATE "User" 
-  SET credits = credits - ${INTERVIEW_COST}
-  WHERE id = ${userId} AND credits >= ${INTERVIEW_COST}
-`
-```
+### Google Cloud API Compliance
 
-#### 5. Interview Room Auto-Start Protection
-```typescript
-// Prevent auto-start loops with hasAttemptedStart ref
-const hasAttemptedStart = useRef(false)
+**Speech-to-Text Configuration:**
+- Model: Universal Speech Model (latest_long)
+- Streaming recognition with interim results
+- Voice Activity Detection (VAD) events enabled
+- Custom vocabulary for interview terms
+- Language: en-US with automatic punctuation
 
-useEffect(() => {
-  if (autoStart && status === "idle" && !hasAttemptedStart.current) {
-    hasAttemptedStart.current = true
-    handleStartInterview()
-  }
-}, [autoStart, status])
-```
+**Text-to-Speech Configuration:**
+- Voice: WaveNet or Neural2 voices for natural speech
+- SSML support for prosody control
+- Streaming synthesis for low latency
+- Audio encoding: MP3 or OGG_OPUS for WebRTC
 
-**WebRTC-Only Session Creation Process:**
-1. User authentication validation via Clerk
-2. VocahireCredits/subscription verification with automatic 3.00 credit grant for new users
-3. OpenAI session creation with enhanced timeout protection (20s limit)
-4. Credit deduction (1.00 VocahireCredits per interview for non-premium users) - MUST BE SYNCHRONOUS
-5. WebRTC peer connection setup with ICE servers
-6. SDP offer/answer exchange via backend proxy
-7. Direct WebRTC audio streaming and data channel establishment
+**Vertex AI Configuration:**
+- Model: Gemini 1.5 Pro (preferred) or PaLM 2
+- Context window management for conversation history
+- System prompt for interview coach persona
+- Response streaming for reduced latency
+- Temperature and top-p tuning for consistent responses
 
-**WebRTC Configuration:**
-- **Transport**: WebRTC with UDP/RTP for audio (lower latency than WebSocket TCP)
-- **Audio Format**: Direct audio streaming without base64 encoding overhead
-- **Data Channel**: RTCDataChannel for JSON events (transcripts, commands, status)
-- **ICE Servers**: STUN/TURN servers for NAT traversal and network resilience
-- **Model**: `gpt-4o-mini-realtime-preview` (cost-efficient model)
+### Critical Implementation Considerations
 
-### Interview Flow Architecture
+1. **Latency Management**:
+   - Each service adds latency: STT (100-300ms) + LLM (500-2000ms) + TTS (100-300ms)
+   - Implement streaming wherever possible
+   - Consider response prefetching for common questions
 
-**Clean Component Separation (Refactored January 2025):**
+2. **Turn-Taking & Interruptions**:
+   - Use STT VAD events to detect when user stops speaking
+   - Implement barge-in detection to handle interruptions
+   - Buffer management for smooth conversation flow
 
-**Single Source of Truth Pattern:**
-- `useRealtimeInterviewSession` hook: Manages all WebRTC session state and OpenAI communication
-- `InterviewRoom.tsx`: Pure UI component that consumes hook state (~200 LOC, down from 600+)
-- `InterviewPageClient.tsx`: Orchestration component for pre-flight checks and payment flows
+3. **Context Management**:
+   - Maintain conversation history for LLM context
+   - Implement sliding window for long conversations
+   - Track interview progress and adapt questions
 
-**Refactored Component Responsibilities:**
+4. **Error Handling**:
+   - Graceful degradation if any service fails
+   - Fallback responses for common scenarios
+   - Comprehensive error logging to Sentry
 
-1. **InterviewPageClient.tsx** (Orchestration):
-   - Pre-flight checks: authentication, credits, resume data
-   - Payment modals and subscription management
-   - Profile settings tab
-   - Mounts InterviewRoom when `interviewActive=true`
-   - Receives session creation status via callback
+5. **Cost Optimization**:
+   - Monitor usage of each Google Cloud service
+   - Implement caching for common TTS responses
+   - Use appropriate models for cost/quality balance
 
-2. **InterviewRoom.tsx** (Interview UI):
-   - Single responsibility: Interview interface using `useRealtimeInterviewSession`
-   - Auto-start mechanism: `autoStart` prop triggers `hook.start(jobTitle)`
-   - Real-time status display: connection progress, speaking indicators, conversation
-   - Error handling with retry capabilities
-   - Session completion and cleanup
+### Interview Data Persistence Architecture
 
-3. **useRealtimeInterviewSession.ts** (WebRTC Management):
-   - Complete WebRTC session lifecycle management
-   - OpenAI Realtime API communication
-   - Connection state management and error handling
-   - Audio streaming and data channel events
+**Data Flow (Unchanged from OpenAI version):**
+1. **Real-time Collection**: Transcripts captured from Google STT
+2. **Session Storage**: Full conversation stored in messages array
+3. **Primary Persistence**: POST to `/api/interviews` on completion
+4. **Fallback Storage**: localStorage backup if database fails
+5. **Async Feedback**: Background job using Vertex AI
 
-**Improved Flow:**
-```
-User clicks "Start Interview" 
-→ InterviewPageClient validates credits/auth
-→ Sets interviewActive=true (mounts InterviewRoom)
-→ InterviewRoom autoStart calls hook.start(jobTitle)
-→ Hook manages entire WebRTC session lifecycle
-→ Parent gets notified via onSessionCreationStatus callback
-```
-
-**Benefits of Refactored Architecture:**
-- **Eliminated State Duplication**: No more conflicting state between components and hook
-- **Easier Debugging**: All interview state centralized in the hook
-- **Cleaner Error Handling**: Clear error propagation chain
-- **Reduced Complexity**: 400 total LOC vs 1300+ LOC previously
-- **Better Maintainability**: Single responsibility principle enforced
-
-### Complete Architecture Transformation (January 2025)
-
-**🔧 WebRTC-Only Architecture (COMPLETED)**
-- ❌ **REMOVED**: All WebSocket implementations (`lib/realtime-websocket.ts`, WebSocket test routes)
-- ✅ **NEW**: Complete `useRealtimeInterviewSession` hook for centralized WebRTC management
-- ✅ **UPDATED**: InterviewRoom.tsx uses WebRTC hook exclusively
-- ✅ **RESOLVED**: "Connection closed" errors eliminated by removing mixed architecture
-- ✅ **IMPROVED**: Direct WebRTC audio streaming with RTCDataChannel for events
-
-**Critical Fixes That Made It Work (January 2025)**
-- ✅ **Model Name**: Changed from `gpt-4o-realtime-preview-2024-12-17` to `gpt-4o-mini-realtime-preview`
-- ✅ **API Parameters**: Removed `input_audio_transcription` from session creation (caused 400 errors)
-- ✅ **Credit Deduction**: Made synchronous to ensure credits are properly consumed
-- ✅ **Auto-Start Loop**: Added `hasAttemptedStart` ref to prevent infinite retry loops
-- ✅ **Transcript Handling**: Added comprehensive event handlers for all transcription events
-
-**Database Performance & Error Handling (COMPLETED)**
-- ✅ Enhanced timeout handling aligned with Vercel function limits
-- ✅ Specific error codes (503 database, 504 timeout, 502 API) replace generic 500s
-- ✅ Request ID tracking and phase-by-phase performance logging
-- ✅ Comprehensive diagnostic endpoints for production troubleshooting
-- ✅ Database query optimization with proper timeout protection
-- ✅ Synchronous credit deduction with row update verification
-
-**Interview UX & Reliability (COMPLETED)**
-- ✅ Eliminated duplicate "Start Interview" buttons
-- ✅ Fixed interview session looping and race conditions
-- ✅ Implemented clean state transitions (idle → loading → active)
-- ✅ Enhanced session token validation before API calls
-- ✅ Proper resource cleanup and connection state management
-
-**Component Architecture Refactoring (COMPLETED January 2025)**
-- ✅ **InterviewRoom.tsx**: Reduced from 600+ LOC to ~200 LOC with single responsibility
-- ✅ **State Management**: Eliminated duplicate state between components and hook
-- ✅ **Error Handling**: Implemented clean error propagation via `onSessionCreationStatus` callback
-- ✅ **Props Simplification**: Removed credit management props, focused on interview-specific data
-- ✅ **Flow Optimization**: Clear separation between orchestration (InterviewPageClient) and UI (InterviewRoom)
-- ✅ **Debugging**: Centralized all interview state in `useRealtimeInterviewSession` hook
-
-**Interview Data Persistence (COMPLETED May 2025)**
-- ✅ **Transcript Storage**: Full conversation history saved to database with each message timestamped
-- ✅ **LocalStorage Fallback**: Automatic backup when database save fails, with sync mechanism
-- ✅ **User Notifications**: Toast messages inform users of save status and fallback scenarios
-- ✅ **Async Feedback Generation**: Non-blocking background job triggered after interview save
-- ✅ **Database Indexes**: Performance optimized queries for user history and admin analytics
-- ✅ **Feedback Status Tracking**: InterviewSession tracks generation progress (pending/generating/completed/failed)
-
-**Sentry Configuration (COMPLETED)**
-- ✅ Resolved duplicate Session Replay instances error
-- ✅ Removed redundant `instrumentation-client.ts` file
-- ✅ Single Sentry initialization pattern for consistent error monitoring
-
-### OpenAI API Compliance
-
-**Session Configuration:**
-- Model: `gpt-4o-mini-realtime-preview` ⚠️ CRITICAL: Use this exact model name
-- Modalities: Automatically handled by conversation session
-- Voice: `alloy` (professional interviewer voice)
-- Turn Detection: Server VAD with optimized settings
-- Timeout: 20-second request timeout with AbortController (optimized for Vercel)
-- Headers: Required `"OpenAI-Beta": "realtime=v1"` header (note the =v1 format)
-
-**WebRTC Implementation (WebSocket Removed):**
-- **Authentication**: Ephemeral tokens via `/api/realtime-session`
-- **SDP Exchange**: Backend proxy via `/api/webrtc-exchange` for CORS/auth handling
-- **Audio Streaming**: Direct WebRTC audio tracks (no PCM16 base64 encoding needed)
-- **Event Handling**: RTCDataChannel for JSON events (session.created, response.audio.delta, etc.)
-- **Connection Management**: Comprehensive error handling with specific error codes
-
-### Transcript Handling for Analysis
-
-**Critical Events to Handle in useRealtimeInterviewSession:**
-```typescript
-// User transcription events
-case "conversation.item.input_audio_transcription.completed":
-  if (data.transcript) {
-    addMessage("user", data.transcript)
-  }
-  break
-
-case "conversation.item.input_audio_transcription.delta":
-  if (data.delta) {
-    setLiveTranscript({ role: "user", content: data.delta })
-  }
-  break
-
-// Assistant transcription events  
-case "response.audio_transcript.delta":
-  if (data.delta) {
-    setLiveTranscript({ role: "assistant", content: data.delta })
-  }
-  break
-
-case "response.audio_transcript.done":
-  if (data.transcript) {
-    addMessage("assistant", data.transcript)
-  }
-  break
-```
-
-### Interview Data Persistence Architecture (May 2025)
-
-**🎯 Data Flow Overview:**
-1. **Real-time Collection**: Transcripts captured via WebRTC data channel events
-2. **Session Storage**: Full conversation stored in `messages` array during interview
-3. **Primary Persistence**: POST to `/api/interviews` on interview completion
-4. **Fallback Storage**: localStorage backup if database save fails
-5. **Async Feedback**: Background job triggered after successful save
-
-**📝 Transcript Storage Implementation:**
-```typescript
-// In useRealtimeInterviewSession hook
-const saveInterviewSession = useCallback(async () => {
-  try {
-    const response = await fetch('/api/interviews', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        sessionId: sessionDataRef.current.id,
-        messages, // Full transcript array
-        jobTitle,
-        resumeData,
-        averageResponseTime,
-        duration,
-        status: 'completed'
-      })
-    })
-    
-    if (!response.ok) throw new Error('Failed to save')
-    return await response.json()
-  } catch (error) {
-    // Fallback to localStorage
-    localStorage.setItem('vocahire_interview_messages', JSON.stringify(messages))
-    localStorage.setItem('vocahire_interview_metadata', JSON.stringify({
-      sessionId, jobTitle, resumeData, timestamp: Date.now()
-    }))
-    throw error
-  }
-}, [messages, jobTitle, resumeData, token])
-```
-
-**💾 Database Schema Enhancements:**
-```prisma
-model InterviewSession {
-  id                    String       @id @default(cuid())
-  userId                String
-  jobTitle              String?
-  resumeData            Json?
-  status                String       @default("pending")
-  feedbackStatus        String       @default("pending") // pending, generating, completed, failed
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
-  completedAt           DateTime?
-  duration              Int?
-  averageResponseTime   Float?
-  deletedAt             DateTime?    // Soft delete support
-  
-  user                  User         @relation(fields: [userId], references: [id])
-  transcripts           Transcript[]
-  feedback              Feedback[]
-  
-  @@index([userId, status, createdAt]) // User history queries
-  @@index([createdAt]) // Admin analytics
-  @@index([feedbackStatus, createdAt]) // Feedback generation queue
-}
-```
-
-**🔄 LocalStorage Sync Mechanism:**
-```typescript
-// In /app/feedback/page.tsx
-const attemptDataSync = async () => {
-  const localMessages = safeLocalStorageGet('vocahire_interview_messages')
-  const localMetadata = safeLocalStorageGet('vocahire_interview_metadata')
-  
-  if (localMessages && localMetadata) {
-    try {
-      const response = await fetch('/api/interviews', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await getToken()}`
-        },
-        body: JSON.stringify({
-          messages: localMessages,
-          ...localMetadata,
-          fromLocalStorage: true // Flag for analytics
-        })
-      })
-      
-      if (response.ok) {
-        localStorage.removeItem('vocahire_interview_messages')
-        localStorage.removeItem('vocahire_interview_metadata')
-        toast.success('Interview data synced successfully!')
-        router.refresh()
-      }
-    } catch (error) {
-      console.error('Sync failed:', error)
-    }
-  }
-}
-```
-
-**🔔 User Notifications:**
-- **Success**: Toast notification with feedback generation status
-- **Fallback**: Warning toast explaining localStorage save with sync instructions
-- **Sync UI**: Upload icon button on feedback page for manual sync
-- **Auto-sync**: Attempted on page load if localStorage data exists
-
-**⚡ Performance Optimizations:**
-- Transactional saves ensure data consistency
-- Non-blocking feedback generation via async job
-- Database indexes for efficient user history queries
-- Raw SQL queries for feedbackStatus updates to avoid Prisma type issues
-- Average response time calculation for interview analytics
-
-**🎤 Audio Recording Status:**
-- **Current State**: Text transcripts only (no audio file storage)
-- **Data Captured**: Full conversation transcripts via OpenAI Realtime API
-- **Audio Flow**: WebRTC streams audio in real-time but doesn't persist recordings
-- **Future Considerations**: Audio storage would require additional infrastructure for file storage, privacy compliance, and bandwidth management
-
-### Error Handling Strategy
-
-**Production-Ready Error Management:**
-- Comprehensive Sentry integration for real-time monitoring
-- Graceful fallback for API connectivity issues  
-- User-friendly error messages without exposing sensitive details
-- Timeout handling for database and API operations
-- Retry mechanisms for transient failures
-
-**Debugging Tools:**
-- `/api/diagnostic/connection-test`: Database connectivity verification
-- `/api/diagnostic/db-performance`: Database performance and timing analysis
-- `/api/diagnostic/vercel-db-test`: Vercel-Supabase connectivity testing
-- Enhanced performance logging with request ID tracking
-- Session replay via Sentry for issue reproduction
-- WebRTC connection state monitoring and debugging
+**Key Differences:**
+- Transcript format may differ (Google STT vs OpenAI)
+- Feedback generation will use Vertex AI instead of OpenAI
+- Additional metadata about STT confidence scores
+- SSML used for responses can be stored for analysis
 
 ## VocahireCredits System
 
@@ -1059,95 +1146,89 @@ await prisma.user.update({
 - Clear messaging about VocahireCredits vs subscription benefits
 - User-friendly error messages with current balance display
 
-## Architecture Benefits & Expected Results
+## Architecture Benefits & Expected Results (Google Cloud Pivot)
 
-### WebRTC-Only Performance Advantages
+### Google Cloud Architecture Advantages
 
-**🚀 Lower Latency Audio**
-- WebRTC uses UDP/RTP for audio transport vs TCP overhead of WebSockets
-- Direct audio streaming without base64 encoding overhead
-- Optimized for real-time media with automatic quality adaptation
+**🎯 Greater Control & Customization**
+- Fine-tune each component independently (STT, LLM, TTS)
+- Custom vocabulary and model adaptation for interviews
+- SSML for nuanced, expressive AI speech
+- Complete control over turn-taking logic
 
-**🌐 Better Network Resilience**
-- Built-in NAT traversal with STUN/TURN servers
-- Automatic network adaptation and quality degradation vs connection drops
-- Separation of concerns: audio via WebRTC, events via RTCDataChannel
+**💰 Cost Optimization Potential**
+- Pay-per-use pricing for each service
+- Ability to cache common responses
+- Choose appropriate models for different parts of conversation
+- Better visibility into cost drivers
 
-**🔧 Cleaner Architecture**
-- Single source of truth: `useRealtimeInterviewSession` hook manages everything
-- No conflicts: Eliminated WebRTC/WebSocket mixing
-- Centralized error handling and state management
+**🔧 Ecosystem Integration**
+- Leverage Google's ML ecosystem (AutoML, custom models)
+- Integration with Google Analytics and BigQuery
+- Enterprise-grade security and compliance
+- Global infrastructure with regional deployment options
 
-### Database Performance Improvements
+**📊 Enhanced Analytics**
+- STT confidence scores and word-level timing
+- Sentiment analysis via Natural Language API
+- Custom metrics and logging
+- A/B testing different voices and responses
 
-**✅ Error Code Transformation**
-- **Before**: Generic 500 Internal Server Errors with no actionable information
-- **After**: Specific error codes provide clear user guidance:
-  - `503 Service Unavailable`: Database timeouts (temporary, retry-able)
-  - `504 Gateway Timeout`: API timeouts (external service issues)
-  - `502 Bad Gateway`: External API errors (OpenAI connectivity)
+### Implementation Challenges & Mitigations
 
-**📊 Enhanced Monitoring**
-- Request tracing with unique IDs for debugging specific user issues
-- Phase-by-phase timing logs identify exact bottlenecks:
-  ```
-  [req_123] DATABASE_QUERY_START - 150ms elapsed
-  [req_123] DATABASE_QUERY_SUCCESS - 850ms elapsed
-  [req_123] OPENAI_SESSION_START - 900ms elapsed
-  ```
-- Performance diagnostic endpoints for production optimization
+**⏱️ Latency Management**
+- **Challenge**: Multi-service pipeline adds latency
+- **Mitigation**: Aggressive streaming, response prefetching, edge deployment
 
-**⏱️ Optimized Timeouts**
-- Database queries: 12s (under Vercel's 15s function limit)
-- OpenAI API calls: 20s (under Vercel's 30s Pro limit)  
-- WebRTC exchange: 15s with AbortController
-- Prevents Vercel function termination and provides faster error feedback
+**🔄 Complex Orchestration**
+- **Challenge**: Managing state across multiple services
+- **Mitigation**: Robust backend orchestrator with clear state management
+
+**🎤 Natural Conversation Flow**
+- **Challenge**: Achieving OpenAI-like naturalness with separate services
+- **Mitigation**: Advanced SSML, careful prompt engineering, VAD tuning
+
+**💸 Cost Predictability**
+- **Challenge**: Multiple services with different pricing models
+- **Mitigation**: Usage monitoring, quotas, cost alerts
 
 ### Expected Production Results
 
-**Issues Resolved:**
-1. ❌ "Connection closed" errors → ✅ Clean WebRTC-only connections
-2. ❌ Generic 500 errors → ✅ Specific 503/504/502 error codes
-3. ❌ Undefined method calls → ✅ Complete hook implementation
-4. ❌ Architecture conflicts → ✅ Single WebRTC approach
+**Target Metrics:**
+- End-to-end latency: < 1.5 seconds (speech-to-speech)
+- Conversation naturalness: 4.5/5 user rating
+- System reliability: 99.9% uptime
+- Cost per interview: 30-50% reduction vs OpenAI
 
-**Key Success Metrics:**
-- **503 Service Unavailable** instead of 500 errors indicates timeout detection is working
-- WebRTC audio streaming enables VocaHire's natural conversation experience
-- Enhanced debugging capabilities for rapid production issue resolution
-- Vercel function timeout prevention with proper AbortController usage
+**Key Success Indicators:**
+- Smooth turn-taking without awkward pauses
+- Natural, expressive AI voice via SSML
+- Accurate transcription of interview terminology
+- Consistent interview coach persona
+- Scalable architecture supporting growth
 
-This architecture positions VocaHire for its "killer feature" of natural, low-latency voice conversation with AI interviewers while providing production-grade reliability and monitoring.
+This architecture positions VocaHire for long-term success with full control over the AI interview experience, cost optimization opportunities, and integration with Google's comprehensive cloud ecosystem.
 
-### Refactored Component Structure (January 2025)
+## 📝 Change Log
 
-**File Locations:**
-- `/app/interview/InterviewPageClient.tsx`: Main interview page orchestration (~400 LOC)
-- `/components/InterviewRoom.tsx`: Clean interview UI component (~200 LOC) 
-- `/hooks/useRealtimeInterviewSession.ts`: WebRTC session management (~488 LOC)
+### May 25, 2025
+- **Major Pivot Decision**: Transitioned from OpenAI/Vercel to Google Cloud architecture
+- **Deployment Pivot**: Moving from Vercel to Google Cloud Run via Docker containerization
+- **Architecture Evolution**: Shifted from monolithic to modular microservices design
+- **Documentation Update**: Updated CLAUDE.md to reflect new strategic direction and deployment approach
+- **Collaboration Setup**: Prepared for Gemini AI assistant joining development team
+- **Task Allocation**: Defined clear responsibilities - Claude (client-side) and Gemini (backend)
+- **Deprecated**: Marked OpenAI implementation as legacy/reference only
+- **Deprecated**: Marked Vercel deployment as legacy, transitioning to Cloud Run
+- **New Architecture**: Defined Google Cloud STT-LLM-TTS pipeline with modular services
+- **New Deployment**: Added comprehensive Dockerization guidance for Cloud Run
+- **Timeline**: Set implementation targets for May 26-31, 2025
+- **[PIVOT-CRITICAL]** tasks identified: API Contract, Client Refactor, Backend Orchestrator, Dockerization
 
-**Note**: The original 600+ LOC InterviewRoom implementation was replaced during refactoring. The new implementation provides the same functionality with better maintainability and cleaner separation of concerns.
-
-**Key API Props:**
-
-**InterviewRoom.tsx** (Simplified):
-```typescript
-interface InterviewRoomProps {
-  onComplete?: (messages: Array<{role: string; content: string; timestamp: number}>) => void
-  jobTitle?: string
-  resumeData?: ResumeData | null
-  autoStart?: boolean
-  onSessionCreationStatus?: (isCreating: boolean, error?: string) => void
-}
-```
-
-**InterviewPageClient.tsx** (Enhanced):
-- Added `handleSessionCreationStatus` callback for receiving InterviewRoom status updates
-- Removed duplicate credit management from InterviewRoom props
-- Simplified `startInterview` logic to just mount InterviewRoom with `autoStart=true`
-
-**Migration Benefits:**
-- **Debugging**: Single source of truth for interview state makes issues easy to trace
-- **Testing**: Each component can be tested independently with clear interfaces
-- **Maintenance**: Changes to interview logic only require hook updates
-- **Scalability**: New interview features can be added to the hook without UI changes
+### Upcoming (May 26, 2025)
+- Gemini AI assistant joins development team
+- Claude: Create `/docs/orchestrator-api-spec.md` defining client-backend interface
+- Claude: Begin refactoring `InterviewPageClient.tsx` and `useRealtimeInterviewSession.ts`
+- Gemini: Review API contract and begin backend orchestration service implementation
+- Gemini: Create `/lib/google-cloud-utils.ts` for Google Cloud service integration
+- Both: Collaborate on Dockerfile creation for modular services
