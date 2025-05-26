@@ -51,10 +51,7 @@ export default function InterviewRoom({
     isMuted,
     start: startSession,
     stop: stopSession,
-    pause: pauseSession,
-    resume: _resumeSession,
     toggleMute,
-    saveInterviewSession,
   } = useRealtimeInterviewSession({ jobTitle, resumeData })
 
   // Track if we've attempted to start to prevent loops
@@ -144,8 +141,8 @@ export default function InterviewRoom({
     // Use router events to detect actual navigation
     const handleRouteChange = () => {
       if (status === "active") {
-        console.log("Route changing while interview active - pausing interview")
-        pauseSession()
+        console.log("Route changing while interview active - stopping interview")
+        stopSession()
       }
     }
     
@@ -155,7 +152,7 @@ export default function InterviewRoom({
     return () => {
       window.removeEventListener('popstate', handleRouteChange)
     }
-  }, [status, pauseSession])
+  }, [status, stopSession])
 
   // Handle interview completion
   const handleInterviewComplete = useCallback(async () => {
@@ -166,10 +163,11 @@ export default function InterviewRoom({
       setIsSaving(true)
       setCompletionError(null)
       
-      // Save the interview session
-      const result = await saveInterviewSession()
+      // Stop the session which will save automatically
+      await stopSession()
       
-      if (result) {
+      // Check if we have messages to save
+      if (messages.length > 0) {
         // Success - redirect to feedback page
         console.log("Interview saved successfully, redirecting to feedback")
         toast.success("Interview saved successfully! Generating your feedback...", {
@@ -251,12 +249,9 @@ export default function InterviewRoom({
   useEffect(() => {
     if (onSessionCreationStatus && (
       status === "requesting_mic" || 
-      status === "testing_api" || 
-      status === "fetching_token" || 
-      status === "creating_offer" || 
-      status === "exchanging_sdp" || 
-      status === "connecting_webrtc" ||
-      status === "data_channel_open" ||
+      status === "creating_session" || 
+      status === "connecting_websocket" || 
+      status === "establishing_webrtc" ||
       status === "active"
     )) {
       const isCreating = status !== "active"
@@ -284,8 +279,8 @@ export default function InterviewRoom({
   }
 
   // Render connection progress during setup (unless parent is handling loading UI)
-  if (!hideLoadingUI && (status === "requesting_mic" || status === "testing_api" || status === "fetching_token" || 
-      status === "creating_offer" || status === "exchanging_sdp" || status === "connecting_webrtc")) {
+  if (!hideLoadingUI && (status === "requesting_mic" || status === "creating_session" || 
+      status === "connecting_websocket" || status === "establishing_webrtc")) {
     return (
       <Card className="w-full max-w-md mx-auto">
         <CardHeader>
@@ -331,12 +326,10 @@ export default function InterviewRoom({
               <div 
                 className={`bg-blue-600 h-2 rounded-full transition-all duration-300`}
                 style={{
-                  width: status === "requesting_mic" ? "20%" :
-                         status === "testing_api" ? "30%" :
-                         status === "fetching_token" ? "40%" :
-                         status === "creating_offer" ? "60%" :
-                         status === "exchanging_sdp" ? "80%" :
-                         status === "connecting_webrtc" ? "90%" : "100%"
+                  width: status === "requesting_mic" ? "25%" :
+                         status === "creating_session" ? "50%" :
+                         status === "connecting_websocket" ? "75%" :
+                         status === "establishing_webrtc" ? "90%" : "100%"
                 }}
               />
             </div>

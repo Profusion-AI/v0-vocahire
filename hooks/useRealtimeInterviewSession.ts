@@ -24,21 +24,19 @@ export interface ResumeData {
 type InterviewStatus =
   | "idle"
   | "requesting_mic"
-  | "testing_api"
-  | "fetching_token"
-  | "creating_offer"
-  | "exchanging_sdp"
-  | "connecting_webrtc"
-  | "data_channel_open"
+  | "creating_session"
+  | "connecting_websocket"
+  | "establishing_webrtc"
   | "active"
   | "ended"
   | "error"
   | "saving_results"
 
 interface SessionData {
-  id: string
-  token: string
-  expires_at?: number
+  sessionId: string
+  websocketUrl: string
+  iceServers: RTCIceServer[]
+  expiresAt: string
 }
 
 interface UseRealtimeInterviewSessionProps {
@@ -91,12 +89,11 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
   // Mute state
   const [isMuted, setIsMuted] = useState(false)
 
-  // WebRTC refs
+  // WebRTC and WebSocket refs
   const localStreamRef = useRef<MediaStream | null>(null)
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
-  const dataChannelRef = useRef<RTCDataChannel | null>(null)
+  const websocketRef = useRef<WebSocket | null>(null)
   const sessionDataRef = useRef<SessionData | null>(null)
-  const aiAudioElementRef = useRef<HTMLAudioElement | null>(null)
   
   // Debug logging
   const debugLogRef = useRef<string>("")
@@ -139,39 +136,99 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
     addDebugMessage(`Added ${role} message: ${content.substring(0, 50)}...`)
   }, [addDebugMessage])
 
-  // Get ICE servers
-  const getIceServers = useCallback(async (): Promise<RTCIceServer[]> => {
+  // Send WebSocket message
+  const sendWebSocketMessage = useCallback((message: any) => {
+    if (websocketRef.current?.readyState === WebSocket.OPEN) {
+      websocketRef.current.send(JSON.stringify({
+        ...message,
+        timestamp: new Date().toISOString()
+      }))
+    }
+  }, [])
+
+  // Handle WebSocket messages
+  const handleWebSocketMessage = useCallback(async (event: MessageEvent) => {
     try {
-      const response = await fetch("/api/ice-servers")
-      if (response.ok) {
-        const { iceServers } = await response.json()
-        addDebugMessage(`Loaded ${iceServers.length} ICE servers`)
-        return iceServers
+      const message = JSON.parse(event.data)
+      addDebugMessage(`WS message: ${message.type}`)
+      
+      switch (message.type) {
+        case "session.status":
+          if (message.data.status === "connected") {
+            setStatus("establishing_webrtc")
+          }
+          break
+          
+        case "webrtc.answer":
+          if (peerConnectionRef.current) {
+            peerConnectionRef.current.setRemoteDescription(
+              new RTCSessionDescription(message.data)
+            )
+            addDebugMessage("Set remote description (answer)")
+          }
+          break
+          
+        case "webrtc.ice_candidate":
+          if (peerConnectionRef.current) {
+            peerConnectionRef.current.addIceCandidate(
+              new RTCIceCandidate(message.data)
+            )
+            addDebugMessage("Added ICE candidate from server")
+          }
+          break
+          
+        case "transcript.user":
+          if (message.data.isFinal) {
+            addMessage("user", message.data.text, message.data.confidence)
+            setLiveTranscript(null)
+          } else {
+            setLiveTranscript({ role: "user", content: message.data.text })
+          }
+          break
+          
+        case "transcript.ai":
+          if (message.data.isFinal) {
+            addMessage("assistant", message.data.text)
+            setLiveTranscript(null)
+          } else {
+            setLiveTranscript({ role: "assistant", content: message.data.text })
+          }
+          break
+          
+        case "ai.thinking":
+          setAiCaptions(message.data.status === "processing" ? "Thinking..." : "")
+          break
+          
+        case "audio.level":
+          // Could use this for visualizations
+          break
+          
+        case "conversation.turn":
+          if (message.data.speaker === "user") {
+            setIsUserSpeaking(message.data.action === "speaking")
+          }
+          break
+          
+        case "error":
+          addDebugMessage(`Server error: ${message.data.message}`)
+          if (message.data.severity === "critical") {
+            setError(message.data.message)
+          }
+          break
       }
     } catch (error) {
-      addDebugMessage(`ICE server fetch failed: ${error}`)
+      addDebugMessage(`Error handling WebSocket message: ${error}`)
     }
-    
-    // Fallback to public STUN servers
-    const fallbackServers = [
-      { urls: "stun:stun.l.google.com:19302" },
-      { urls: "stun:stun1.l.google.com:19302" }
-    ]
-    addDebugMessage("Using fallback STUN servers")
-    return fallbackServers
-  }, [addDebugMessage])
+  }, [addDebugMessage, addMessage, setStatus])
 
   // Setup WebRTC connection
   const setupWebRTC = useCallback(async (sessionData: SessionData): Promise<boolean> => {
     try {
       addDebugMessage("Setting up WebRTC connection...")
       
-      // Get ICE servers
-      const iceServers = await getIceServers()
-      
       // Create peer connection
       const pc = new RTCPeerConnection({
-        iceServers,
+        iceServers: sessionData.iceServers,
         iceCandidatePoolSize: 10
       })
       
@@ -186,294 +243,88 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
       pc.onconnectionstatechange = () => {
         addDebugMessage(`WebRTC connection state: ${pc.connectionState}`)
         if (pc.connectionState === "connected") {
-          // Check if data channel is ready before going active
-          if (dataChannelRef.current?.readyState === "open") {
-            addDebugMessage("Connection established with open data channel - activating")
-            setStatus("active")
-            setIsActive(true)
-            setIsConnecting(false)
-          } else {
-            addDebugMessage("Connected but data channel not ready yet")
-            // Wait a bit for data channel
-            setTimeout(() => {
-              if (dataChannelRef.current?.readyState === "open") {
-                setStatus("active")
-                setIsActive(true)
-                setIsConnecting(false)
-              }
-            }, 1000)
-          }
+          setStatus("active")
+          setIsActive(true)
+          setIsConnecting(false)
+          
+          // Start the interview
+          sendWebSocketMessage({
+            type: "control.start_interview",
+            data: {}
+          })
         } else if (pc.connectionState === "failed") {
           throw new Error("WebRTC connection failed")
         }
       }
 
-      // Setup data channel for JSON messages
-      const dataChannel = pc.createDataChannel("messages", {
-        ordered: true
-      })
-      
-      dataChannelRef.current = dataChannel
-      
-      dataChannel.onopen = () => {
-        addDebugMessage("Data channel opened")
-        setStatus("data_channel_open")
-        
-        // CRITICAL: Send session configuration immediately
-        const sessionUpdate = {
-          type: "session.update",
-          session: {
-            instructions: `You are an AI job interview coach. Conduct a mock interview for a ${jobTitle} position. Start by greeting the candidate and asking them to tell you about themselves.`,
-            voice: "alloy",
-            turn_detection: {
-              type: "server_vad",
-              threshold: 0.5,
-              prefix_padding_ms: 300,
-              silence_duration_ms: 200
-            },
-            modalities: ["text", "audio"]
-          }
-        }
-        
-        dataChannel.send(JSON.stringify(sessionUpdate))
-        addDebugMessage("Sent session configuration")
-        
-        // Force transition to active state after sending config
-        setTimeout(() => {
-          setStatus("active")
-          setIsActive(true)
-          setIsConnecting(false)
-          addDebugMessage("Interview session is now active")
-        }, 500)
-      }
-      
-      dataChannel.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          handleOpenAIMessage(data)
-        } catch (error) {
-          addDebugMessage(`Failed to parse data channel message: ${error}`)
-        }
-      }
-      
-      dataChannel.onclose = () => {
-        addDebugMessage("Data channel closed")
-        if (sessionStateRef.current.isActive) {
-          throw new Error("Data channel closed unexpectedly")
+      // Handle ICE candidates
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          sendWebSocketMessage({
+            type: "webrtc.ice_candidate",
+            data: {
+              candidate: event.candidate.candidate,
+              sdpMLineIndex: event.candidate.sdpMLineIndex,
+              sdpMid: event.candidate.sdpMid
+            }
+          })
         }
       }
 
-      // Handle incoming audio
+      // Handle remote audio track
       pc.ontrack = (event) => {
-        addDebugMessage("Received remote audio track")
-        if (event.streams && event.streams[0]) {
-          // Clean up any existing audio element
-          if (aiAudioElementRef.current) {
-            aiAudioElementRef.current.pause()
-            aiAudioElementRef.current.srcObject = null
-          }
-          
-          const audioElement = new Audio()
-          audioElement.srcObject = event.streams[0]
-          audioElement.autoplay = true
-          aiAudioElementRef.current = audioElement
-          
-          // Register with session manager
-          if (interviewSessionManager) {
-            interviewSessionManager.registerAudioElement(hookSessionId.current, audioElement)
-          }
-          
-          audioElement.play().catch(e => addDebugMessage(`Audio play failed: ${e}`))
+        addDebugMessage(`Received ${event.track.kind} track`)
+        if (event.track.kind === "audio") {
+          const audio = new Audio()
+          audio.srcObject = event.streams[0]
+          audio.autoplay = true
+          audio.play().catch(e => {
+            addDebugMessage(`Audio play failed: ${e}`)
+          })
         }
       }
 
-      // Get user media for microphone
-      addDebugMessage("Requesting microphone access...")
+      // Get user media
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 24000
+          sampleRate: 48000
         } 
       })
       
       localStreamRef.current = stream
       
-      // Register media stream with session manager
-      if (interviewSessionManager) {
-        interviewSessionManager.registerMediaStream(hookSessionId.current, stream)
-      }
-      
       // Add audio track to peer connection
-      stream.getAudioTracks().forEach(track => {
+      stream.getTracks().forEach(track => {
         pc.addTrack(track, stream)
-        addDebugMessage("Added audio track to peer connection")
       })
 
-      // Create offer
-      setStatus("creating_offer")
-      const offer = await pc.createOffer({
-        offerToReceiveAudio: true,
-      })
-
+      // Create and send offer
+      const offer = await pc.createOffer()
       await pc.setLocalDescription(offer)
-      addDebugMessage("Created and set local description")
-
-      // Wait for ICE gathering to complete
-      await new Promise<void>((resolve) => {
-        if (pc.iceGatheringState === "complete") {
-          resolve()
-        } else {
-          const checkState = () => {
-            if (pc.iceGatheringState === "complete") {
-              resolve()
-            } else {
-              setTimeout(checkState, 100)
-            }
-          }
-          setTimeout(checkState, 100)
+      
+      sendWebSocketMessage({
+        type: "webrtc.offer",
+        data: {
+          sdp: offer.sdp,
+          type: "offer"
         }
       })
-
-      // Exchange SDP with OpenAI via backend proxy
-      setStatus("exchanging_sdp")
-      addDebugMessage("Exchanging SDP with OpenAI...")
       
-      const response = await fetch("/api/webrtc-exchange", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sessionId: sessionData.id,
-          token: sessionData.token,
-          sdp: pc.localDescription!.sdp,
-          model: "gpt-4o-mini-realtime-preview"
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
-        throw new Error(`SDP exchange failed: ${response.status} - ${errorData.error || "Unknown error"}`)
-      }
-
-      const responseData = await response.json()
-      
-      // Set remote description
-      setStatus("connecting_webrtc")
-      await pc.setRemoteDescription({
-        type: "answer",
-        sdp: responseData.sdp,
-      })
-
-      addDebugMessage("WebRTC connection established successfully")
+      addDebugMessage("Sent WebRTC offer")
       return true
       
     } catch (error) {
       addDebugMessage(`WebRTC setup failed: ${error}`)
-      throw error
+      setError(`WebRTC setup failed: ${error}`)
+      return false
     }
-  }, [addDebugMessage, getIceServers, jobTitle, setStatus, setIsActive, setIsConnecting])
+  }, [addDebugMessage, sendWebSocketMessage, setIsActive, setStatus, interviewSessionManager])
 
-  // Handle OpenAI message from data channel
-  const handleOpenAIMessage = useCallback((data: any) => {
-    addDebugMessage(`Received OpenAI message: ${data.type}`)
-    
-    switch (data.type) {
-      case "session.created":
-        addDebugMessage("Session created successfully")
-        // Ensure we're in active state
-        if (status !== "active") {
-          setStatus("active")
-          setIsActive(true)
-          setIsConnecting(false)
-        }
-        break
-        
-      case "conversation.item.created":
-        // Handle both user and assistant items
-        if (data.item && data.item.content) {
-          const content = data.item.content[0]?.transcript || data.item.content[0]?.text || ""
-          if (content && data.item.role) {
-            addMessage(data.item.role, content)
-            addDebugMessage(`${data.item.role} item created: ${content.substring(0, 50)}...`)
-          }
-        }
-        break
-        
-      case "input_audio_buffer.speech_started":
-        setIsUserSpeaking(true)
-        addDebugMessage("User started speaking")
-        break
-        
-      case "input_audio_buffer.speech_stopped":
-        setIsUserSpeaking(false)
-        addDebugMessage("User stopped speaking")
-        break
-        
-      case "conversation.item.input_audio_transcription.completed":
-        // Handle completed user transcription
-        if (data.transcript) {
-          addMessage("user", data.transcript)
-          addDebugMessage(`User transcript: ${data.transcript}`)
-        }
-        break
-        
-      case "conversation.item.input_audio_transcription.delta":
-        // Handle incremental user transcription (for real-time display)
-        if (data.delta) {
-          setLiveTranscript({ role: "user", content: data.delta })
-        }
-        break
-        
-      case "response.audio_transcript.delta":
-        // Handle assistant transcript delta
-        if (data.delta) {
-          setLiveTranscript({ role: "assistant", content: data.delta })
-        }
-        break
-        
-      case "response.audio_transcript.done":
-        // Handle completed assistant transcript
-        if (data.transcript) {
-          addMessage("assistant", data.transcript)
-          setLiveTranscript(null)
-        }
-        break
-        
-      case "response.audio.delta":
-        // Audio data is handled via WebRTC audio track
-        break
-        
-      case "response.audio.done":
-        // Audio playback completed
-        addDebugMessage("Audio response completed")
-        break
-        
-      case "response.text.delta":
-        if (data.delta) {
-          setAiCaptions(prev => prev + data.delta)
-        }
-        break
-        
-      case "response.done":
-        setAiCaptions("")
-        addDebugMessage("Response completed")
-        break
-        
-      case "error":
-        addDebugMessage(`OpenAI error: ${data.error?.message || "Unknown error"}`)
-        setError(data.error?.message || "OpenAI error occurred")
-        break
-        
-      default:
-        addDebugMessage(`Unhandled message type: ${data.type}`)
-    }
-  }, [addDebugMessage, addMessage, status])
-
-  // Create session with OpenAI
-  const createSession = useCallback(async (jobTitle: string): Promise<SessionData> => {
+  // Create session with orchestrator
+  const createSession = useCallback(async (): Promise<SessionData> => {
     // Prevent duplicate session creation attempts
     if (sessionCreationInProgress.current) {
       addDebugMessage("Session creation already in progress, skipping...")
@@ -483,8 +334,8 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
     sessionCreationInProgress.current = true
     
     try {
-      setStatus("fetching_token")
-      addDebugMessage("Creating OpenAI session...")
+      setStatus("creating_session")
+      addDebugMessage("Creating interview session...")
       
       // Get auth token
       if (!isLoaded || !isSignedIn) {
@@ -496,16 +347,27 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
         throw new Error("No authentication token available")
       }
 
+      // TODO: [Gemini] - Update this endpoint to point to the new orchestrator service
+      // For now, using placeholder URL that will be replaced when orchestrator is deployed
+      const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || "http://localhost:5000"
+
       // Create session
-      const response = await fetch("/api/realtime-session", {
+      const response = await fetch(`${orchestratorUrl}/api/v1/sessions/create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${authToken}`
         },
         body: JSON.stringify({
+          userId: sessionStateRef.current.sessionData?.sessionId || "temp_user_id", // TODO: Get actual user ID
           jobTitle,
-          resumeText: "", // Could be populated from props if needed
+          resumeContext: resumeData ? `${resumeData.skills} ${resumeData.experience}` : "",
+          interviewType: "behavioral",
+          preferences: {
+            difficulty: "senior",
+            duration: 30,
+            focusAreas: ["behavioral", "technical", "leadership"]
+          }
         }),
       })
 
@@ -514,355 +376,214 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
         
         // Handle specific error codes
         if (response.status === 429) {
-          // Rate limit exceeded - don't retry
-          const resetIn = errorData.resetIn || 60
-          throw new Error(`RATE_LIMIT_ERROR: Too many interview attempts. Please wait ${Math.ceil(resetIn / 60)} minutes before trying again.`)
-        } else if (response.status === 503) {
-          // Service unavailable - likely database timeout
-          const retryAfter = errorData.retryAfter || 5
-          throw new Error(`Service temporarily unavailable. Please wait ${retryAfter} seconds and try again.`)
-        } else if (response.status === 504) {
-          // Gateway timeout - OpenAI API slow
-          throw new Error("The AI service is taking longer than expected. Please try again.")
+          throw new Error(`Too many interview attempts. Please wait and try again.`)
         } else if (response.status === 403) {
-          // Insufficient credits
-          throw new Error(errorData.message || errorData.error || "Insufficient credits")
+          throw new Error(errorData.error?.message || "Insufficient VocahireCredits")
         }
         
-        throw new Error(`Session creation failed: ${response.status} - ${errorData.error || errorData.message || "Unknown error"}`)
+        throw new Error(`Session creation failed: ${errorData.error?.message || "Unknown error"}`)
       }
 
       const sessionData = await response.json()
       
-      // Handle duplicate prevention response
-      if (sessionData.isDuplicatePrevention) {
-        addDebugMessage(`Duplicate session prevention: ${sessionData.message}`)
-        console.warn("[useRealtimeInterviewSession] Duplicate session prevented:", sessionData)
-        
-        // Wait for the specified time before allowing retry
-        const waitTime = sessionData.waitSeconds || 10
-        throw new Error(`DUPLICATE_SESSION: Please wait ${waitTime} seconds before starting a new interview. ${sessionData.message}`)
-      }
-      
-      if (!sessionData.id || !sessionData.token) {
+      if (!sessionData.sessionId || !sessionData.websocketUrl) {
         throw new Error("Invalid session data received")
       }
-
-      addDebugMessage(`Session created: ${sessionData.id}`)
-      return {
-        id: sessionData.id,
-        token: sessionData.token,
-        expires_at: sessionData.expires_at
-      }
       
-    } catch (error) {
-      addDebugMessage(`Session creation failed: ${error}`)
-      throw error
-    } finally {
-      // Always reset the flag when session creation completes (success or failure)
-      sessionCreationInProgress.current = false
-    }
-  }, [isLoaded, isSignedIn, getToken, addDebugMessage])
-
-  // Main start function
-  const start = useCallback(async (overrideJobTitle?: string) => {
-    const effectiveJobTitle = overrideJobTitle || jobTitle
-    
-    // Entry log
-    addDebugMessage(`[START ENTRY] Attempting to start. Current sessionStateRef.current.status: '${sessionStateRef.current.status}', isActive: ${sessionStateRef.current.isActive}, sessionData: ${sessionStateRef.current.sessionData ? 'exists' : 'null'}`)
-    
-    // Enhanced guard: Check if session is already in progress (not just active)
-    if (sessionStateRef.current.status !== "idle" && sessionStateRef.current.status !== "error") {
-      addDebugMessage(`[GUARD HIT] Session is already in progress with status: '${sessionStateRef.current.status}'. Ignoring redundant start() request. This is likely due to a re-render or duplicate call.`)
-      console.warn(`[useRealtimeInterviewSession] GUARD HIT - Attempted to start session while status is '${sessionStateRef.current.status}' - blocked by guard`)
-      
-      // Log session manager state for debugging
-      if (interviewSessionManager) {
-        interviewSessionManager.logSessionStates()
-      }
-      
-      return
-    }
-    
-    // Guard against active sessions
-    if (sessionStateRef.current.isActive && sessionStateRef.current.sessionData) {
-      addDebugMessage(`[GUARD HIT] Session already active with sessionId: ${sessionStateRef.current.sessionData.id}. Ignoring start() request (likely from Clerk re-render or tab refocus)`)
-      console.warn(`[useRealtimeInterviewSession] GUARD HIT - Attempted to start while session is active - blocked by guard`)
-      
-      // Log session manager state for debugging
-      if (interviewSessionManager) {
-        interviewSessionManager.logSessionStates()
-      }
-      
-      return
-    }
-    
-    addDebugMessage(`[GUARD PASSED] Guards passed. Proceeding with start logic. Setting status to 'requesting_mic'.`)
-    
-    try {
-      // Check if we have a paused session to resume
-      if (interviewSessionManager && interviewSessionManager.isSessionPaused(hookSessionId.current)) {
-        addDebugMessage(`Resuming paused session: ${hookSessionId.current}`)
-        interviewSessionManager.resumeSession(hookSessionId.current)
-        setStatus("active")
-        setIsActive(true)
-        setIsConnecting(false)
-        return // Don't create a new session
-      }
-      
-      // Register this session with the manager, providing cleanup callback
-      if (interviewSessionManager) {
-        addDebugMessage(`Registering session ${hookSessionId.current} with manager...`)
-        
-        interviewSessionManager.registerSession(hookSessionId.current, () => {
-          // This will be called by the manager when terminating the session
-          addDebugMessage(`Session ${hookSessionId.current} termination requested by manager`)
-          // Call stop function via ref
-          if (stopRef.current) {
-            stopRef.current()
-          }
-        })
-        
-        addDebugMessage(`Session ${hookSessionId.current} registered with manager`)
-      }
-      
-      setStatus("requesting_mic")
-      setIsConnecting(true)
-      setError(null)
-      setRetryCount(0)
-      addDebugMessage(`Starting interview session ${hookSessionId.current} for: ${effectiveJobTitle}`)
-
-      // Create session
-      const sessionData = await createSession(effectiveJobTitle)
+      addDebugMessage(`Session created: ${sessionData.sessionId}`)
       sessionDataRef.current = sessionData
       sessionStateRef.current.sessionData = sessionData
+      
+      return sessionData
+      
+    } catch (error: any) {
+      addDebugMessage(`Session creation error: ${error.message}`)
+      throw error
+    } finally {
+      sessionCreationInProgress.current = false
+    }
+  }, [addDebugMessage, setStatus, isLoaded, isSignedIn, getToken, jobTitle, resumeData])
 
-      // Setup WebRTC
-      await setupWebRTC(sessionData)
+  // Setup WebSocket connection
+  const setupWebSocket = useCallback(async (sessionData: SessionData, authToken: string) => {
+    try {
+      setStatus("connecting_websocket")
+      addDebugMessage("Connecting to WebSocket...")
       
-      addDebugMessage(`[START EXIT] Interview session started successfully. Status: '${sessionStateRef.current.status}'`)
+      const ws = new WebSocket(`${sessionData.websocketUrl}?token=${authToken}`)
+      websocketRef.current = ws
       
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      setError(errorMessage)
-      setStatus("error")
-      setIsConnecting(false)
-      addDebugMessage(`Start failed: ${errorMessage}`)
-      
-      // Retry logic with exponential backoff
-      const shouldRetry = retryCount < maxRetries && 
-        !errorMessage.includes("authentication") &&
-        !errorMessage.includes("Insufficient") &&
-        !errorMessage.includes("API key not configured") &&
-        !errorMessage.includes("Invalid OpenAI API key") &&
-        !errorMessage.includes("RATE_LIMIT_ERROR") && // Don't retry rate limit errors
-        !errorMessage.includes("DUPLICATE_SESSION") && // Don't retry duplicate session errors
-        (errorMessage.includes("temporarily unavailable") || 
-         errorMessage.includes("timeout") ||
-         errorMessage.includes("taking longer") ||
-         errorMessage.includes("502") ||
-         errorMessage.includes("External API error"))
-      
-      if (shouldRetry) {
-        const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 10000) // 1s, 2s, 4s, max 10s
-        addDebugMessage(`Retrying in ${backoffDelay/1000} seconds... (${retryCount + 1}/${maxRetries})`)
-        
-        // Reset to idle state before retry
-        setStatus("idle")
-        setError(null)
-        
-        setTimeout(() => {
-          setRetryCount(prev => prev + 1)
-          // Don't call start directly to avoid loops
-          createSession(effectiveJobTitle).then(sessionData => {
-            sessionDataRef.current = sessionData
-            return setupWebRTC(sessionData)
-          }).catch(retryError => {
-            const retryErrorMessage = retryError instanceof Error ? retryError.message : String(retryError)
-            setError(retryErrorMessage)
-            setStatus("error")
-            setIsConnecting(false)
-            addDebugMessage(`Retry ${retryCount + 1} failed: ${retryErrorMessage}`)
-          })
-        }, backoffDelay)
+      ws.onopen = () => {
+        addDebugMessage("WebSocket connected")
+        // Server will send session.status message, which triggers WebRTC setup
       }
       
+      ws.onmessage = async (event) => {
+        await handleWebSocketMessage(event)
+        
+        // Check if we need to start WebRTC after status message
+        if (sessionStateRef.current.status === "establishing_webrtc" && !peerConnectionRef.current) {
+          await setupWebRTC(sessionData)
+        }
+      }
+      
+      ws.onerror = (error) => {
+        addDebugMessage(`WebSocket error: ${error}`)
+        setError("WebSocket connection error")
+      }
+      
+      ws.onclose = () => {
+        addDebugMessage("WebSocket closed")
+        if (status === "active") {
+          setStatus("ended")
+        }
+      }
+      
+    } catch (error) {
+      addDebugMessage(`WebSocket setup error: ${error}`)
       throw error
     }
-  }, [createSession, setupWebRTC, addDebugMessage, retryCount, maxRetries, jobTitle])
+  }, [addDebugMessage, handleWebSocketMessage, setStatus, status])
 
-  // Stop function
-  const stop = useCallback(() => {
+  // Start interview
+  const start = useCallback(async () => {
+    if (isConnecting || status === "active") {
+      addDebugMessage("Already connecting or active, skipping start")
+      return
+    }
+    
     try {
-      addDebugMessage(`Stopping interview session ${hookSessionId.current}...`)
+      setIsConnecting(true)
+      setError(null)
+      setMessages([])
+      setRetryCount(0)
       
-      // Delegate cleanup to session manager if available
-      if (interviewSessionManager) {
-        // Manager will handle all resource cleanup
-        interviewSessionManager.terminateSession(hookSessionId.current)
-        
-        // Reset state
-        setStatus("idle")
-        setIsActive(false)
-        setIsConnecting(false)
-        setIsUserSpeaking(false)
-        setAiCaptions("")
-        setLiveTranscript(null)
-        sessionDataRef.current = null
-        sessionStateRef.current.sessionData = null
-        
-        // Clear refs (they should be cleaned by manager but ensure they're null)
-        dataChannelRef.current = null
+      // Request microphone access
+      setStatus("requesting_mic")
+      addDebugMessage("Requesting microphone access...")
+      
+      await navigator.mediaDevices.getUserMedia({ audio: true })
+      addDebugMessage("Microphone access granted")
+      
+      // Create session
+      const sessionData = await createSession()
+      
+      // Get auth token for WebSocket
+      const authToken = await getToken()
+      if (!authToken) {
+        throw new Error("No authentication token available")
+      }
+      
+      // Setup WebSocket connection
+      await setupWebSocket(sessionData, authToken)
+      
+      // WebRTC setup will happen after WebSocket connects
+      
+    } catch (error: any) {
+      addDebugMessage(`Start error: ${error.message}`)
+      setError(error.message)
+      setStatus("error")
+      setIsConnecting(false)
+      
+      // Handle retry logic for transient errors
+      if (retryCount < maxRetries && !error.message.includes("RATE_LIMIT")) {
+        setRetryCount(prev => prev + 1)
+        setTimeout(() => start(), 2000 * (retryCount + 1))
+      }
+    }
+  }, [isConnecting, status, addDebugMessage, setStatus, createSession, getToken, setupWebSocket, retryCount])
+
+  // Stop interview
+  const stop = useCallback(async () => {
+    addDebugMessage("Stopping interview session...")
+    
+    try {
+      // Send end message if WebSocket is open
+      if (websocketRef.current?.readyState === WebSocket.OPEN) {
+        sendWebSocketMessage({
+          type: "control.end",
+          data: {}
+        })
+      }
+      
+      // Close WebSocket
+      if (websocketRef.current) {
+        websocketRef.current.close()
+        websocketRef.current = null
+      }
+      
+      // Close peer connection
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close()
         peerConnectionRef.current = null
+      }
+      
+      // Stop local stream
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop())
         localStreamRef.current = null
-        aiAudioElementRef.current = null
-        
-        addDebugMessage("Interview session stopped via manager")
-      } else {
-        // Manual cleanup if session manager not available
-        // Close data channel
-        if (dataChannelRef.current) {
-          dataChannelRef.current.close()
-          dataChannelRef.current = null
+      }
+      
+      // End session via API if we have session data
+      if (sessionDataRef.current?.sessionId) {
+        try {
+          const authToken = await getToken()
+          if (authToken) {
+            const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || "http://localhost:5000"
+            await fetch(`${orchestratorUrl}/api/v1/sessions/${sessionDataRef.current.sessionId}/end`, {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${authToken}`
+              }
+            })
+          }
+        } catch (error) {
+          addDebugMessage(`Error ending session via API: ${error}`)
         }
-        
-        // Close peer connection
-        if (peerConnectionRef.current) {
-          peerConnectionRef.current.close()
-          peerConnectionRef.current = null
-        }
-        
-        // Stop media stream
-        if (localStreamRef.current) {
-          localStreamRef.current.getTracks().forEach(track => track.stop())
-          localStreamRef.current = null
-        }
-        
-        // Stop AI audio
-        if (aiAudioElementRef.current) {
-          aiAudioElementRef.current.pause()
-          aiAudioElementRef.current.srcObject = null
-          aiAudioElementRef.current = null
-        }
+      }
+      
+      // Update session manager
+      if (interviewSessionManager) {
+        await interviewSessionManager.notifySessionEnd(hookSessionId.current)
       }
       
       // Reset state
-      setStatus("idle")
+      setStatus("ended")
       setIsActive(false)
       setIsConnecting(false)
-      setIsUserSpeaking(false)
-      setAiCaptions("")
-      setLiveTranscript(null)
       sessionDataRef.current = null
+      sessionStateRef.current.sessionData = null
       
-      // Clear refs
-      dataChannelRef.current = null
-      peerConnectionRef.current = null
-      localStreamRef.current = null
-      aiAudioElementRef.current = null
-      
-      addDebugMessage("Interview session stopped")
+      // Save results if we have messages
+      if (messages.length > 0) {
+        setStatus("saving_results")
+        await saveSessionResults()
+        
+        // Navigate to feedback page
+        const sessionId = sessionDataRef.current?.sessionId || hookSessionId.current
+        router.push(`/feedback?sessionId=${sessionId}`)
+      }
       
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      setError(errorMessage)
-      addDebugMessage(`Stop error: ${errorMessage}`)
+      addDebugMessage(`Stop error: ${error}`)
     }
-  }, [addDebugMessage])
-  
-  // Set stop ref for forward reference
-  stopRef.current = stop
+  }, [addDebugMessage, sendWebSocketMessage, getToken, setStatus, setIsActive, messages, router, interviewSessionManager])
 
-  // Pause function
-  const pause = useCallback(() => {
-    if (interviewSessionManager && sessionStateRef.current.isActive) {
-      addDebugMessage(`Pausing interview session ${hookSessionId.current}`)
-      interviewSessionManager.pauseSession(hookSessionId.current)
-      setStatus("idle")
-      setIsActive(false)
-    }
-  }, [addDebugMessage, setStatus, setIsActive])
-  
-  // Resume function
-  const resume = useCallback(() => {
-    if (interviewSessionManager && interviewSessionManager.isSessionPaused(hookSessionId.current)) {
-      addDebugMessage(`Resuming interview session ${hookSessionId.current}`)
-      interviewSessionManager.resumeSession(hookSessionId.current)
-      setStatus("active")
-      setIsActive(true)
-    }
-  }, [addDebugMessage, setStatus, setIsActive])
-
-  // Toggle mute function
-  const toggleMute = useCallback(() => {
-    if (!localStreamRef.current) {
-      addDebugMessage("No local stream to mute/unmute")
-      return
-    }
-
-    const audioTracks = localStreamRef.current.getAudioTracks()
-    if (audioTracks.length === 0) {
-      addDebugMessage("No audio tracks found")
-      return
-    }
-
-    const newMutedState = !isMuted
-    audioTracks.forEach(track => {
-      track.enabled = !newMutedState
-    })
-
-    setIsMuted(newMutedState)
-    addDebugMessage(`Microphone ${newMutedState ? 'muted' : 'unmuted'}`)
-  }, [isMuted, addDebugMessage])
-
-  // Send message via data channel
-  const sendMessage = useCallback((type: string, data: any = {}) => {
-    if (dataChannelRef.current && dataChannelRef.current.readyState === "open") {
-      const message = {
-        type,
-        ...data,
-        timestamp: Date.now()
-      }
-      dataChannelRef.current.send(JSON.stringify(message))
-      addDebugMessage(`Sent message: ${type}`)
-    } else {
-      addDebugMessage("Cannot send message: data channel not open")
-    }
-  }, [addDebugMessage])
-
-  // Helper function to calculate average response time
-  const calculateAverageResponseTime = useCallback((messages: InterviewMessage[]) => {
-    const responseTimes: number[] = []
-    let lastUserMessageTime: number | null = null
-    
-    for (const message of messages) {
-      if (message.role === "user") {
-        lastUserMessageTime = message.timestamp
-      } else if (message.role === "assistant" && lastUserMessageTime !== null) {
-        responseTimes.push(message.timestamp - lastUserMessageTime)
-        lastUserMessageTime = null
-      }
-    }
-    
-    if (responseTimes.length === 0) return 0
-    return responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
-  }, [])
-
-  // Save interview session to database
-  const saveInterviewSession = useCallback(async () => {
-    if (messages.length === 0 || !sessionDataRef.current?.id) {
-      addDebugMessage("No messages or session ID to save")
-      return null
-    }
-    
-    setStatus("saving_results")
-    const sessionStartTime = messages[0]?.timestamp || Date.now()
-    const sessionEndTime = messages[messages.length - 1]?.timestamp || Date.now()
-    
+  // Save session results
+  const saveSessionResults = useCallback(async () => {
     try {
-      // Get auth token for API call
+      addDebugMessage("Saving interview results...")
+      
       const authToken = await getToken()
-      if (!authToken) throw new Error("No auth token available")
+      if (!authToken) {
+        throw new Error("No authentication token")
+      }
+      
+      const transcript = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: new Date(msg.timestamp).toISOString()
+      }))
       
       const response = await fetch("/api/interviews", {
         method: "POST",
@@ -871,109 +592,56 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
           "Authorization": `Bearer ${authToken}`
         },
         body: JSON.stringify({
-          sessionId: sessionDataRef.current.id,
           jobTitle,
-          resumeData: resumeData || null,
-          messages,
-          startTime: sessionStartTime,
-          endTime: sessionEndTime,
-          duration: sessionEndTime - sessionStartTime,
-          // Include performance metrics
-          metrics: {
-            totalUserMessages: messages.filter(m => m.role === "user").length,
-            totalAssistantMessages: messages.filter(m => m.role === "assistant").length,
-            averageResponseTime: calculateAverageResponseTime(messages)
-          }
+          transcript
         })
       })
       
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || "Failed to save interview")
+        throw new Error("Failed to save interview results")
       }
       
-      const result = await response.json()
-      addDebugMessage(`Interview saved with ID: ${result.id}`)
+      addDebugMessage("Interview results saved successfully")
       
-      // Clear session data
-      sessionDataRef.current = null
-      
-      return result
     } catch (error) {
-      addDebugMessage(`Failed to save interview: ${error}`)
-      const errorMessage = `Failed to save interview results: ${error instanceof Error ? error.message : String(error)}`
-      setError(errorMessage)
-      throw error
-    } finally {
-      setStatus("idle")
+      addDebugMessage(`Save results error: ${error}`)
+      // Don't throw - we still want to navigate to feedback even if save fails
     }
-  }, [messages, jobTitle, resumeData, getToken, addDebugMessage, calculateAverageResponseTime])
+  }, [addDebugMessage, getToken, messages, jobTitle])
 
-  // Handle visibility changes to maintain connection
+  // Toggle mute
+  const toggleMute = useCallback(() => {
+    if (localStreamRef.current) {
+      const audioTrack = localStreamRef.current.getAudioTracks()[0]
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled
+        setIsMuted(!audioTrack.enabled)
+        addDebugMessage(`Microphone ${audioTrack.enabled ? "unmuted" : "muted"}`)
+      }
+    }
+  }, [addDebugMessage])
+
+  // Set stop ref
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden && sessionStateRef.current.isActive) {
-        // Tab is hidden - pause the session
-        addDebugMessage("Tab hidden, pausing interview session")
-        if (interviewSessionManager) {
-          interviewSessionManager.pauseSession(hookSessionId.current)
-        }
-      } else if (!document.hidden) {
-        // Tab is visible again - check if we need to resume
-        if (interviewSessionManager && interviewSessionManager.isSessionPaused(hookSessionId.current)) {
-          addDebugMessage("Tab visible again, resuming interview session")
-          interviewSessionManager.resumeSession(hookSessionId.current)
-          
-          // The session manager will handle audio resumption, but ensure our state is synced
-          if (interviewSessionManager.getSessionState(hookSessionId.current) === SessionState.ACTIVE) {
-            setIsActive(true)
-            setStatus("active")
-          }
-        }
-      }
-    }
+    stopRef.current = stop
+  }, [stop])
 
-    // Add visibility change listener
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    // Handle actual page navigation (not just tab switches)
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (sessionStateRef.current.isActive) {
-        // Save interview state to localStorage for potential recovery
-        const interviewState = {
-          sessionId: sessionDataRef.current?.id,
-          messages,
-          jobTitle,
-          resumeData,
-          timestamp: Date.now()
-        }
-        localStorage.setItem('vocahire_active_interview', JSON.stringify(interviewState))
-        
-        // Show browser confirmation dialog
-        e.preventDefault()
-        e.returnValue = 'You have an active interview. Are you sure you want to leave?'
-      }
-    }
-    
-    window.addEventListener('beforeunload', handleBeforeUnload)
-
-    // Cleanup
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('beforeunload', handleBeforeUnload)
-      
-      // Component unmounting - pause instead of terminate
-      if (interviewSessionManager && interviewSessionManager.isSessionActive(hookSessionId.current)) {
-        addDebugMessage("Component unmounting - pausing active session for potential resume")
-        interviewSessionManager.pauseSession(hookSessionId.current)
-      } else if (interviewSessionManager && interviewSessionManager.isSessionPaused(hookSessionId.current)) {
-        addDebugMessage("Component unmounting - session already paused, preserving")
-      } else {
-        // Session is terminated or no manager available
-        addDebugMessage("Component unmounting - no active session to pause")
+      if (stopRef.current && (status === "active" || isConnecting)) {
+        stopRef.current()
       }
     }
-  }, [addDebugMessage, messages, jobTitle, resumeData, setIsActive, setStatus])
+  }, [status, isConnecting])
+
+  // Handle auth changes
+  useEffect(() => {
+    if (isLoaded && !isSignedIn && status !== "idle") {
+      addDebugMessage("User signed out, stopping session")
+      stop()
+    }
+  }, [isLoaded, isSignedIn, status, stop, addDebugMessage])
 
   return {
     // State
@@ -983,25 +651,20 @@ export function useRealtimeInterviewSession(props: UseRealtimeInterviewSessionPr
     debug,
     isConnecting,
     isActive: isActiveState,
+    
+    // Real-time state
     isUserSpeaking,
     aiCaptions,
     liveTranscript,
     isMuted,
     
-    // Functions
+    // Actions
     start,
     stop,
-    pause,
-    resume,
     toggleMute,
-    addDebugMessage,
-    sendMessage,
-    saveInterviewSession,
     
-    // Refs
-    localStreamRef,
-    aiAudioElementRef,
-    peerConnection: peerConnectionRef.current,
-    dataChannel: dataChannelRef.current,
+    // Metadata
+    retryCount,
+    maxRetries,
   }
 }

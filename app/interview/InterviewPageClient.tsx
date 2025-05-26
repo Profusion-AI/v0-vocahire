@@ -395,44 +395,25 @@ export default function InterviewPageClient({
       
       switch (status) {
         case 'requesting_mic':
-        case 'testing_api':
           setCurrentLoadingStageId('mic_check');
           loadingStateRef.current.lastCurrentStage = 'mic_check';
           loadingStateRef.current.lastCompletedStages = [];
           setupAutoAdvance('session_init', ['mic_check']);
           break;
-        case 'fetching_token':
+        case 'creating_session':
           setCompletedLoadingStageIds(['mic_check']);
           setCurrentLoadingStageId('session_init');
           loadingStateRef.current.lastCurrentStage = 'session_init';
           loadingStateRef.current.lastCompletedStages = ['mic_check'];
           setupAutoAdvance('ai_connect', ['mic_check', 'session_init']);
           break;
-        case 'creating_offer':
-        case 'exchanging_sdp':
+        case 'connecting_websocket':
+        case 'establishing_webrtc':
           setCompletedLoadingStageIds(['mic_check', 'session_init']);
           setCurrentLoadingStageId('ai_connect');
           loadingStateRef.current.lastCurrentStage = 'ai_connect';
           loadingStateRef.current.lastCompletedStages = ['mic_check', 'session_init'];
           setupAutoAdvance('finalizing', ['mic_check', 'session_init', 'ai_connect']);
-          break;
-        case 'connecting_webrtc':
-        case 'data_channel_open':
-          setCompletedLoadingStageIds(['mic_check', 'session_init', 'ai_connect']);
-          setCurrentLoadingStageId('finalizing');
-          loadingStateRef.current.lastCurrentStage = 'finalizing';
-          loadingStateRef.current.lastCompletedStages = ['mic_check', 'session_init', 'ai_connect'];
-          // No auto-advance for final stage, just complete after 10s
-          stageTimeoutRef.current = setTimeout(() => {
-            setCompletedLoadingStageIds(['mic_check', 'session_init', 'ai_connect', 'finalizing']);
-            setTimeout(() => {
-              setShowLoadingScreen(false);
-              setTimeout(() => {
-                setCurrentLoadingStageId(undefined);
-                setCompletedLoadingStageIds([]);
-              }, 300);
-            }, 1000);
-          }, 10000);
           break;
         case 'active':
           // Clear any pending timeout

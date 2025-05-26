@@ -1,7 +1,7 @@
 # VocaHire Backend Orchestrator API Specification
 
-**Document Version**: 1.0  
-**Date**: May 25, 2025  
+**Document Version**: 1.1  
+**Date**: May 26, 2025  
 **Author**: Claude (AI Developer)  
 **Purpose**: Define the API contract between VocaHire client applications and the backend orchestration service
 
@@ -151,6 +151,17 @@ Include JWT token as query parameter:
 ```
 wss://ai-orchestrator-xxxxx-uc.a.run.app/ws/sess_a1b2c3d4e5f6?token=<jwt_token>
 ```
+
+### Connection Flow
+1. Client creates session via `POST /api/v1/sessions/create`
+2. Client establishes WebSocket connection using returned `websocketUrl`
+3. Server sends `session.status` with `status: "connected"`
+4. Client creates RTCPeerConnection with provided `iceServers`
+5. Client sends `webrtc.offer` via WebSocket
+6. Server responds with `webrtc.answer`
+7. Both exchange `webrtc.ice_candidate` messages
+8. Once WebRTC is established, audio flows directly
+9. Transcripts and control messages flow via WebSocket
 
 ### Message Format
 
@@ -548,33 +559,107 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 ### React Hook Integration
 ```typescript
 // Example usage in useRealtimeInterviewSession.ts
-const ws = new WebSocket(`${orchestratorUrl}/ws/${sessionId}?token=${token}`);
 
-ws.onmessage = (event) => {
-  const message = JSON.parse(event.data);
-  
-  switch (message.type) {
-    case 'transcript.user':
-      handleUserTranscript(message.data);
-      break;
-    case 'transcript.ai':
-      handleAITranscript(message.data);
-      break;
-    case 'session.status':
-      updateSessionStatus(message.data);
-      break;
-    // ... handle other message types
+// 1. Create session
+const response = await fetch('/api/sessions/create', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${authToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    userId,
+    jobTitle,
+    resumeContext,
+    interviewType: 'behavioral',
+    preferences: { difficulty: 'senior', duration: 30 }
+  })
+});
+
+const { sessionId, websocketUrl, iceServers } = await response.json();
+
+// 2. Establish WebSocket
+const ws = new WebSocket(`${websocketUrl}?token=${authToken}`);
+
+// 3. Create peer connection
+const pc = new RTCPeerConnection({ iceServers });
+
+// 4. Add local audio stream
+const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+// 5. Handle ICE candidates
+pc.onicecandidate = (event) => {
+  if (event.candidate) {
+    ws.send(JSON.stringify({
+      type: 'webrtc.ice_candidate',
+      timestamp: new Date().toISOString(),
+      data: {
+        candidate: event.candidate.candidate,
+        sdpMLineIndex: event.candidate.sdpMLineIndex,
+        sdpMid: event.candidate.sdpMid
+      }
+    }));
   }
 };
 
-// Send WebRTC offer
+// 6. Create and send offer
+const offer = await pc.createOffer();
+await pc.setLocalDescription(offer);
+
 ws.send(JSON.stringify({
   type: 'webrtc.offer',
   timestamp: new Date().toISOString(),
   data: {
-    sdp: localOffer.sdp,
+    sdp: offer.sdp,
     type: 'offer'
   }
+}));
+
+// 7. Handle WebSocket messages
+ws.onmessage = async (event) => {
+  const message = JSON.parse(event.data);
+  
+  switch (message.type) {
+    case 'webrtc.answer':
+      await pc.setRemoteDescription(
+        new RTCSessionDescription(message.data)
+      );
+      break;
+      
+    case 'webrtc.ice_candidate':
+      await pc.addIceCandidate(
+        new RTCIceCandidate(message.data)
+      );
+      break;
+      
+    case 'transcript.user':
+      handleUserTranscript(message.data);
+      break;
+      
+    case 'transcript.ai':
+      handleAITranscript(message.data);
+      break;
+      
+    case 'session.status':
+      updateSessionStatus(message.data);
+      break;
+      
+    case 'ai.thinking':
+      showThinkingIndicator(message.data);
+      break;
+      
+    case 'error':
+      handleError(message.data);
+      break;
+  }
+};
+
+// 8. Start interview when ready
+ws.send(JSON.stringify({
+  type: 'control.start_interview',
+  timestamp: new Date().toISOString(),
+  data: {}
 }));
 ```
 
@@ -599,11 +684,38 @@ ws.onerror = (error) => {
 };
 ```
 
+## 📝 Key Implementation Notes for Client
+
+### Session Lifecycle Management
+1. **Session Creation**: Always check for sufficient credits before creating
+2. **Connection Management**: Maintain both WebSocket and WebRTC connections
+3. **Audio Flow**: User audio → WebRTC → Backend → Google STT/TTS → WebRTC → Speaker
+4. **Data Flow**: Transcripts, status, control → WebSocket
+5. **Cleanup**: Always call `/end` endpoint and close connections properly
+
+### State Synchronization
+- Session state is source of truth on server
+- Client should react to server state changes
+- Don't assume local actions succeeded until confirmed
+
+### Audio Configuration
+```typescript
+const audioConstraints = {
+  audio: {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+    sampleRate: 48000
+  }
+};
+```
+
 ## 📝 Version History
 
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2025-05-25 | Initial specification |
+| 1.1 | 2025-05-26 | Added connection flow, enhanced client guide |
 
 ---
 
