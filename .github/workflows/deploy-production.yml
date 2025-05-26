@@ -1,0 +1,82 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag for deployment (e.g., v1.0.0)'
+        required: true
+        type: string
+  release:
+    types: [published]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
+  SERVICE_NAME: vocahire-orchestrator
+  IMAGE_NAME: vocahire-orchestrator
+
+jobs:
+  deploy:
+    name: Deploy to Cloud Run Production
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY_PROD }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${REGION}-docker.pkg.dev
+      
+      - name: Build Docker image
+        run: |
+          docker build -t ${REGION}-docker.pkg.dev/${PROJECT_ID}/vocahire/${IMAGE_NAME}:${GITHUB_SHA} .
+          docker tag ${REGION}-docker.pkg.dev/${PROJECT_ID}/vocahire/${IMAGE_NAME}:${GITHUB_SHA} \
+            ${REGION}-docker.pkg.dev/${PROJECT_ID}/vocahire/${IMAGE_NAME}:${{ github.event.inputs.version || github.event.release.tag_name }}
+          docker tag ${REGION}-docker.pkg.dev/${PROJECT_ID}/vocahire/${IMAGE_NAME}:${GITHUB_SHA} \
+            ${REGION}-docker.pkg.dev/${PROJECT_ID}/vocahire/${IMAGE_NAME}:latest
+      
+      - name: Push Docker image
+        run: |
+          docker push ${REGION}-docker.pkg.dev/${PROJECT_ID}/vocahire/${IMAGE_NAME}:${GITHUB_SHA}
+          docker push ${REGION}-docker.pkg.dev/${PROJECT_ID}/vocahire/${IMAGE_NAME}:${{ github.event.inputs.version || github.event.release.tag_name }}
+          docker push ${REGION}-docker.pkg.dev/${PROJECT_ID}/vocahire/${IMAGE_NAME}:latest
+      
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${SERVICE_NAME} \
+            --image ${REGION}-docker.pkg.dev/${PROJECT_ID}/vocahire/${IMAGE_NAME}:${GITHUB_SHA} \
+            --region ${REGION} \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 3000 \
+            --memory 4Gi \
+            --cpu 4 \
+            --max-instances 50 \
+            --min-instances 2 \
+            --set-env-vars="NODE_ENV=production" \
+            --set-secrets="DATABASE_URL=database-url:latest" \
+            --set-secrets="REDIS_URL=redis-url:latest" \
+            --set-secrets="CLERK_SECRET_KEY=clerk-secret-key:latest" \
+            --set-secrets="STRIPE_SECRET_KEY=stripe-secret-key:latest" \
+            --set-secrets="GOOGLE_APPLICATION_CREDENTIALS=google-creds:latest"
+      
+      - name: Verify deployment
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${SERVICE_NAME} --region ${REGION} --format 'value(status.url)')
+          echo "Production deployed to: ${SERVICE_URL}"
+          
+          # Health check
+          curl -f ${SERVICE_URL}/health || exit 1
