@@ -88,7 +88,7 @@ ENV HOSTNAME "0.0.0.0"
 
 # Health check endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/api/diagnostic/connection-test', (res) => { \
+  CMD node -e "require('http').get('http://localhost:3000/health', (res) => { \
     if (res.statusCode === 200) process.exit(0); \
     else process.exit(1); \
   }).on('error', () => process.exit(1));"
