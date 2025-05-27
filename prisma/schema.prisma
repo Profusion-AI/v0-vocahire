@@ -51,7 +51,6 @@ model InterviewSession {
   company         String?
   interviewType   String?
   jdContext       String?
-  webrtcSessionId String?      @unique
   openaiSessionId String?      @unique
   fallbackMode    Boolean      @default(false)
   startTime       DateTime?

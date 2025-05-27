@@ -156,7 +156,6 @@ exports.Prisma.InterviewSessionScalarFieldEnum = {
   company: 'company',
   interviewType: 'interviewType',
   jdContext: 'jdContext',
-  webrtcSessionId: 'webrtcSessionId',
   openaiSessionId: 'openaiSessionId',
   fallbackMode: 'fallbackMode',
   startTime: 'startTime',

@@ -2789,7 +2789,6 @@ export namespace Prisma {
     company: string | null
     interviewType: string | null
     jdContext: string | null
-    webrtcSessionId: string | null
     openaiSessionId: string | null
     fallbackMode: boolean | null
     startTime: Date | null
@@ -2814,7 +2813,6 @@ export namespace Prisma {
     company: string | null
     interviewType: string | null
     jdContext: string | null
-    webrtcSessionId: string | null
     openaiSessionId: string | null
     fallbackMode: boolean | null
     startTime: Date | null
@@ -2841,7 +2839,6 @@ export namespace Prisma {
     company: number
     interviewType: number
     jdContext: number
-    webrtcSessionId: number
     openaiSessionId: number
     fallbackMode: number
     startTime: number
@@ -2879,7 +2876,6 @@ export namespace Prisma {
     company?: true
     interviewType?: true
     jdContext?: true
-    webrtcSessionId?: true
     openaiSessionId?: true
     fallbackMode?: true
     startTime?: true
@@ -2904,7 +2900,6 @@ export namespace Prisma {
     company?: true
     interviewType?: true
     jdContext?: true
-    webrtcSessionId?: true
     openaiSessionId?: true
     fallbackMode?: true
     startTime?: true
@@ -2931,7 +2926,6 @@ export namespace Prisma {
     company?: true
     interviewType?: true
     jdContext?: true
-    webrtcSessionId?: true
     openaiSessionId?: true
     fallbackMode?: true
     startTime?: true
@@ -3046,7 +3040,6 @@ export namespace Prisma {
     company: string | null
     interviewType: string | null
     jdContext: string | null
-    webrtcSessionId: string | null
     openaiSessionId: string | null
     fallbackMode: boolean
     startTime: Date | null
@@ -3093,7 +3086,6 @@ export namespace Prisma {
     company?: boolean
     interviewType?: boolean
     jdContext?: boolean
-    webrtcSessionId?: boolean
     openaiSessionId?: boolean
     fallbackMode?: boolean
     startTime?: boolean
@@ -3125,7 +3117,6 @@ export namespace Prisma {
     company?: boolean
     interviewType?: boolean
     jdContext?: boolean
-    webrtcSessionId?: boolean
     openaiSessionId?: boolean
     fallbackMode?: boolean
     startTime?: boolean
@@ -3154,7 +3145,6 @@ export namespace Prisma {
     company?: boolean
     interviewType?: boolean
     jdContext?: boolean
-    webrtcSessionId?: boolean
     openaiSessionId?: boolean
     fallbackMode?: boolean
     startTime?: boolean
@@ -3183,7 +3173,6 @@ export namespace Prisma {
     company?: boolean
     interviewType?: boolean
     jdContext?: boolean
-    webrtcSessionId?: boolean
     openaiSessionId?: boolean
     fallbackMode?: boolean
     startTime?: boolean
@@ -3202,7 +3191,7 @@ export namespace Prisma {
     deletedAt?: boolean
   }
 
-  export type InterviewSessionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "jobTitle" | "resumeData" | "resumeSnapshot" | "company" | "interviewType" | "jdContext" | "webrtcSessionId" | "openaiSessionId" | "fallbackMode" | "startTime" | "endTime" | "duration" | "status" | "feedbackStatus" | "metadata" | "startedAt" | "endedAt" | "durationSeconds" | "audioUrl" | "expiresAt" | "createdAt" | "updatedAt" | "deletedAt", ExtArgs["result"]["interviewSession"]>
+  export type InterviewSessionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "jobTitle" | "resumeData" | "resumeSnapshot" | "company" | "interviewType" | "jdContext" | "openaiSessionId" | "fallbackMode" | "startTime" | "endTime" | "duration" | "status" | "feedbackStatus" | "metadata" | "startedAt" | "endedAt" | "durationSeconds" | "audioUrl" | "expiresAt" | "createdAt" | "updatedAt" | "deletedAt", ExtArgs["result"]["interviewSession"]>
   export type InterviewSessionInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     feedbacks?: boolean | InterviewSession$feedbacksArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -3232,7 +3221,6 @@ export namespace Prisma {
       company: string | null
       interviewType: string | null
       jdContext: string | null
-      webrtcSessionId: string | null
       openaiSessionId: string | null
       fallbackMode: boolean
       startTime: Date | null
@@ -3683,7 +3671,6 @@ export namespace Prisma {
     readonly company: FieldRef<"InterviewSession", 'String'>
     readonly interviewType: FieldRef<"InterviewSession", 'String'>
     readonly jdContext: FieldRef<"InterviewSession", 'String'>
-    readonly webrtcSessionId: FieldRef<"InterviewSession", 'String'>
     readonly openaiSessionId: FieldRef<"InterviewSession", 'String'>
     readonly fallbackMode: FieldRef<"InterviewSession", 'Boolean'>
     readonly startTime: FieldRef<"InterviewSession", 'DateTime'>
@@ -7830,7 +7817,6 @@ export namespace Prisma {
     company: 'company',
     interviewType: 'interviewType',
     jdContext: 'jdContext',
-    webrtcSessionId: 'webrtcSessionId',
     openaiSessionId: 'openaiSessionId',
     fallbackMode: 'fallbackMode',
     startTime: 'startTime',
@@ -8235,7 +8221,6 @@ export namespace Prisma {
     company?: StringNullableFilter<"InterviewSession"> | string | null
     interviewType?: StringNullableFilter<"InterviewSession"> | string | null
     jdContext?: StringNullableFilter<"InterviewSession"> | string | null
-    webrtcSessionId?: StringNullableFilter<"InterviewSession"> | string | null
     openaiSessionId?: StringNullableFilter<"InterviewSession"> | string | null
     fallbackMode?: BoolFilter<"InterviewSession"> | boolean
     startTime?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
@@ -8266,7 +8251,6 @@ export namespace Prisma {
     company?: SortOrderInput | SortOrder
     interviewType?: SortOrderInput | SortOrder
     jdContext?: SortOrderInput | SortOrder
-    webrtcSessionId?: SortOrderInput | SortOrder
     openaiSessionId?: SortOrderInput | SortOrder
     fallbackMode?: SortOrder
     startTime?: SortOrderInput | SortOrder
@@ -8290,7 +8274,6 @@ export namespace Prisma {
 
   export type InterviewSessionWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    webrtcSessionId?: string
     openaiSessionId?: string
     AND?: InterviewSessionWhereInput | InterviewSessionWhereInput[]
     OR?: InterviewSessionWhereInput[]
@@ -8320,7 +8303,7 @@ export namespace Prisma {
     feedbacks?: FeedbackListRelationFilter
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
     transcripts?: TranscriptListRelationFilter
-  }, "id" | "webrtcSessionId" | "openaiSessionId">
+  }, "id" | "openaiSessionId">
 
   export type InterviewSessionOrderByWithAggregationInput = {
     id?: SortOrder
@@ -8331,7 +8314,6 @@ export namespace Prisma {
     company?: SortOrderInput | SortOrder
     interviewType?: SortOrderInput | SortOrder
     jdContext?: SortOrderInput | SortOrder
-    webrtcSessionId?: SortOrderInput | SortOrder
     openaiSessionId?: SortOrderInput | SortOrder
     fallbackMode?: SortOrder
     startTime?: SortOrderInput | SortOrder
@@ -8367,7 +8349,6 @@ export namespace Prisma {
     company?: StringNullableWithAggregatesFilter<"InterviewSession"> | string | null
     interviewType?: StringNullableWithAggregatesFilter<"InterviewSession"> | string | null
     jdContext?: StringNullableWithAggregatesFilter<"InterviewSession"> | string | null
-    webrtcSessionId?: StringNullableWithAggregatesFilter<"InterviewSession"> | string | null
     openaiSessionId?: StringNullableWithAggregatesFilter<"InterviewSession"> | string | null
     fallbackMode?: BoolWithAggregatesFilter<"InterviewSession"> | boolean
     startTime?: DateTimeNullableWithAggregatesFilter<"InterviewSession"> | Date | string | null
@@ -8897,7 +8878,6 @@ export namespace Prisma {
     company?: string | null
     interviewType?: string | null
     jdContext?: string | null
-    webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
     startTime?: Date | string | null
@@ -8928,7 +8908,6 @@ export namespace Prisma {
     company?: string | null
     interviewType?: string | null
     jdContext?: string | null
-    webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
     startTime?: Date | string | null
@@ -8957,7 +8936,6 @@ export namespace Prisma {
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
     jdContext?: NullableStringFieldUpdateOperationsInput | string | null
-    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
     startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -8988,7 +8966,6 @@ export namespace Prisma {
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
     jdContext?: NullableStringFieldUpdateOperationsInput | string | null
-    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
     startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -9018,7 +8995,6 @@ export namespace Prisma {
     company?: string | null
     interviewType?: string | null
     jdContext?: string | null
-    webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
     startTime?: Date | string | null
@@ -9045,7 +9021,6 @@ export namespace Prisma {
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
     jdContext?: NullableStringFieldUpdateOperationsInput | string | null
-    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
     startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -9073,7 +9048,6 @@ export namespace Prisma {
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
     jdContext?: NullableStringFieldUpdateOperationsInput | string | null
-    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
     startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -9806,7 +9780,6 @@ export namespace Prisma {
     company?: SortOrder
     interviewType?: SortOrder
     jdContext?: SortOrder
-    webrtcSessionId?: SortOrder
     openaiSessionId?: SortOrder
     fallbackMode?: SortOrder
     startTime?: SortOrder
@@ -9837,7 +9810,6 @@ export namespace Prisma {
     company?: SortOrder
     interviewType?: SortOrder
     jdContext?: SortOrder
-    webrtcSessionId?: SortOrder
     openaiSessionId?: SortOrder
     fallbackMode?: SortOrder
     startTime?: SortOrder
@@ -9862,7 +9834,6 @@ export namespace Prisma {
     company?: SortOrder
     interviewType?: SortOrder
     jdContext?: SortOrder
-    webrtcSessionId?: SortOrder
     openaiSessionId?: SortOrder
     fallbackMode?: SortOrder
     startTime?: SortOrder
@@ -10868,7 +10839,6 @@ export namespace Prisma {
     company?: string | null
     interviewType?: string | null
     jdContext?: string | null
-    webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
     startTime?: Date | string | null
@@ -10897,7 +10867,6 @@ export namespace Prisma {
     company?: string | null
     interviewType?: string | null
     jdContext?: string | null
-    webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
     startTime?: Date | string | null
@@ -11029,7 +10998,6 @@ export namespace Prisma {
     company?: StringNullableFilter<"InterviewSession"> | string | null
     interviewType?: StringNullableFilter<"InterviewSession"> | string | null
     jdContext?: StringNullableFilter<"InterviewSession"> | string | null
-    webrtcSessionId?: StringNullableFilter<"InterviewSession"> | string | null
     openaiSessionId?: StringNullableFilter<"InterviewSession"> | string | null
     fallbackMode?: BoolFilter<"InterviewSession"> | boolean
     startTime?: DateTimeNullableFilter<"InterviewSession"> | Date | string | null
@@ -11362,7 +11330,6 @@ export namespace Prisma {
     company?: string | null
     interviewType?: string | null
     jdContext?: string | null
-    webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
     startTime?: Date | string | null
@@ -11392,7 +11359,6 @@ export namespace Prisma {
     company?: string | null
     interviewType?: string | null
     jdContext?: string | null
-    webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
     startTime?: Date | string | null
@@ -11436,7 +11402,6 @@ export namespace Prisma {
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
     jdContext?: NullableStringFieldUpdateOperationsInput | string | null
-    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
     startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -11466,7 +11431,6 @@ export namespace Prisma {
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
     jdContext?: NullableStringFieldUpdateOperationsInput | string | null
-    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
     startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -11494,7 +11458,6 @@ export namespace Prisma {
     company?: string | null
     interviewType?: string | null
     jdContext?: string | null
-    webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
     startTime?: Date | string | null
@@ -11524,7 +11487,6 @@ export namespace Prisma {
     company?: string | null
     interviewType?: string | null
     jdContext?: string | null
-    webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
     startTime?: Date | string | null
@@ -11631,7 +11593,6 @@ export namespace Prisma {
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
     jdContext?: NullableStringFieldUpdateOperationsInput | string | null
-    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
     startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -11661,7 +11622,6 @@ export namespace Prisma {
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
     jdContext?: NullableStringFieldUpdateOperationsInput | string | null
-    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
     startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -11915,7 +11875,6 @@ export namespace Prisma {
     company?: string | null
     interviewType?: string | null
     jdContext?: string | null
-    webrtcSessionId?: string | null
     openaiSessionId?: string | null
     fallbackMode?: boolean
     startTime?: Date | string | null
@@ -12026,7 +11985,6 @@ export namespace Prisma {
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
     jdContext?: NullableStringFieldUpdateOperationsInput | string | null
-    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
     startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -12055,7 +12013,6 @@ export namespace Prisma {
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
     jdContext?: NullableStringFieldUpdateOperationsInput | string | null
-    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
     startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -12084,7 +12041,6 @@ export namespace Prisma {
     company?: NullableStringFieldUpdateOperationsInput | string | null
     interviewType?: NullableStringFieldUpdateOperationsInput | string | null
     jdContext?: NullableStringFieldUpdateOperationsInput | string | null
-    webrtcSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     openaiSessionId?: NullableStringFieldUpdateOperationsInput | string | null
     fallbackMode?: BoolFieldUpdateOperationsInput | boolean
     startTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
