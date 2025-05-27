@@ -37,6 +37,7 @@ export default function InterviewV2Page() {
   const [sessionConfig, setSessionConfig] = useState<ExtendedSessionConfig | null>(null);
   const [componentConfig, setComponentConfig] = useState<ComponentSessionConfig | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [reconnectAttempt, setReconnectAttempt] = useState<{ current: number; max: number } | null>(null);
   
   // Initialize realtime hook with proper config
   const realtimeHook = useGenkitRealtime(
@@ -59,6 +60,12 @@ export default function InterviewV2Page() {
       },
       onError: (error) => {
         console.error('Connection error:', error);
+      },
+      onReconnecting: (attempt, maxAttempts) => {
+        setReconnectAttempt({ current: attempt, max: maxAttempts });
+      },
+      onReconnected: () => {
+        setReconnectAttempt(null);
       },
     }
   );
@@ -138,6 +145,7 @@ export default function InterviewV2Page() {
           sessionConfig={componentConfig}
           realtimeHook={realtimeHook}
           onEnd={handleInterviewEnd}
+          reconnectAttempt={reconnectAttempt}
         />
       )}
       

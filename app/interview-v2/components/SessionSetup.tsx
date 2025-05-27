@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +9,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
+
 // SessionConfig type that matches what the page expects
 interface SessionConfig {
   interviewType: string;
@@ -18,19 +19,25 @@ interface SessionConfig {
   userId?: string;
 }
 
-// Validation schema for setup form
+// Validation schema for setup form with enhanced validation
 const SetupFormSchema = z.object({
-  interviewType: z.enum(['behavioral', 'technical', 'situational']),
-  domainOrRole: z.string().min(1, 'Please enter a domain or role'),
+  interviewType: z.enum(['behavioral', 'technical', 'situational'], {
+    errorMap: () => ({ message: 'Please select an interview type' })
+  }),
+  domainOrRole: z.string()
+    .min(2, 'Job role must be at least 2 characters')
+    .max(100, 'Job role must be less than 100 characters')
+    .regex(/^[a-zA-Z0-9\s\-\/&,.()]+$/, 'Job role contains invalid characters')
+    .transform(str => str.trim()),
   consentGiven: z.boolean().refine(val => val === true, {
-    message: 'You must give consent to record the interview',
+    message: 'You must consent to recording the interview to proceed',
   }),
 });
 
 type SetupFormData = z.infer<typeof SetupFormSchema>;
 
 interface SessionSetupProps {
-  onComplete: (config: SessionConfig) => void;
+  onComplete: (config: SessionConfig) => void | Promise<void>;
   isLoading?: boolean;
 }
 
@@ -42,9 +49,51 @@ export function SessionSetup({ onComplete, isLoading = false }: SessionSetupProp
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitAttempts, setSubmitAttempts] = useState(0);
+  const lastSubmitTime = useRef<number>(0);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const validateField = (field: keyof SetupFormData, value: any) => {
+    try {
+      const schema = SetupFormSchema.pick({ [field]: true });
+      schema.parse({ [field]: value });
+      // Clear error for this field
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        setErrors(prev => ({
+          ...prev,
+          [field]: error.errors[0]?.message || 'Invalid value'
+        }));
+      }
+      return false;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent rapid submissions
+    const now = Date.now();
+    if (now - lastSubmitTime.current < 1000) {
+      setErrors({ submit: 'Please wait a moment before submitting again.' });
+      return;
+    }
+    lastSubmitTime.current = now;
+    setSubmitAttempts(prev => prev + 1);
+    
+    // Mark all fields as touched
+    setTouched({
+      interviewType: true,
+      domainOrRole: true,
+      consentGiven: true,
+    });
     
     // Validate form data
     const result = SetupFormSchema.safeParse(formData);
@@ -57,20 +106,40 @@ export function SessionSetup({ onComplete, isLoading = false }: SessionSetupProp
         }
       });
       setErrors(newErrors);
+      
+      // Focus on first error field
+      const firstErrorField = Object.keys(newErrors)[0];
+      const element = document.getElementById(firstErrorField);
+      if (element) {
+        element.focus();
+      }
+      
       return;
     }
     
     // Clear errors and submit
     setErrors({});
+    setIsSubmitting(true);
     
-    // Convert to SessionConfig format
-    const config: SessionConfig = {
-      interviewType: formData.interviewType,
-      domainOrRole: formData.domainOrRole,
-      sessionId: `session_${Date.now()}`,
-    };
-    
-    onComplete(config);
+    try {
+      // Convert to SessionConfig format
+      const config: SessionConfig = {
+        interviewType: result.data.interviewType,
+        domainOrRole: result.data.domainOrRole,
+        sessionId: `session_${Date.now()}`,
+      };
+      
+      await onComplete(config);
+    } catch (error) {
+      console.error('Failed to start session:', error);
+      setErrors({ submit: 'Failed to start interview session. Please try again.' });
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBlur = (field: keyof SetupFormData) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    validateField(field, formData[field]);
   };
 
   return (
@@ -82,18 +151,26 @@ export function SessionSetup({ onComplete, isLoading = false }: SessionSetupProp
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           {/* Interview Type */}
           <div className="space-y-3">
-            <Label>Interview Type</Label>
+            <Label id="interviewType">
+              Interview Type
+              <span className="text-red-500 ml-1">*</span>
+            </Label>
             <RadioGroup
               value={formData.interviewType}
-              onValueChange={(value) => 
+              onValueChange={(value) => {
                 setFormData(prev => ({ 
                   ...prev, 
                   interviewType: value as SetupFormData['interviewType'] 
-                }))
-              }
+                }));
+                if (touched.interviewType) {
+                  validateField('interviewType', value);
+                }
+              }}
+              aria-invalid={!!errors.interviewType}
+              aria-describedby={errors.interviewType ? 'interviewType-error' : undefined}
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="behavioral" id="behavioral" />
@@ -123,6 +200,9 @@ export function SessionSetup({ onComplete, isLoading = false }: SessionSetupProp
                 </Label>
               </div>
             </RadioGroup>
+            {touched.interviewType && errors.interviewType && (
+              <p id="interviewType-error" className="text-sm text-red-500">{errors.interviewType}</p>
+            )}
           </div>
 
           {/* Domain/Role */}
@@ -135,30 +215,51 @@ export function SessionSetup({ onComplete, isLoading = false }: SessionSetupProp
               id="domainOrRole"
               placeholder="e.g., Frontend Developer, Product Manager, Data Scientist"
               value={formData.domainOrRole}
-              onChange={(e) => 
-                setFormData(prev => ({ ...prev, domainOrRole: e.target.value }))
-              }
-              className={errors.domainOrRole ? 'border-red-500' : ''}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFormData(prev => ({ ...prev, domainOrRole: value }));
+                
+                // Real-time validation if field has been touched
+                if (touched.domainOrRole) {
+                  validateField('domainOrRole', value);
+                }
+              }}
+              onBlur={() => handleBlur('domainOrRole')}
+              className={touched.domainOrRole && errors.domainOrRole ? 'border-red-500' : ''}
+              aria-invalid={!!(touched.domainOrRole && errors.domainOrRole)}
+              aria-describedby={errors.domainOrRole ? 'domainOrRole-error' : undefined}
+              maxLength={100}
+              required
             />
-            {errors.domainOrRole && (
-              <p className="text-sm text-red-500">{errors.domainOrRole}</p>
+            {touched.domainOrRole && errors.domainOrRole && (
+              <p id="domainOrRole-error" className="text-sm text-red-500">{errors.domainOrRole}</p>
             )}
+            <p className="text-xs text-muted-foreground">
+              {formData.domainOrRole.length}/100 characters
+            </p>
           </div>
 
           {/* Consent */}
           <div className="space-y-2">
             <div className="flex items-start space-x-2">
               <Checkbox
-                id="consent"
+                id="consentGiven"
                 checked={formData.consentGiven}
-                onCheckedChange={(checked) =>
-                  setFormData(prev => ({ ...prev, consentGiven: checked as boolean }))
-                }
-                className={errors.consentGiven ? 'border-red-500' : ''}
+                onCheckedChange={(checked) => {
+                  setFormData(prev => ({ ...prev, consentGiven: checked as boolean }));
+                  if (touched.consentGiven) {
+                    validateField('consentGiven', checked);
+                  }
+                }}
+                onBlur={() => handleBlur('consentGiven')}
+                className={touched.consentGiven && errors.consentGiven ? 'border-red-500' : ''}
+                aria-invalid={!!(touched.consentGiven && errors.consentGiven)}
+                aria-describedby={errors.consentGiven ? 'consentGiven-error' : undefined}
               />
               <div className="space-y-1">
-                <Label htmlFor="consent" className="text-sm font-normal cursor-pointer">
+                <Label htmlFor="consentGiven" className="text-sm font-normal cursor-pointer">
                   I consent to recording this practice interview session
+                  <span className="text-red-500 ml-1">*</span>
                 </Label>
                 <p className="text-xs text-muted-foreground">
                   Your session will be recorded for feedback generation and improvement purposes.
@@ -166,8 +267,8 @@ export function SessionSetup({ onComplete, isLoading = false }: SessionSetupProp
                 </p>
               </div>
             </div>
-            {errors.consentGiven && (
-              <p className="text-sm text-red-500">{errors.consentGiven}</p>
+            {touched.consentGiven && errors.consentGiven && (
+              <p id="consentGiven-error" className="text-sm text-red-500">{errors.consentGiven}</p>
             )}
           </div>
 
@@ -180,13 +281,21 @@ export function SessionSetup({ onComplete, isLoading = false }: SessionSetupProp
             </AlertDescription>
           </Alert>
 
+          {/* Submit Error */}
+          {errors.submit && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{errors.submit}</AlertDescription>
+            </Alert>
+          )}
+
           {/* Submit Button */}
           <Button 
             type="submit" 
             className="w-full"
-            disabled={isLoading}
+            disabled={isLoading || isSubmitting}
           >
-            {isLoading ? (
+            {isLoading || isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Starting Interview...
@@ -195,6 +304,13 @@ export function SessionSetup({ onComplete, isLoading = false }: SessionSetupProp
               'Start Interview'
             )}
           </Button>
+          
+          {/* Help text for multiple failed attempts */}
+          {submitAttempts > 3 && Object.keys(errors).length > 0 && (
+            <p className="text-sm text-muted-foreground text-center">
+              Having trouble? Make sure all fields are filled correctly and you've agreed to the recording consent.
+            </p>
+          )}
         </form>
       </CardContent>
     </Card>

@@ -15,6 +15,10 @@ interface UseAudioStreamReturn {
   isMuted: boolean;
   error: Error | null;
   
+  // Permission state
+  hasPermission: boolean | null;
+  isCheckingPermission: boolean;
+  
   // Audio analysis
   audioLevel: number;
   analyserNode: AnalyserNode | null;
@@ -23,10 +27,11 @@ interface UseAudioStreamReturn {
   startStream: () => Promise<void>;
   stopStream: () => void;
   toggleMute: () => void;
-  setMuted: (muted: boolean) => void;
+  setIsMuted: (muted: boolean) => void;
+  requestPermission: () => Promise<void>;
   
   // Audio processing
-  getAudioChunk: () => Int16Array | null;
+  getAudioBuffer: () => ArrayBuffer | null;
 }
 
 const DEFAULT_OPTIONS: UseAudioStreamOptions = {
@@ -37,6 +42,21 @@ const DEFAULT_OPTIONS: UseAudioStreamOptions = {
   autoGainControl: true,
 };
 
+// Error types for better handling
+export class MicrophonePermissionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'MicrophonePermissionError';
+  }
+}
+
+export class MicrophoneNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'MicrophoneNotFoundError';
+  }
+}
+
 export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStreamReturn {
   const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
   
@@ -46,6 +66,8 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
   const [isMuted, setIsMuted] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [isCheckingPermission, setIsCheckingPermission] = useState(false);
   
   // Audio processing refs
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -55,10 +77,83 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
   const audioBufferRef = useRef<Int16Array>(new Int16Array(0));
   const animationFrameRef = useRef<number | null>(null);
   
+  // Check microphone permission status
+  const checkPermission = useCallback(async () => {
+    try {
+      setIsCheckingPermission(true);
+      setError(null);
+      
+      // Check if permissions API is available
+      if ('permissions' in navigator) {
+        try {
+          const permissionStatus = await navigator.permissions.query({ 
+            name: 'microphone' as PermissionName 
+          });
+          
+          setHasPermission(permissionStatus.state === 'granted');
+          
+          // Listen for permission changes
+          permissionStatus.onchange = () => {
+            setHasPermission(permissionStatus.state === 'granted');
+            if (permissionStatus.state === 'denied') {
+              stopStream();
+              setError(new MicrophonePermissionError('Microphone permission was revoked'));
+            }
+          };
+        } catch (err) {
+          // Permissions API might not support microphone query in some browsers
+          console.warn('Permissions API not fully supported:', err);
+        }
+      }
+    } finally {
+      setIsCheckingPermission(false);
+    }
+  }, []);
+
+  // Request microphone permission explicitly
+  const requestPermission = useCallback(async () => {
+    try {
+      setIsCheckingPermission(true);
+      setError(null);
+      
+      // Try to get a temporary stream just to trigger permission
+      const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      tempStream.getTracks().forEach(track => track.stop());
+      
+      setHasPermission(true);
+      await checkPermission();
+    } catch (err) {
+      const error = err as Error;
+      setHasPermission(false);
+      
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        setError(new MicrophonePermissionError(
+          'Microphone permission denied. Please allow microphone access to use the interview feature.'
+        ));
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        setError(new MicrophoneNotFoundError(
+          'No microphone found. Please connect a microphone to use the interview feature.'
+        ));
+      } else {
+        setError(error);
+      }
+    } finally {
+      setIsCheckingPermission(false);
+    }
+  }, [checkPermission]);
+
   // Start audio stream
   const startStream = useCallback(async () => {
     try {
       setError(null);
+      
+      // Check permission first
+      if (hasPermission === false) {
+        await requestPermission();
+        if (hasPermission === false) {
+          return;
+        }
+      }
       
       // Request microphone permission
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -129,15 +224,40 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
       };
       updateAudioLevel();
       
+      // Monitor track state for permission revocation
+      mediaStream.getTracks().forEach(track => {
+        track.onended = () => {
+          console.warn('Audio track ended unexpectedly');
+          stopStream();
+          setError(new MicrophonePermissionError(
+            'Microphone access was lost. This might be due to permission changes or device disconnection.'
+          ));
+        };
+      });
+      
       setStream(mediaStream);
       setIsActive(true);
+      setHasPermission(true);
     } catch (err) {
       const error = err as Error;
       console.error('Failed to start audio stream:', error);
-      setError(error);
+      
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        setHasPermission(false);
+        setError(new MicrophonePermissionError(
+          'Microphone permission denied. Please allow microphone access to use the interview feature.'
+        ));
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        setError(new MicrophoneNotFoundError(
+          'No microphone found. Please connect a microphone to use the interview feature.'
+        ));
+      } else {
+        setError(error);
+      }
+      
       setIsActive(false);
     }
-  }, [mergedOptions, isMuted]);
+  }, [mergedOptions, isMuted, hasPermission, requestPermission]);
   
   // Stop audio stream
   const stopStream = useCallback(() => {
@@ -147,15 +267,21 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
       setStream(null);
     }
     
-    // Cleanup audio nodes
-    if (processorNodeRef.current) {
-      processorNodeRef.current.disconnect();
-      processorNodeRef.current = null;
+    // Stop audio level monitoring
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
     
+    // Disconnect and close audio nodes
     if (sourceNodeRef.current) {
       sourceNodeRef.current.disconnect();
       sourceNodeRef.current = null;
+    }
+    
+    if (processorNodeRef.current) {
+      processorNodeRef.current.disconnect();
+      processorNodeRef.current = null;
     }
     
     if (analyserNodeRef.current) {
@@ -163,16 +289,9 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
       analyserNodeRef.current = null;
     }
     
-    // Close audio context
     if (audioContextRef.current) {
       audioContextRef.current.close();
       audioContextRef.current = null;
-    }
-    
-    // Cancel animation frame
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
     }
     
     setIsActive(false);
@@ -182,23 +301,23 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
   
   // Toggle mute
   const toggleMute = useCallback(() => {
-    setIsMuted(prev => !prev);
-  }, []);
+    setIsMuted(!isMuted);
+  }, [isMuted]);
   
-  // Set muted state
-  const setMuted = useCallback((muted: boolean) => {
-    setIsMuted(muted);
-  }, []);
-  
-  // Get current audio chunk
-  const getAudioChunk = useCallback(() => {
-    if (!isActive || isMuted || audioBufferRef.current.length === 0) {
+  // Get audio buffer
+  const getAudioBuffer = useCallback((): ArrayBuffer | null => {
+    if (!audioBufferRef.current || audioBufferRef.current.length === 0) {
       return null;
     }
     
-    // Return a copy of the current buffer
-    return new Int16Array(audioBufferRef.current);
-  }, [isActive, isMuted]);
+    // Return a copy of the buffer
+    return audioBufferRef.current.buffer.slice(0);
+  }, []);
+  
+  // Check permission on mount
+  useEffect(() => {
+    checkPermission();
+  }, [checkPermission]);
   
   // Cleanup on unmount
   useEffect(() => {
@@ -207,27 +326,29 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
     };
   }, [stopStream]);
   
-  // Update mute state on stream
-  useEffect(() => {
-    if (stream) {
-      const audioTrack = stream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !isMuted;
-      }
-    }
-  }, [stream, isMuted]);
-  
   return {
+    // Stream state
     stream,
     isActive,
     isMuted,
     error,
+    
+    // Permission state
+    hasPermission,
+    isCheckingPermission,
+    
+    // Audio analysis
     audioLevel,
     analyserNode: analyserNodeRef.current,
+    
+    // Control functions
     startStream,
     stopStream,
     toggleMute,
-    setMuted,
-    getAudioChunk,
+    setIsMuted,
+    requestPermission,
+    
+    // Audio processing
+    getAudioBuffer,
   };
 }
