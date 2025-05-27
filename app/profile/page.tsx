@@ -16,45 +16,30 @@ export const dynamic = 'force-dynamic';
 export default async function ProfilePage() {
   console.log("[ProfilePage SERVER] Page rendering started.");
   
-  // Check if we're in dev mode with auth bypass
-  const isDevMode = process.env.DEV_SKIP_AUTH === 'true';
-  
   // Get Clerk authentication with more robust error handling
   let currentAuthUserId = null;
   let clerkUser = null;
   
-  if (isDevMode) {
-    // Use mock user in dev mode
-    currentAuthUserId = 'dev-user-123';
-    clerkUser = {
-      id: 'dev-user-123',
-      firstName: 'Dev',
-      lastName: 'User',
-      emailAddresses: [{ emailAddress: 'dev@vocahire.com' }]
-    };
-    console.log("[ProfilePage SERVER] Using mock dev user");
-  } else {
-    try {
-      const authResult = await auth();
-      currentAuthUserId = authResult.userId;
-      console.log("[ProfilePage SERVER] currentAuthUserId from Clerk auth():", currentAuthUserId);
-    } catch (authError) {
-      console.error("[ProfilePage SERVER] Error in Clerk auth():", authError);
-      // Fall through to redirect if needed
-    }
-    
-    // Wrap in try/catch to handle potential errors from Clerk
-    try {
-      clerkUser = await currentUser();
-      console.log("[ProfilePage SERVER] clerkUser object from currentUser():", clerkUser ? 'Exists' : 'null');
-    } catch (error) {
-      console.error("[ProfilePage SERVER] Error fetching Clerk user:", error);
-      // Continue with null clerkUser - we'll handle this case gracefully
-    }
+  try {
+    const authResult = await auth();
+    currentAuthUserId = authResult.userId;
+    console.log("[ProfilePage SERVER] currentAuthUserId from Clerk auth():", currentAuthUserId);
+  } catch (authError) {
+    console.error("[ProfilePage SERVER] Error in Clerk auth():", authError);
+    // Fall through to redirect if needed
+  }
+  
+  // Wrap in try/catch to handle potential errors from Clerk
+  try {
+    clerkUser = await currentUser();
+    console.log("[ProfilePage SERVER] clerkUser object from currentUser():", clerkUser ? 'Exists' : 'null');
+  } catch (error) {
+    console.error("[ProfilePage SERVER] Error fetching Clerk user:", error);
+    // Continue with null clerkUser - we'll handle this case gracefully
   }
 
   // For server components, add more defensive coding
-  if (!currentAuthUserId && !isDevMode) {
+  if (!currentAuthUserId) {
     console.log("[ProfilePage SERVER] No authenticated user found, redirecting to login");
     return redirect('/login');
   }
