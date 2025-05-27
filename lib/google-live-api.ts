@@ -78,7 +78,7 @@ export class GoogleLiveAPIClient extends EventEmitter {
   private sendInitialSetup(): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-    const setupMessage = {
+    const setupMessage: any = {
       setup: {
         model: this.config.model || 'models/gemini-2.0-flash-exp',
         generation_config: {
@@ -96,13 +96,13 @@ export class GoogleLiveAPIClient extends EventEmitter {
     };
 
     if (this.config.systemInstruction) {
-      setupMessage.setup.system_instruction = {
+      (setupMessage.setup as any).system_instruction = {
         parts: [{ text: this.config.systemInstruction }]
       };
     }
 
     if (this.config.tools) {
-      setupMessage.setup.tools = this.config.tools;
+      (setupMessage.setup as any).tools = this.config.tools;
     }
 
     this.send(setupMessage);
@@ -198,7 +198,7 @@ export class GoogleLiveAPIClient extends EventEmitter {
     });
   }
 
-  private send(message: any): void {
+  send(message: any): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
     }

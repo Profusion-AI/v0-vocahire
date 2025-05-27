@@ -7,20 +7,21 @@ import {
   ErrorSchema 
 } from '@/src/genkit/schemas/types';
 
-export interface SessionConfig {
-  sessionId: string;
-  userId: string;
-  jobRole: string;
-  difficulty: z.infer<typeof RealtimeInputSchema>['difficulty'];
-  systemInstruction: string;
-}
+// Use the SessionConfig from types.ts instead of defining our own
+import type { SessionConfig as BaseSessionConfig } from '@/src/genkit/schemas/types';
+
+// Extend if needed or just use the imported type
+export type SessionConfig = BaseSessionConfig;
 
 export interface UseGenkitRealtimeOptions {
   maxReconnectAttempts?: number;
   reconnectDelay?: number;
+  onMessage?: (data: any) => void;
+  onError?: (error: Error) => void;
 }
 
 export interface UseGenkitRealtimeReturn {
+  status: string;
   isConnected: boolean;
   isConnecting: boolean;
   error: z.infer<typeof ErrorSchema> | null;
@@ -28,6 +29,7 @@ export interface UseGenkitRealtimeReturn {
   aiAudioQueue: string[]; // Base64 encoded audio chunks
   connect: () => Promise<void>;
   disconnect: () => void;
+  sendData: (data: any) => void;
   sendAudio: (audioData: ArrayBuffer) => void;
   sendText: (text: string) => void;
   interrupt: () => void;
@@ -38,10 +40,11 @@ export function useGenkitRealtime(
   sessionConfig: SessionConfig,
   options: UseGenkitRealtimeOptions = {}
 ): UseGenkitRealtimeReturn {
-  const { maxReconnectAttempts = 3, reconnectDelay = 1000 } = options;
+  const { maxReconnectAttempts = 3, reconnectDelay = 1000, onMessage, onError } = options;
   
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [status, setStatus] = useState('disconnected');
   const [error, setError] = useState<z.infer<typeof ErrorSchema> | null>(null);
   const [transcript, setTranscript] = useState<z.infer<typeof TranscriptEntrySchema>[]>([]);
   const [aiAudioQueue, setAiAudioQueue] = useState<string[]>([]);
@@ -53,6 +56,12 @@ export function useGenkitRealtime(
   const handleSSEMessage = useCallback((event: MessageEvent) => {
     try {
       const data = JSON.parse(event.data);
+      
+      // Call the onMessage callback if provided
+      if (onMessage) {
+        onMessage(data);
+      }
+      
       const parsed = RealtimeOutputSchema.parse(data);
       
       switch (parsed.type) {
@@ -78,22 +87,29 @@ export function useGenkitRealtime(
             timestamp: parsed.timestamp || new Date().toISOString(),
           });
           setError(errorData);
+          if (onError) {
+            onError(new Error(errorData.message));
+          }
           break;
           
         case 'control':
           if (parsed.data?.status === 'connected') {
             setIsConnected(true);
             setIsConnecting(false);
+            setStatus('connected');
             reconnectAttemptsRef.current = 0;
           } else if (parsed.data?.status === 'disconnected') {
             setIsConnected(false);
+            setStatus('disconnected');
+          } else if (parsed.data?.status === 'streaming') {
+            setStatus('streaming');
           }
           break;
       }
     } catch (err) {
       console.error('Error parsing SSE message:', err);
     }
-  }, []);
+  }, [onMessage, onError]);
 
   const connect = useCallback(async () => {
     if (isConnected || isConnecting) return;
@@ -187,6 +203,7 @@ export function useGenkitRealtime(
     
     setIsConnected(false);
     setIsConnecting(false);
+    setStatus('disconnected');
   }, [apiUrl, sessionConfig]);
 
   const sendAudio = useCallback((audioData: ArrayBuffer) => {
@@ -246,7 +263,24 @@ export function useGenkitRealtime(
     };
   }, [disconnect]);
 
+  const sendData = useCallback((data: any) => {
+    if (data.type === 'control') {
+      if (data.action === 'start') {
+        connect();
+      } else if (data.action === 'stop') {
+        disconnect();
+      } else if (data.action === 'mute' && data.data) {
+        // Handle mute logic if needed
+      }
+    } else if (data.type === 'audio' && data.data) {
+      sendAudio(data.data);
+    } else if (data.type === 'text' && data.text) {
+      sendText(data.text);
+    }
+  }, [connect, disconnect, sendAudio, sendText]);
+
   return {
+    status,
     isConnected,
     isConnecting,
     error,
@@ -254,6 +288,7 @@ export function useGenkitRealtime(
     aiAudioQueue,
     connect,
     disconnect,
+    sendData,
     sendAudio,
     sendText,
     interrupt,

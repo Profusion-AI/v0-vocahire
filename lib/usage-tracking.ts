@@ -1,4 +1,4 @@
-import { getRedisClient } from "./redis"
+import { redis } from "./redis"
 
 export enum UsageType {
   INTERVIEW_SESSION = "interview_session",
@@ -32,7 +32,7 @@ async function getUserLimit(userId: string, usageType: UsageType): Promise<numbe
 // Track usage for a specific user and usage type
 export async function trackUsage(userId: string, usageType: UsageType, metadata?: any): Promise<void> {
   try {
-    const redis = getRedisClient()
+    
 
     // Get the current date in YYYY-MM-DD format
     const today = new Date().toISOString().split("T")[0]
@@ -70,7 +70,7 @@ export async function checkUsageLimit(
   usageType: UsageType,
 ): Promise<{ allowed: boolean; current: number; limit: number }> {
   try {
-    const redis = getRedisClient()
+    
 
     // Get the current date in YYYY-MM-DD format
     const today = new Date().toISOString().split("T")[0]
@@ -105,7 +105,7 @@ export async function getUserUsageStats(
   userId: string,
 ): Promise<{ [key in UsageType]: { daily: number; monthly: number; limit: number } }> {
   try {
-    const redis = getRedisClient()
+    
     const today = new Date().toISOString().split("T")[0]
     const month = today.substring(0, 7) // YYYY-MM
 

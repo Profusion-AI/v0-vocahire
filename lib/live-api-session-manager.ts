@@ -28,14 +28,13 @@ export class LiveAPISessionManager {
     return LiveAPISessionManager.instance;
   }
 
-  async createSession(
+  async getOrCreateSession(
     sessionId: string,
-    userId: string,
     config: {
-      apiKey: string;
-      systemInstruction: string;
-      model?: string;
+      model: string;
+      systemInstruction: any;
       generationConfig?: any;
+      tools?: any[];
     }
   ): Promise<GoogleLiveAPIClient> {
     // Check if session already exists
@@ -45,9 +44,10 @@ export class LiveAPISessionManager {
       return existingClient;
     }
 
-    // Create new client
+    // Create new client with default API key
+    const apiKey = process.env.GOOGLE_AI_API_KEY || '';
     const client = new GoogleLiveAPIClient({
-      apiKey: config.apiKey,
+      apiKey,
       model: config.model || 'models/gemini-2.0-flash-exp',
       systemInstruction: config.systemInstruction,
       generationConfig: config.generationConfig,
@@ -56,7 +56,7 @@ export class LiveAPISessionManager {
     // Store session
     this.sessions.set(sessionId, client);
     this.metadata.set(sessionId, {
-      userId,
+      userId: '', // We don't have userId in the new interface
       sessionId,
       createdAt: Date.now(),
       lastActivity: Date.now(),
@@ -86,6 +86,10 @@ export class LiveAPISessionManager {
       this.updateActivity(sessionId);
     }
     return client || null;
+  }
+
+  async closeSession(sessionId: string): Promise<void> {
+    return this.endSession(sessionId);
   }
 
   async endSession(sessionId: string): Promise<void> {

@@ -22,7 +22,6 @@ const DEV_USER = {
 
 export function useQuickAuth() {
   const { user, isLoaded, isSignedIn } = useUser();
-  const { signIn } = useAuth();
   const router = useRouter();
 
   // In development with mock auth enabled

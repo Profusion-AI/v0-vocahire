@@ -1,4 +1,4 @@
-import { getRedisClient } from "./redis"
+import { redis } from "./redis"
 
 export const RATE_LIMIT_CONFIGS = {
   REALTIME_SESSION: {
@@ -23,7 +23,6 @@ export async function checkRateLimit(
   config: { limit: number; window: number; prefix: string },
 ): Promise<{ isLimited: boolean; current: number; limit: number; reset: number }> {
   try {
-    const redis = getRedisClient()
     const key = `${config.prefix}${userId}`
 
     // Get the current count
@@ -64,7 +63,7 @@ export async function incrementRateLimit(
   config: { limit: number; window: number; prefix: string },
 ): Promise<void> {
   try {
-    const redis = getRedisClient()
+    
     const key = `${config.prefix}${userId}`
 
     // Increment the counter

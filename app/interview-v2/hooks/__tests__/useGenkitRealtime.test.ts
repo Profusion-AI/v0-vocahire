@@ -13,9 +13,10 @@ describe('useGenkitRealtime', () => {
   const mockSessionConfig: SessionConfig = {
     sessionId: 'test-session-123',
     userId: 'test-user-456',
-    jobRole: 'Software Engineer',
-    difficulty: 'mid',
-    systemInstruction: 'Be a friendly interviewer.',
+    jobRole: 'Tester',
+    interviewType: 'General', // Added interviewType
+    difficulty: 'entry',
+    systemInstruction: 'Be a test interviewer.',
   };
 
   beforeEach(() => {

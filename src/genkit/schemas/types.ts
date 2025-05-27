@@ -30,7 +30,8 @@ export const RealtimeInputSchema = z.object({
   sessionId: z.string(),
   userId: z.string(),
   jobRole: z.string(),
-  difficulty: InterviewDifficultySchema,
+  interviewType: z.enum(['Behavioral', 'Technical', 'Leadership', 'General']), // Added interviewType
+  difficulty: z.enum(['entry', 'mid', 'senior']),
   systemInstruction: z.string(),
   audioChunk: z.string().optional(), // Base64 encoded audio
   textInput: z.string().optional(),
@@ -45,9 +46,49 @@ export const RealtimeOutputSchema = z.object({
   timestamp: z.string().datetime().optional(),
 });
 
+// Session Config Schema
+export const SessionConfigSchema = z.object({
+  jobPosition: z.string(),
+  jobDescription: z.string(),
+  userId: z.string(),
+  userEmail: z.string(),
+  userName: z.string(),
+});
+
+// Streaming Message Schema
+export const StreamingMessageSchema = z.object({
+  type: z.enum(['session_status', 'transcript', 'audio', 'error', 'control']),
+  sessionStatus: z.object({
+    sessionId: z.string(),
+    status: z.enum(['active', 'completed', 'error']),
+    startTime: z.string(),
+    duration: z.number(),
+    transcript: z.array(z.any()).optional(),
+    feedback: z.any().optional(),
+  }).optional(),
+  transcript: z.object({
+    id: z.string(),
+    role: z.enum(['user', 'assistant']),
+    text: z.string(),
+    timestamp: z.string(),
+    confidence: z.number().optional(),
+  }).optional(),
+  audio: z.object({
+    data: z.string(),
+    format: z.string(),
+    sampleRate: z.number(),
+  }).optional(),
+  error: z.object({
+    code: z.string(),
+    message: z.string(),
+  }).optional(),
+});
+
 // Transcript Schemas
 export const TranscriptEntrySchema = z.object({
-  speaker: z.enum(['user', 'ai']),
+  id: z.string().optional(),
+  speaker: z.enum(['user', 'ai']).optional(),
+  role: z.enum(['user', 'assistant']).optional(),
   text: z.string(),
   timestamp: z.string().datetime(),
   confidence: z.number().min(0).max(1).optional(),
@@ -81,6 +122,7 @@ export const DetailedQuestionFeedbackSchema = z.object({
   score: z.number().min(0).max(100),
   strengths: z.array(z.string()),
   improvements: z.array(z.string()),
+  suggestions: z.array(z.string()).optional(),
 });
 
 export const FeedbackSchema = z.object({
@@ -89,9 +131,12 @@ export const FeedbackSchema = z.object({
   improvementAreas: z.array(z.string()),
   categoryScores: z.object({
     technicalKnowledge: z.number().min(0).max(100),
-    communicationSkills: z.number().min(0).max(100),
+    communicationSkills: z.number().min(0).max(100).optional(),
+    communication: z.number().min(0).max(100).optional(),
     problemSolving: z.number().min(0).max(100),
-    professionalPresence: z.number().min(0).max(100),
+    professionalPresence: z.number().min(0).max(100).optional(),
+    adaptability: z.number().min(0).max(100).optional(),
+    culturalFit: z.number().min(0).max(100).optional(),
   }),
   detailedFeedback: z.array(DetailedQuestionFeedbackSchema),
   recommendedResources: z.array(z.object({
@@ -102,6 +147,7 @@ export const FeedbackSchema = z.object({
   })),
   nextSteps: z.array(z.string()),
   motivationalMessage: z.string().optional(),
+  summary: z.string().optional(),
 });
 
 // Enhanced Feedback Schema
@@ -178,4 +224,19 @@ export const SessionStatusSchema = z.object({
   duration: z.number().optional(), // in milliseconds
   transcriptLength: z.number().optional(),
   error: ErrorSchema.optional(),
+  feedback: FeedbackSchema.optional(),
+  transcript: z.array(TranscriptEntrySchema).optional(),
 });
+
+// Type exports
+export type SessionConfig = z.infer<typeof SessionConfigSchema>;
+export type StreamingMessage = z.infer<typeof StreamingMessageSchema>;
+export type TranscriptEntry = z.infer<typeof TranscriptEntrySchema>;
+export type Feedback = z.infer<typeof FeedbackSchema>;
+export type SessionStatus = z.infer<typeof SessionStatusSchema>;
+export type InterviewSessionInput = z.infer<typeof InterviewSessionInputSchema>;
+export type InterviewSessionOutput = z.infer<typeof InterviewSessionOutputSchema>;
+export type RealtimeInput = z.infer<typeof RealtimeInputSchema>;
+export type RealtimeOutput = z.infer<typeof RealtimeOutputSchema>;
+export type AudioMetrics = z.infer<typeof AudioMetricsSchema>;
+export type ErrorSchema = z.infer<typeof ErrorSchema>;

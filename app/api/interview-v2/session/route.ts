@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { defineFlow, streamFlow } from '@genkit-ai/flow';
-import { interviewFlow } from '@/src/genkit/flows/interview';
+// Removed unused GenKit flow imports since we're using Live API directly
 import { LiveAPISessionManager } from '@/lib/live-api-session-manager';
 import { 
   SessionConfigSchema,

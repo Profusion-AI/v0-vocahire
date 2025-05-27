@@ -1,4 +1,4 @@
-import { getRedisClient } from "./redis";
+import { redis } from "./redis";
 import { prisma, warmDatabaseConnection } from "./prisma";
 import { getConsistentCreditValue } from "./prisma-types";
 
@@ -20,7 +20,7 @@ export interface CachedUserCredentials {
  */
 export async function getCachedUserCredentials(userId: string): Promise<CachedUserCredentials | null> {
   const cacheKey = `${USER_CACHE_PREFIX}${userId}`;
-  const redis = getRedisClient();
+  ;
   
   try {
     // Try to get from cache first
@@ -81,7 +81,7 @@ export async function getCachedUserCredentials(userId: string): Promise<CachedUs
  */
 export async function invalidateUserCache(userId: string): Promise<void> {
   const cacheKey = `${USER_CACHE_PREFIX}${userId}`;
-  const redis = getRedisClient();
+  ;
   
   try {
     await redis.del(cacheKey);

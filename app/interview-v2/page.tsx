@@ -12,7 +12,7 @@ import TranscriptDisplay from './components/TranscriptDisplay';
 import FeedbackDisplay from './components/FeedbackDisplay';
 import AudioVisualization from './components/AudioVisualization';
 import SessionStatus from './components/SessionStatus';
-import type { TranscriptEntry, SessionStatus as SessionStatusType } from '@/src/genkit/schemas/types';
+import type { TranscriptEntry, SessionStatus as SessionStatusType, SessionConfig } from '@/src/genkit/schemas/types';
 
 export default function InterviewV2Page() {
   const router = useRouter();
@@ -21,6 +21,14 @@ export default function InterviewV2Page() {
   const [sessionStatus, setSessionStatus] = useState<SessionStatusType | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const sessionConfig: SessionConfig = {
+    jobPosition: 'Software Engineer',
+    jobDescription: 'Full-stack development role',
+    userId: user?.id || '',
+    userEmail: user?.emailAddresses?.[0]?.emailAddress || '',
+    userName: user?.fullName || user?.firstName || 'User'
+  };
+
   const {
     status,
     isConnected,
@@ -28,13 +36,7 @@ export default function InterviewV2Page() {
     disconnect,
     sendData,
     error: connectionError
-  } = useGenkitRealtime('/api/interview-v2/session', {
-    jobPosition: 'Software Engineer',
-    jobDescription: 'Full-stack development role',
-    userId: user?.id || '',
-    userEmail: user?.emailAddresses?.[0]?.emailAddress || '',
-    userName: user?.fullName || user?.firstName || 'User'
-  }, {
+  } = useGenkitRealtime('/api/interview-v2/session', sessionConfig, {
     onMessage: (data) => {
       switch (data.type) {
         case 'transcript':
