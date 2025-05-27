@@ -1,5 +1,5 @@
 // Server-side imports
-import { prisma } from "@/lib/prisma"; // Assuming path, adjust if necessary
+import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { isAdminUser } from "@/lib/admin-config";
 

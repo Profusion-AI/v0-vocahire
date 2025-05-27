@@ -1,15 +1,10 @@
-import { defineFlow } from '@genkit-ai/core'; // Change import to @genkit-ai/core
-import { defineStreamingFlow } from '@genkit-ai/flow'; // Import defineStreamingFlow
+import { defineStreamingFlow } from 'genkit';
 import { z } from 'zod';
-import { ai } from '..';
 import { LiveAPISessionManager } from '@/lib/live-api-session-manager';
 import { GoogleLiveAPIClient } from '@/lib/google-live-api';
-import { getSecret } from '@/lib/secret-manager'; // Keep getSecret for potential future use or other secrets
 import {
   RealtimeInputSchema,
   RealtimeOutputSchema,
-  ErrorSchema,
-  SessionStatusSchema,
 } from '../schemas/types';
 
 // Store for active streaming contexts
@@ -26,7 +21,7 @@ export const realtimeInterviewFlow = defineStreamingFlow( // Use defineStreaming
     streamSchema: RealtimeOutputSchema,
   },
   async (input: z.infer<typeof RealtimeInputSchema>, { streamingCallback }: { streamingCallback: (chunk: z.infer<typeof RealtimeOutputSchema>) => Promise<void> }) => {
-    const { sessionId, userId, jobRole, difficulty, systemInstruction } = input;
+    const { sessionId, systemInstruction } = input;
     
     try {
       // Check for existing stream
@@ -48,7 +43,7 @@ export const realtimeInterviewFlow = defineStreamingFlow( // Use defineStreaming
 
       // Get or create Live API session
       // Use getOrCreateSession which handles fetching the API key internally
-      let liveClient = await liveAPISessionManager.getOrCreateSession(sessionId, {
+      const liveClient = await liveAPISessionManager.getOrCreateSession(sessionId, {
         model: 'models/gemini-2.0-flash-exp',
         systemInstruction,
         generationConfig: {
@@ -113,7 +108,7 @@ export const realtimeInterviewFlow = defineStreamingFlow( // Use defineStreaming
       }
 
       // Keep the stream alive
-      return new Promise<z.infer<typeof RealtimeOutputSchema>>((resolve, reject) => {
+      return new Promise<z.infer<typeof RealtimeOutputSchema>>((resolve, _reject) => {
         // Set up abort handling
         abortController.signal.addEventListener('abort', () => {
           resolve({

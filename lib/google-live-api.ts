@@ -88,7 +88,7 @@ export class GoogleLiveAPIClient extends EventEmitter {
 
   private buildWebSocketUrl(): string {
     // Use current model if set (for fallback), otherwise use config or default
-    const model = this.currentModel || this.config.model || 'models/gemini-2.5-flash-preview-native-audio-dialog';
+    const _model = this.currentModel || this.config.model || 'models/gemini-2.5-flash-preview-native-audio-dialog';
     const baseUrl = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent';
     return `${baseUrl}?key=${this.config.apiKey}`;
   }

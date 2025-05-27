@@ -300,3 +300,25 @@ export async function withDatabaseFallback<T>(
     return await fallback();
   }
 }
+
+// Helper function to create a deep proxy for async Prisma client
+function createPrismaProxy(path: string[] = []): any {
+  return new Proxy(() => {}, {
+    get(_target, prop) {
+      const newPath = [...path, prop as string];
+      return createPrismaProxy(newPath);
+    },
+    async apply(_target, _thisArg, args) {
+      const client = await getPrismaClient();
+      let current: any = client;
+      for (const p of path) {
+        current = current[p];
+      }
+      return current(...args);
+    }
+  });
+}
+
+// Export a prisma instance that automatically handles the async nature
+// This maintains backward compatibility with existing code
+export const prisma = createPrismaProxy();

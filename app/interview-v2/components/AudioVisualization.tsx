@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 
 interface AudioVisualizationProps {
   isActive: boolean;
+  audioLevel: number; // Added audioLevel prop
   className?: string;
 }
 
@@ -34,6 +35,7 @@ export default function AudioVisualization({ isActive, className }: AudioVisuali
         
         analyserNode.fftSize = 256;
         const bufferLength = analyserNode.frequencyBinCount;
+        // Create Uint8Array directly without intermediate ArrayBuffer
         const data = new Uint8Array(bufferLength);
         
         source.connect(analyserNode);
@@ -56,7 +58,7 @@ export default function AudioVisualization({ isActive, className }: AudioVisuali
         audioContext.close();
       }
     };
-  }, [isActive]);
+  }, [isActive, audioContext]);
 
   useEffect(() => {
     if (!isActive || !analyser || !dataArray || !canvasRef.current) return;

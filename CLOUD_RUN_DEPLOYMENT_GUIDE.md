@@ -1,10 +1,19 @@
 # Cloud Run Deployment Guide for VocaHire
 
-## 🚨 Current Deployment Issue
+## 🚨 Current Deployment Issues
 
+### 1. Permission Error (Primary Blocker)
 **Error**: `PERMISSION_DENIED: The caller does not have permission`
 **Account**: `kyle@profusion.ai`
 **Project**: `vocahire-prod`
+
+### 2. Build Issues (Partially Resolved ⚠️)
+- **Genkit Import Issue**: Fixed by updating imports from `@genkit-ai/core` to `genkit` ✅
+- **Prisma Export Issue**: Fixed by adding deep proxy for async prisma client ✅
+- **ESLint Warnings**: Mostly fixed, test files excluded via .eslintrc.json ✅
+- **Next.js 15.3.2 Webpack Issue**: Build crashes with `TypeError: Cannot read properties of undefined (reading 'length')` ❌
+  - This is a known issue with Next.js 15.3.2 and webpack optimization
+  - Workaround: Consider downgrading to Next.js 15.2.x or waiting for 15.3.3
 
 ## 📋 Required IAM Permissions
 

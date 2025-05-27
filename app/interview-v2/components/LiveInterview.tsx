@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation'; // Removed unused import
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,7 +33,7 @@ interface LiveInterviewProps {
 }
 
 export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAttempt }: LiveInterviewProps) {
-  const router = useRouter();
+  // const router = useRouter(); // Removed unused variable
   const {
     status,
     isConnected,
@@ -195,26 +195,26 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
   }, [audioStream]);
 
   // Add router navigation guard
-  useEffect(() => {
-    const handleRouteChange = (url: string) => {
-      if (isConnected && status === 'streaming') {
-        const confirmLeave = window.confirm(
-          'Are you sure you want to leave? Your interview session will be terminated.'
-        );
-        if (!confirmLeave) {
-          // Prevent navigation by throwing an error
-          throw new Error('Navigation cancelled by user');
-        }
-      }
-    };
+  // useEffect(() => { // Removed commented-out useEffect
+  //   const handleRouteChange = (url: string) => {
+  //     if (isConnected && status === 'streaming') {
+  //       const confirmLeave = window.confirm(
+  //         'Are you sure you want to leave? Your interview session will be terminated.'
+  //       );
+  //       if (!confirmLeave) {
+  //         // Prevent navigation by throwing an error
+  //         throw new Error('Navigation cancelled by user');
+  //       }
+  //     }
+  //   };
 
-    // Next.js 13+ doesn't have router events, so we rely on beforeunload
-    // The hook already handles beforeunload, this is just for documentation
+  //   // Next.js 13+ doesn't have router events, so we rely on beforeunload
+  //   // The hook already handles beforeunload, this is just for documentation
     
-    return () => {
-      // Cleanup handled by the hook
-    };
-  }, [isConnected, status]);
+  //   return () => {
+  //     // Cleanup handled by the hook
+  //   };
+  // }, [isConnected, status]); // Removed commented-out useEffect
 
   return (
     <div className="space-y-6">
@@ -339,7 +339,7 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
       </Card>
 
       {/* Transcript */}
-      <TranscriptDisplay transcript={transcript} />
+      <TranscriptDisplay entries={transcript} /> {/* Changed prop name to entries */}
 
       {/* Controls */}
       <InterviewControls

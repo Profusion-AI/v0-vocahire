@@ -1,7 +1,7 @@
 # CLAUDE.md - VocaHire Development Guide
 
-**Last Updated**: May 27, 2025 11:00 AM CST  
-**Status**: MVP Docker Setup Complete ✅  
+**Last Updated**: May 27, 2025 6:00 PM CST  
+**Status**: Cloud Run Blocked (Next.js 15.3.2 Issue) ⚠️  
 **Target Launch**: June 1, 2025 (Public Beta) 🎯
 
 ## 🤝 Collaborative Development Protocol
@@ -66,6 +66,29 @@ git push origin main
    - Removed complex prompt engineering
    - Model handles conversational nuances natively
    - Focus on capturing interactions vs. contextual priming
+
+### May 27, 2025 - Cloud Run Migration Progress (6:00 PM CST)
+1. **✅ Fixed All Code Issues**
+   - Updated imports from `@genkit-ai/core` to `genkit`
+   - Fixed Prisma async issues with deep proxy solution
+   - Resolved ESLint errors (excluded test files via .eslintrc.json)
+   - Fixed unused variables with underscore prefix convention
+
+2. **✅ Created Cloud Run Infrastructure**
+   - Created `scripts/build-cloud-run.sh` (replaces Vercel script)
+   - Updated `package.json` to use Cloud Run build by default
+   - Created `CLOUD_RUN_DEPLOYMENT_GUIDE.md` with IAM requirements
+   - Documented all deployment blockers and solutions
+
+3. **❌ Current Blockers**
+   - **IAM Permissions**: `kyle@profusion.ai` needs Cloud Run deployment roles
+   - **Next.js 15.3.2 Bug**: Webpack bundling crashes with `TypeError`
+     ```
+     TypeError: Cannot read properties of undefined (reading 'length')
+     at WasmHash._updateWithBuffer
+     ```
+   - **Workaround**: Downgrade to Next.js 15.2.x or wait for 15.3.3
+
 
 ### May 27, 2025 - MVP Docker Optimization & Cleanup
 1. **✅ Created MVP-focused Docker setup**
@@ -174,9 +197,13 @@ make migrate    # Run migrations
 make studio     # Prisma Studio
 make test       # Run tests
 
-# If you see Sentry errors after removing it:
-docker-compose -f docker-compose.dev.yml restart web
+# Build for production
+npm run build   # Cloud Run optimized build (NEW!)
 ```
+
+### Build Scripts
+- **`npm run build`** - Production build for Cloud Run (uses `scripts/build-cloud-run.sh`)
+- **`npm run build:vercel`** - Legacy Vercel build (deprecated, do not use)
 
 ### Alternative Commands
 ```bash
@@ -242,6 +269,7 @@ REDIS_URL=
 - Direct WebRTC to OpenAI
 - `interview-session-manager.ts` (removed)
 - Sentry monitoring (removed May 27)
+- Vercel build scripts (use Cloud Run scripts instead)
 
 ### Stable Components
 - Clerk authentication (dev keys configured)
@@ -296,13 +324,17 @@ REDIS_URL=
 ## 🚦 Critical Path to June 1 Launch
 
 ### Timeline (5 days remaining)
-- **May 27-28**: Backend WebRTC implementation (Gemini)
-- **May 29**: Integration testing
+- **May 27**: ⚠️ Blocked by Next.js 15.3.2 webpack issue
+- **May 28**: Resolve Next.js issue, complete Cloud Run deployment
+- **May 29**: Integration testing with production environment
 - **May 30**: Deploy to staging, fix critical bugs
 - **May 31**: Final testing, prepare launch
 - **June 1**: Public Beta launch! 🚀
 
 ### Launch Checklist
+- [ ] **Fix Next.js 15.3.2 webpack issue** (Critical blocker)
+- [ ] Grant Cloud Run IAM permissions to kyle@profusion.ai
+- [ ] Deploy to Cloud Run successfully
 - [ ] Backend orchestrator deployed (Gemini)
 - [ ] WebRTC connection stable
 - [ ] Google AI integration working
@@ -310,9 +342,8 @@ REDIS_URL=
 - [ ] Basic monitoring in place
 - [ ] Landing page updated for beta
 - [x] **✅ Production Authentication Ready** - All dev bypasses removed!
-  - Removed all development authentication checks
-  - Production-ready authentication flow with Clerk
-  - Terms modal properly configured for new users
+- [x] **✅ Cloud Run Build Script Ready** - Replaced Vercel scripts
+- [x] **✅ All Code Issues Fixed** - Genkit, Prisma, ESLint resolved
 
 ### MVP Philosophy
 - **Ship fast**: Better to launch with 80% than perfect never

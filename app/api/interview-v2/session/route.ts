@@ -1,11 +1,9 @@
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
 // Removed unused GenKit flow imports since we're using Live API directly
 import { LiveAPISessionManager } from '@/lib/live-api-session-manager';
 import { 
   SessionConfigSchema,
-  StreamingMessageSchema,
-  type SessionConfig,
+  // type SessionConfig, // Commented out unused type import
   type StreamingMessage 
 } from '@/src/genkit/schemas/types';
 
@@ -71,37 +69,37 @@ Start by introducing yourself and asking the candidate to tell you about themsel
           });
 
           // Handle messages from the client
-          const handleClientMessage = async (message: any) => {
-            try {
-              const parsed = JSON.parse(message);
+          // const handleClientMessage = async (message: any) => { // Commented out unused function
+          //   try {
+          //     const parsed = JSON.parse(message);
               
-              switch (parsed.type) {
-                case 'audio':
-                  // Send audio to Live API
-                  if (parsed.data && liveSession) {
-                    await liveSession.send({
-                      realtimeInput: {
-                        mediaChunks: [{
-                          mimeType: 'audio/pcm;rate=16000',
-                          data: parsed.data
-                        }]
-                      }
-                    });
-                  }
-                  break;
+          //     switch (parsed.type) {
+          //       case 'audio':
+          //         // Send audio to Live API
+          //         if (parsed.data && liveSession) {
+          //           await liveSession.send({
+          //             realtimeInput: {
+          //               mediaChunks: [{
+          //                 mimeType: 'audio/pcm;rate=16000',
+          //                 data: parsed.data
+          //               }]
+          //             }
+          //           });
+          //         }
+          //         break;
                   
-                case 'control':
-                  if (parsed.action === 'stop') {
-                    // Clean up and close
-                    await sessionManager.closeSession(sessionId);
-                    controller.close();
-                  }
-                  break;
-              }
-            } catch (error) {
-              console.error('Error handling client message:', error);
-            }
-          };
+          //       case 'control':
+          //         if (parsed.action === 'stop') {
+          //           // Clean up and close
+          //           await sessionManager.closeSession(sessionId);
+          //           controller.close();
+          //         }
+          //         break;
+          //     }
+          //   } catch (error) {
+          //     console.error('Error handling client message:', error);
+          //   }
+          // };
 
           // Listen for Live API responses
           liveSession.on('transcript', (transcript: any) => {

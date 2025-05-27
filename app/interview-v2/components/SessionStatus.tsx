@@ -6,7 +6,8 @@ import type { SessionStatus as SessionStatusType } from '@/src/genkit/schemas/ty
 
 interface SessionStatusProps {
   status: string;
-  sessionStatus: SessionStatusType | null;
+  sessionStatus?: SessionStatusType | null; // Make sessionStatus optional
+  error: { code: string; message: string; timestamp: string; retryable?: boolean | undefined; details?: any; } | null;
 }
 
 export default function SessionStatus({ status, sessionStatus }: SessionStatusProps) {

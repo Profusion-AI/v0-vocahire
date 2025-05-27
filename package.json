@@ -5,7 +5,8 @@
   "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "next dev",
-    "build": "./scripts/build-vercel-safe.sh",
+    "build": "./scripts/build-cloud-run.sh",
+    "build:vercel": "./scripts/build-vercel-safe.sh",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest",
