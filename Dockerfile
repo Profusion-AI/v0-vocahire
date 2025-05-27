@@ -17,9 +17,8 @@ RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 # Copy dependency files
 COPY package.json pnpm-lock.yaml ./
 
-# Install dependencies with cache mount for faster rebuilds
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+# Install dependencies (cache mount disabled for Cloud Build compatibility)
+RUN pnpm install --frozen-lockfile
 
 # Stage 2: Builder
 FROM node:${NODE_VERSION} AS builder
