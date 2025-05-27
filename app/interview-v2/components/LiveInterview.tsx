@@ -166,8 +166,7 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd }: LiveInterv
       {/* Connection Status */}
       <SessionStatus
         status={status}
-        error={error}
-        isConnecting={isConnecting}
+        sessionStatus={null}
       />
 
       {/* Error Alert */}
@@ -175,8 +174,15 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd }: LiveInterv
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            {error.message}
-            {error.retryable && ' - Retrying...'}
+            <div>
+              <p className="font-semibold mb-1">{error.code.replace(/_/g, ' ')}</p>
+              <p>{error.message}</p>
+              {error.retryable && (
+                <p className="text-sm mt-2 text-muted-foreground">
+                  We'll automatically retry the connection...
+                </p>
+              )}
+            </div>
           </AlertDescription>
         </Alert>
       )}

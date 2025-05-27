@@ -119,15 +119,24 @@ export function useGenkitRealtime(
     
     try {
       // Send initial connection request
+      const payload: z.infer<typeof RealtimeInputSchema> = {
+        sessionId: sessionConfig.sessionId || `session_${Date.now()}`,
+        userId: sessionConfig.userId,
+        jobRole: sessionConfig.domainOrRole,
+        interviewType: sessionConfig.interviewType === 'behavioral' ? 'Behavioral' : 
+                       sessionConfig.interviewType === 'technical' ? 'Technical' : 
+                       sessionConfig.interviewType === 'situational' ? 'General' : 'General',
+        difficulty: 'mid',
+        systemInstruction: `Conduct a ${sessionConfig.interviewType} interview for ${sessionConfig.domainOrRole}`,
+        controlMessage: { type: 'start' },
+      };
+      
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...sessionConfig,
-          controlMessage: { type: 'start' },
-        } satisfies z.infer<typeof RealtimeInputSchema>),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -192,13 +201,22 @@ export function useGenkitRealtime(
     }
     
     // Send disconnect message
+    const payload: z.infer<typeof RealtimeInputSchema> = {
+      sessionId: sessionConfig.sessionId || '',
+      userId: sessionConfig.userId,
+      jobRole: sessionConfig.domainOrRole,
+      interviewType: sessionConfig.interviewType === 'behavioral' ? 'Behavioral' : 
+                     sessionConfig.interviewType === 'technical' ? 'Technical' : 
+                     sessionConfig.interviewType === 'situational' ? 'General' : 'General',
+      difficulty: 'mid',
+      systemInstruction: `Conduct a ${sessionConfig.interviewType} interview for ${sessionConfig.domainOrRole}`,
+      controlMessage: { type: 'stop' },
+    };
+    
     fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...sessionConfig,
-        controlMessage: { type: 'stop' },
-      } satisfies z.infer<typeof RealtimeInputSchema>),
+      body: JSON.stringify(payload),
     }).catch(console.error);
     
     setIsConnected(false);
@@ -217,39 +235,68 @@ export function useGenkitRealtime(
     }
     const base64 = btoa(binary);
     
+    // Ensure we conform to RealtimeInputSchema
+    const payload: z.infer<typeof RealtimeInputSchema> = {
+      sessionId: sessionConfig.sessionId || '',
+      userId: sessionConfig.userId,
+      jobRole: sessionConfig.domainOrRole,
+      interviewType: sessionConfig.interviewType === 'behavioral' ? 'Behavioral' : 
+                     sessionConfig.interviewType === 'technical' ? 'Technical' : 
+                     sessionConfig.interviewType === 'situational' ? 'General' : 'General',
+      difficulty: 'mid', // Default to mid, could be made configurable
+      systemInstruction: `Conduct a ${sessionConfig.interviewType} interview for ${sessionConfig.domainOrRole}`,
+      audioChunk: base64,
+    };
+    
     fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...sessionConfig,
-        audioChunk: base64,
-      } satisfies z.infer<typeof RealtimeInputSchema>),
+      body: JSON.stringify(payload),
     }).catch(console.error);
   }, [apiUrl, sessionConfig, isConnected]);
 
   const sendText = useCallback((text: string) => {
     if (!isConnected) return;
     
+    // Ensure we conform to RealtimeInputSchema
+    const payload: z.infer<typeof RealtimeInputSchema> = {
+      sessionId: sessionConfig.sessionId || '',
+      userId: sessionConfig.userId,
+      jobRole: sessionConfig.domainOrRole,
+      interviewType: sessionConfig.interviewType === 'behavioral' ? 'Behavioral' : 
+                     sessionConfig.interviewType === 'technical' ? 'Technical' : 
+                     sessionConfig.interviewType === 'situational' ? 'General' : 'General',
+      difficulty: 'mid',
+      systemInstruction: `Conduct a ${sessionConfig.interviewType} interview for ${sessionConfig.domainOrRole}`,
+      textInput: text,
+    };
+    
     fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...sessionConfig,
-        textInput: text,
-      } satisfies z.infer<typeof RealtimeInputSchema>),
+      body: JSON.stringify(payload),
     }).catch(console.error);
   }, [apiUrl, sessionConfig, isConnected]);
 
   const interrupt = useCallback(() => {
     if (!isConnected) return;
     
+    const payload: z.infer<typeof RealtimeInputSchema> = {
+      sessionId: sessionConfig.sessionId || '',
+      userId: sessionConfig.userId,
+      jobRole: sessionConfig.domainOrRole,
+      interviewType: sessionConfig.interviewType === 'behavioral' ? 'Behavioral' : 
+                     sessionConfig.interviewType === 'technical' ? 'Technical' : 
+                     sessionConfig.interviewType === 'situational' ? 'General' : 'General',
+      difficulty: 'mid',
+      systemInstruction: `Conduct a ${sessionConfig.interviewType} interview for ${sessionConfig.domainOrRole}`,
+      controlMessage: { type: 'interrupt' },
+    };
+    
     fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...sessionConfig,
-        controlMessage: { type: 'interrupt' },
-      } satisfies z.infer<typeof RealtimeInputSchema>),
+      body: JSON.stringify(payload),
     }).catch(console.error);
     
     // Clear audio queue
