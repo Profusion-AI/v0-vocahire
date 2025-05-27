@@ -2,16 +2,23 @@
 // Clerk webhook only manages stripeCustomerId (on creation) and clears non-Stripe fields on deletion.
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrismaClient } from "@/lib/prisma";
 import { Webhook } from "svix";
 import Stripe from "stripe"; // Import Stripe
-
-// Get the Clerk webhook secret from environment variables
-const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
+import { getSecrets } from '@/lib/secret-manager';
 
 export async function POST(req: NextRequest) {
+  // Fetch secrets within the async handler
+  const clerkSecrets = await getSecrets([
+    'CLERK_WEBHOOK_SECRET',
+    'STRIPE_SECRET_KEY',
+  ]);
+
+  // Get the Clerk webhook secret from fetched secrets
+  const CLERK_WEBHOOK_SECRET = clerkSecrets.CLERK_WEBHOOK_SECRET;
+
   // Stripe initialization (needed for cancelling subscriptions)
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  const stripe = new Stripe(clerkSecrets.STRIPE_SECRET_KEY!, {
     apiVersion: "2025-04-30.basil",
   });
 
@@ -77,7 +84,7 @@ export async function POST(req: NextRequest) {
 
       try {
         // Create user in DB first
-        const _dbUser = await prisma.user.create({
+        const _dbUser = await (await getPrismaClient()).user.create({
           data: {
             id: clerkId,
             clerkId: clerkId,
@@ -101,7 +108,7 @@ export async function POST(req: NextRequest) {
           console.log(`[Clerk Webhook] Stripe Customer created: ${customer.id} for Clerk ID: ${clerkId}`);
 
           // Update user in DB with Stripe Customer ID
-          await prisma.user.update({
+          await (await getPrismaClient()).user.update({
             where: { id: clerkId },
             data: { stripeCustomerId: customer.id },
           });
@@ -121,7 +128,7 @@ export async function POST(req: NextRequest) {
         if (err.code === "P2002") { // Prisma unique constraint violation
           console.log(`[Clerk Webhook] User already exists: ${clerkId}. Attempting to ensure Stripe customer exists.`);
           // User already exists, check if they have a stripeCustomerId
-          const existingUser = await prisma.user.findUnique({
+          const existingUser = await (await getPrismaClient()).user.findUnique({
             where: { id: clerkId },
             select: { stripeCustomerId: true }
           });
@@ -136,7 +143,7 @@ export async function POST(req: NextRequest) {
                 },
               });
               console.log(`[Clerk Webhook] Stripe Customer created for existing user: ${customer.id} for Clerk ID: ${clerkId}`);
-              await prisma.user.update({
+              await (await getPrismaClient()).user.update({
                 where: { id: clerkId },
                 data: { stripeCustomerId: customer.id },
               });
@@ -171,7 +178,7 @@ export async function POST(req: NextRequest) {
       const updatedImage = updatedUser.image_url || null;
 
       try {
-        await prisma.user.update({
+        await (await getPrismaClient()).user.update({
           where: { id: updatedClerkId },
           data: {
             email: updatedEmail,
@@ -197,7 +204,7 @@ export async function POST(req: NextRequest) {
 
       try {
         // Find the user in your DB to get their Stripe Subscription ID
-        const dbUser = await prisma.user.findUnique({
+        const dbUser = await (await getPrismaClient()).user.findUnique({
           where: { id: deletedClerkId },
           select: { premiumSubscriptionId: true },
         });
@@ -215,7 +222,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Soft-delete/anonymize the user in your DB
-        await prisma.user.update({
+        await (await getPrismaClient()).user.update({
           where: { id: deletedClerkId },
           data: {
             email: null,

@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { prisma } from "@/lib/prisma";
-
-// Stripe initialization
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-04-30.basil",
-});
+import { getPrismaClient } from "@/lib/prisma";
+import { getSecrets } from '@/lib/secret-manager';
 
 // Disable Next.js body parsing for this route (required for Stripe signature verification)
 export const config = {
@@ -29,10 +25,21 @@ export async function POST(req: NextRequest) {
   let event: Stripe.Event;
 
   try {
+    // Fetch secrets within the async handler
+    const stripeSecrets = await getSecrets([
+      'STRIPE_SECRET_KEY',
+      'STRIPE_WEBHOOK_SECRET',
+    ]);
+
+    // Initialize Stripe after fetching secrets
+    const stripe = new Stripe(stripeSecrets.STRIPE_SECRET_KEY!, {
+      apiVersion: "2025-04-30.basil",
+    });
+
     // Get the raw body and Stripe signature header
     const rawBody = await buffer(req.body as any);
     const sig = req.headers.get("stripe-signature");
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const webhookSecret = stripeSecrets.STRIPE_WEBHOOK_SECRET;
 
     if (!sig || !webhookSecret) {
       console.error("Missing Stripe signature or webhook secret");
@@ -71,7 +78,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Find user by client_reference_id
-        const user = await prisma.user.findUnique({
+        const user = await (await getPrismaClient()).user.findUnique({
           where: { id: clientReferenceId },
         });
 
@@ -82,7 +89,7 @@ export async function POST(req: NextRequest) {
 
         // Update stripeCustomerId if missing
         if (customerId && !user.stripeCustomerId) {
-          await prisma.user.update({
+          await (await getPrismaClient()).user.update({
             where: { id: user.id },
             data: { stripeCustomerId: customerId },
           });
@@ -91,7 +98,7 @@ export async function POST(req: NextRequest) {
         // Use the itemId values from the create-checkout-session metadata
         if (itemId?.startsWith("CREDIT_PACK_")) {
           // Increment credits
-          await prisma.user.update({
+          await (await getPrismaClient()).user.update({
             where: { id: user.id },
             data: {
               credits: { increment: quantity },
@@ -115,7 +122,7 @@ export async function POST(req: NextRequest) {
           } catch (err) {
             console.error("Failed to fetch Stripe subscription:", err);
           }
-          await prisma.user.update({
+          await (await getPrismaClient()).user.update({
             where: { id: user.id },
             data: {
               isPremium: true,
@@ -178,14 +185,14 @@ export async function POST(req: NextRequest) {
           console.error("Failed to fetch Stripe subscription:", err);
         }
         // Find user by subscription ID
-        const user = await prisma.user.findFirst({
+        const user = await (await getPrismaClient()).user.findFirst({
           where: { premiumSubscriptionId: subscriptionId },
         });
         if (!user) {
           console.error("User not found for subscription ID:", subscriptionId);
           break;
         }
-        await prisma.user.update({
+        await (await getPrismaClient()).user.update({
           where: { id: user.id },
           data: { premiumExpiresAt },
         });
@@ -225,11 +232,11 @@ export async function POST(req: NextRequest) {
         // Find user by subscription or customer ID
         const user =
           (subscriptionId &&
-            (await prisma.user.findFirst({
+            (await (await getPrismaClient()).user.findFirst({
               where: { premiumSubscriptionId: subscriptionId },
             }))) ||
           (customerId &&
-            (await prisma.user.findFirst({
+            (await (await getPrismaClient()).user.findFirst({
               where: { stripeCustomerId: customerId },
             })));
 
@@ -242,7 +249,7 @@ export async function POST(req: NextRequest) {
           break;
         }
 
-        await prisma.user.update({
+        await (await getPrismaClient()).user.update({
           where: { id: user.id },
           data: {
             isPremium: false,

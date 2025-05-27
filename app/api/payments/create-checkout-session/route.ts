@@ -5,12 +5,15 @@ import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import Stripe from "stripe";
 import { getAuth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
+import { getPrismaClient } from "@/lib/prisma";
 import { ITEM_PRICE_MAP, SUBSCRIPTION_ITEMS } from "@/lib/payment-config";
 import { validateStripeEnv } from "@/lib/env-validation";
 import { transactionLogger, TransactionOperations } from "@/lib/transaction-logger";
+import { getSecrets } from '@/lib/secret-manager';
 
 // Validate Stripe environment variables
+// Note: This validation still uses process.env, which is fine for initial checks,
+// but the actual secret usage will come from Secret Manager.
 try {
   validateStripeEnv();
 } catch (error) {
@@ -21,12 +24,19 @@ try {
   }
 }
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-04-30.basil",
-});
-
 export async function POST(request: NextRequest) {
   try {
+    // Fetch secrets within the async handler
+    const paymentSecrets = await getSecrets([
+      'STRIPE_SECRET_KEY',
+      'NEXT_PUBLIC_APP_URL',
+    ]);
+
+    // Initialize Stripe after fetching secrets
+    const stripe = new Stripe(paymentSecrets.STRIPE_SECRET_KEY!, {
+      apiVersion: "2025-04-30.basil",
+    });
+
     // 1. Authenticate user
     const auth = getAuth(request);
     if (!auth.userId) {
@@ -80,7 +90,7 @@ export async function POST(request: NextRequest) {
     // 5. Get user's Stripe customer ID if available
     let stripeCustomerId: string | undefined = undefined;
     try {
-      const dbUser = await prisma.user.findUnique({
+      const dbUser = await (await getPrismaClient()).user.findUnique({
         where: { id: userId },
         select: { stripeCustomerId: true },
       });
@@ -93,7 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 6. Build URLs
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    const appUrl = paymentSecrets.NEXT_PUBLIC_APP_URL;
     if (!appUrl) {
       return NextResponse.json(
         { error: "App URL not configured" },

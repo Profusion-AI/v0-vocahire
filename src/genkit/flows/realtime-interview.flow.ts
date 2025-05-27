@@ -1,8 +1,10 @@
-import { defineFlow, streamFlow } from 'genkit';
+import { defineFlow } from '@genkit-ai/core'; // Change import to @genkit-ai/core
+import { defineStreamingFlow } from '@genkit-ai/flow'; // Import defineStreamingFlow
 import { z } from 'zod';
 import { ai } from '..';
-import { liveAPISessionManager } from '@/lib/live-api-session-manager';
+import { LiveAPISessionManager } from '@/lib/live-api-session-manager';
 import { GoogleLiveAPIClient } from '@/lib/google-live-api';
+import { getSecret } from '@/lib/secret-manager'; // Keep getSecret for potential future use or other secrets
 import {
   RealtimeInputSchema,
   RealtimeOutputSchema,
@@ -13,14 +15,17 @@ import {
 // Store for active streaming contexts
 const activeStreams = new Map<string, AbortController>();
 
-export const realtimeInterviewFlow = defineFlow(
+// Get the singleton instance of LiveAPISessionManager
+const liveAPISessionManager = LiveAPISessionManager.getInstance();
+
+export const realtimeInterviewFlow = defineStreamingFlow( // Use defineStreamingFlow
   {
     name: 'realtimeInterviewFlow',
     inputSchema: RealtimeInputSchema,
     outputSchema: RealtimeOutputSchema,
     streamSchema: RealtimeOutputSchema,
   },
-  async (input, { streamingCallback }) => {
+  async (input: z.infer<typeof RealtimeInputSchema>, { streamingCallback }: { streamingCallback: (chunk: z.infer<typeof RealtimeOutputSchema>) => Promise<void> }) => {
     const { sessionId, userId, jobRole, difficulty, systemInstruction } = input;
     
     try {
@@ -42,41 +47,49 @@ export const realtimeInterviewFlow = defineFlow(
       }
 
       // Get or create Live API session
-      let liveClient = liveAPISessionManager.getSession(sessionId);
+      // Use getOrCreateSession which handles fetching the API key internally
+      let liveClient = await liveAPISessionManager.getOrCreateSession(sessionId, {
+        model: 'models/gemini-2.0-flash-exp',
+        systemInstruction,
+        generationConfig: {
+          temperature: 0.8,
+          topP: 0.95,
+          maxOutputTokens: 2048,
+        },
+      });
       
+      // Ensure liveClient is not null before proceeding
       if (!liveClient) {
-        // Create new session
-        liveClient = await liveAPISessionManager.createSession(
-          sessionId,
-          userId,
-          {
-            apiKey: process.env.GOOGLE_AI_API_KEY!,
-            systemInstruction,
-            model: 'models/gemini-2.0-flash-exp',
-            generationConfig: {
-              temperature: 0.8,
-              topP: 0.95,
-              maxOutputTokens: 2048,
+           await streamingCallback({
+            type: 'error',
+            data: {
+              code: 'SESSION_CREATION_FAILED',
+              message: 'Failed to get or create Live API session.',
+              retryable: true,
+              timestamp: new Date().toISOString(),
             },
-          }
-        );
-
-        // Set up event listeners for streaming
-        setupLiveClientListeners(liveClient, sessionId, streamingCallback);
-
-        // Connect to Live API
-        await liveClient.connect();
-        
-        // Send connection established message
-        await streamingCallback({
-          type: 'control',
-          data: { 
-            status: 'connected',
-            sessionId,
-            timestamp: new Date().toISOString(),
-          },
-        });
+          });
+          activeStreams.delete(sessionId);
+          throw new Error('Failed to get or create Live API session.');
       }
+
+
+      // Set up event listeners for streaming
+      setupLiveClientListeners(liveClient, sessionId, streamingCallback);
+
+      // Connect to Live API
+      await liveClient.connect();
+      
+      // Send connection established message
+      await streamingCallback({
+        type: 'control',
+        data: { 
+          status: 'connected',
+          sessionId,
+          timestamp: new Date().toISOString(),
+        },
+      });
+      
 
       // Handle audio input
       if (input.audioChunk) {
@@ -100,7 +113,7 @@ export const realtimeInterviewFlow = defineFlow(
       }
 
       // Keep the stream alive
-      return new Promise<RealtimeOutputSchema>((resolve, reject) => {
+      return new Promise<z.infer<typeof RealtimeOutputSchema>>((resolve, reject) => {
         // Set up abort handling
         abortController.signal.addEventListener('abort', () => {
           resolve({
@@ -259,12 +272,15 @@ async function handleControlMessage(
 
   const client = liveAPISessionManager.getSession(sessionId);
 
+  // Ensure client is not null before using it
+  if (!client) {
+      throw new Error(`Live API client not found for session: ${sessionId}`);
+  }
+
   switch (controlMessage.type) {
     case 'stop':
       // End the session
-      if (client) {
-        await liveAPISessionManager.endSession(sessionId);
-      }
+      await liveAPISessionManager.endSession(sessionId);
       
       // Abort the stream
       const controller = activeStreams.get(sessionId);
@@ -282,9 +298,7 @@ async function handleControlMessage(
 
     case 'interrupt':
       // Interrupt current AI response
-      if (client) {
-        client.interrupt();
-      }
+      client.interrupt();
       
       await streamingCallback({
         type: 'control',
@@ -301,7 +315,7 @@ async function handleControlMessage(
 
     case 'ping':
       // Health check
-      const status = client ? client.getConnectionState() : 'disconnected';
+      const status = client.getConnectionState();
       
       return {
         type: 'control',

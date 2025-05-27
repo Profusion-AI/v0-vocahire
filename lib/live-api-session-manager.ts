@@ -1,5 +1,6 @@
 import { GoogleLiveAPIClient } from './google-live-api';
 import { redis } from './redis';
+import { getSecret } from './secret-manager';
 
 interface SessionMetadata {
   userId: string;
@@ -44,10 +45,10 @@ export class LiveAPISessionManager {
       return existingClient;
     }
 
-    // Create new client with default API key
-    const apiKey = process.env.GOOGLE_AI_API_KEY || '';
+    // Create new client with fetched API key
+    const apiKey = await getSecret('GOOGLE_AI_API_KEY');
     const client = new GoogleLiveAPIClient({
-      apiKey,
+      apiKey: apiKey || '', // Use the fetched API key
       model: config.model || 'models/gemini-2.0-flash-exp',
       systemInstruction: config.systemInstruction,
       generationConfig: config.generationConfig,

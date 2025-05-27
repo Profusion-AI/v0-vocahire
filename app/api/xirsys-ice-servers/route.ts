@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
+import { getSecrets } from '@/lib/secret-manager';
 
 export async function GET(_request: Request) {
-  const XIRSYS_IDENT = process.env.XIRSYS_IDENT;
-  const XIRSYS_SECRET = process.env.XIRSYS_SECRET;
-  // It's good practice to ensure XIRSYS_CHANNEL is explicitly set,
-  // but a default can be a fallback during development.
-  const XIRSYS_CHANNEL = process.env.XIRSYS_CHANNEL;
+  // Fetch secrets within the async handler
+  const xirsysSecrets = await getSecrets([
+    'XIRSYS_IDENT',
+    'XIRSYS_SECRET',
+    'XIRSYS_CHANNEL',
+  ]);
+
+  const XIRSYS_IDENT = xirsysSecrets.XIRSYS_IDENT;
+  const XIRSYS_SECRET = xirsysSecrets.XIRSYS_SECRET;
+  const XIRSYS_CHANNEL = xirsysSecrets.XIRSYS_CHANNEL;
 
   console.log("Xirsys environment check:", {
     identSet: !!XIRSYS_IDENT,

@@ -1,0 +1,151 @@
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+
+// Cache for secrets to avoid repeated API calls
+const secretCache = new Map<string, string>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const cacheTimestamps = new Map<string, number>();
+
+// Initialize client
+let client: SecretManagerServiceClient | null = null;
+
+// Project configuration
+const PROJECT_ID = process.env.GOOGLE_PROJECT_ID || 'vocahire-prod-20810233';
+
+/**
+ * Gets a secret from Google Secret Manager or environment variable
+ * Falls back to environment variables in development
+ */
+export async function getSecret(secretName: string): Promise<string> {
+  // In development, prefer environment variables
+  if (process.env.NODE_ENV === 'development') {
+    const envValue = process.env[secretName];
+    if (envValue) {
+      return envValue;
+    }
+  }
+
+  // Check cache first
+  const cached = secretCache.get(secretName);
+  const cachedTime = cacheTimestamps.get(secretName);
+  
+  if (cached && cachedTime && Date.now() - cachedTime < CACHE_TTL) {
+    return cached;
+  }
+
+  // In production or if env var not found, use Secret Manager
+  try {
+    if (!client) {
+      client = new SecretManagerServiceClient();
+    }
+
+    const name = `projects/${PROJECT_ID}/secrets/${secretName}/versions/latest`;
+    const [version] = await client.accessSecretVersion({ name });
+    
+    const payload = version.payload?.data?.toString();
+    if (!payload) {
+      throw new Error(`Secret ${secretName} not found in Secret Manager`);
+    }
+
+    // Cache the secret
+    secretCache.set(secretName, payload);
+    cacheTimestamps.set(secretName, Date.now());
+    
+    return payload;
+  } catch (error) {
+    // If Secret Manager fails in development, check env again
+    if (process.env.NODE_ENV === 'development') {
+      const envValue = process.env[secretName];
+      if (envValue) {
+        console.warn(`Secret Manager failed, using env var for ${secretName}`);
+        return envValue;
+      }
+    }
+    
+    console.error(`Failed to get secret ${secretName}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Gets multiple secrets at once (more efficient)
+ */
+export async function getSecrets(secretNames: string[]): Promise<Record<string, string>> {
+  const results: Record<string, string> = {};
+  
+  // Use Promise.all for parallel fetching
+  const promises = secretNames.map(async (name) => {
+    try {
+      results[name] = await getSecret(name);
+    } catch (error) {
+      console.error(`Failed to get secret ${name}:`, error);
+      // Don't throw, let other secrets load
+    }
+  });
+  
+  await Promise.all(promises);
+  return results;
+}
+
+/**
+ * Configuration object with all secrets
+ */
+export interface VocaHireSecrets {
+  DATABASE_URL: string;
+  CLERK_SECRET_KEY: string;
+  STRIPE_SECRET_KEY: string;
+  STRIPE_WEBHOOK_SECRET: string;
+  REDIS_URL: string;
+  SUPABASE_SERVICE_ROLE_KEY?: string;
+}
+
+/**
+ * Get all VocaHire secrets at once
+ */
+export async function getVocaHireSecrets(): Promise<VocaHireSecrets> {
+  const secretNames = [
+    'DATABASE_URL',
+    'CLERK_SECRET_KEY',
+    'STRIPE_SECRET_KEY',
+    'STRIPE_WEBHOOK_SECRET',
+    'REDIS_URL',
+    'SUPABASE_SERVICE_ROLE_KEY',
+  ];
+  
+  const secrets = await getSecrets(secretNames);
+  
+  // Validate required secrets
+  const required = ['DATABASE_URL', 'CLERK_SECRET_KEY', 'STRIPE_SECRET_KEY', 'REDIS_URL'];
+  for (const key of required) {
+    if (!secrets[key]) {
+      throw new Error(`Required secret ${key} not found`);
+    }
+  }
+  
+  return secrets as VocaHireSecrets;
+}
+
+/**
+ * Clear the secret cache (useful for testing or rotation)
+ */
+export function clearSecretCache(): void {
+  secretCache.clear();
+  cacheTimestamps.clear();
+}
+
+/**
+ * Initialize secrets on app startup
+ * This pre-loads all secrets to avoid cold start delays
+ */
+export async function initializeSecrets(): Promise<void> {
+  try {
+    console.log('Initializing secrets...');
+    await getVocaHireSecrets();
+    console.log('Secrets initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize secrets:', error);
+    // Don't throw in development
+    if (process.env.NODE_ENV === 'production') {
+      throw error;
+    }
+  }
+}
