@@ -127,7 +127,7 @@ export function useGenkitRealtime(
                        sessionConfig.interviewType === 'technical' ? 'Technical' : 
                        sessionConfig.interviewType === 'situational' ? 'General' : 'General',
         difficulty: 'mid',
-        systemInstruction: `Conduct a ${sessionConfig.interviewType} interview for ${sessionConfig.domainOrRole}`,
+        systemInstruction: `You are an interviewer conducting a ${sessionConfig.interviewType} interview for a ${sessionConfig.domainOrRole} position. Ask relevant questions one at a time and provide constructive feedback.`,
         controlMessage: { type: 'start' },
       };
       

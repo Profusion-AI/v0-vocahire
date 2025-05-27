@@ -27,6 +27,8 @@ export class GoogleLiveAPIClient extends EventEmitter {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 3;
   private reconnectDelay = 1000;
+  private currentModel: string | null = null;
+  private modelFallbackAttempted = false;
 
   constructor(config: LiveAPIConfig) {
     super();
@@ -54,6 +56,21 @@ export class GoogleLiveAPIClient extends EventEmitter {
 
         this.ws.onerror = (error) => {
           console.error('Live API WebSocket error:', error);
+          
+          // Try fallback model if native audio model fails and we haven't tried already
+          if (!this.modelFallbackAttempted && !this.currentModel) {
+            console.log('Native audio model failed, attempting fallback to gemini-2.0-flash-live-001');
+            this.modelFallbackAttempted = true;
+            this.currentModel = 'models/gemini-2.0-flash-live-001';
+            this.ws = null;
+            // Retry connection with fallback model
+            this.connect().catch((fallbackError) => {
+              console.error('Fallback model also failed:', fallbackError);
+              this.emit('error', error);
+            });
+            return;
+          }
+          
           this.emit('error', error);
         };
 
@@ -70,7 +87,8 @@ export class GoogleLiveAPIClient extends EventEmitter {
   }
 
   private buildWebSocketUrl(): string {
-    const model = this.config.model || 'models/gemini-2.0-flash-exp';
+    // Use current model if set (for fallback), otherwise use config or default
+    const model = this.currentModel || this.config.model || 'models/gemini-2.5-flash-preview-native-audio-dialog';
     const baseUrl = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent';
     return `${baseUrl}?key=${this.config.apiKey}`;
   }
@@ -80,7 +98,7 @@ export class GoogleLiveAPIClient extends EventEmitter {
 
     const setupMessage: any = {
       setup: {
-        model: this.config.model || 'models/gemini-2.0-flash-exp',
+        model: this.currentModel || this.config.model || 'models/gemini-2.5-flash-preview-native-audio-dialog',
         generation_config: {
           response_modalities: ['AUDIO'],
           speech_config: {
