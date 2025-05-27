@@ -109,7 +109,11 @@ export class GoogleLiveAPIClient extends EventEmitter {
             }
           },
           ...this.config.generationConfig
-        }
+        },
+        // Enable transcription for audio output
+        output_audio_transcription: {},
+        // Enable transcription for audio input
+        input_audio_transcription: {}
       }
     };
 
@@ -151,7 +155,8 @@ export class GoogleLiveAPIClient extends EventEmitter {
         const parts = content.modelTurn.parts;
         parts.forEach((part: any) => {
           if (part.text) {
-            this.emit('transcript', { type: 'ai', text: part.text });
+            // This shouldn't happen with AUDIO modality
+            console.warn('Received text in AUDIO mode:', part.text);
           } else if (part.inlineData) {
             const audioData = this.base64ToArrayBuffer(part.inlineData.data);
             this.emit('audioData', audioData);
@@ -159,6 +164,15 @@ export class GoogleLiveAPIClient extends EventEmitter {
             this.emit('functionCall', part.functionCall);
           }
         });
+      }
+      
+      // Handle transcriptions
+      if (content.outputTranscription) {
+        this.emit('transcript', { type: 'ai', text: content.outputTranscription.text });
+      }
+      
+      if (content.inputTranscription) {
+        this.emit('transcript', { type: 'user', text: content.inputTranscription.text });
       }
 
       if (content.turnComplete) {

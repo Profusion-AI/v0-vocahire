@@ -1,27 +1,30 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { z } from 'zod';
-import { 
-  RealtimeInputSchema, 
+import {
+  RealtimeInputSchema,
   RealtimeOutputSchema,
   TranscriptEntrySchema,
-  ErrorSchema 
+  ErrorSchema
 } from '@/src/genkit/schemas/types';
 
-// Use the SessionConfig from types.ts instead of defining our own
-import type { SessionConfig as BaseSessionConfig } from '@/src/genkit/schemas/types';
-
-// Extend if needed or just use the imported type
-export type SessionConfig = BaseSessionConfig;
+export interface SessionConfig {
+  sessionId: string;
+  userId: string;
+  jobRole: string;
+  interviewType: z.infer<typeof RealtimeInputSchema>['interviewType']; // Added interviewType
+  difficulty: z.infer<typeof RealtimeInputSchema>['difficulty'];
+  systemInstruction: string;
+}
 
 export interface UseGenkitRealtimeOptions {
   maxReconnectAttempts?: number;
   reconnectDelay?: number;
-  onMessage?: (data: any) => void;
-  onError?: (error: Error) => void;
+  onMessage?: (data: z.infer<typeof RealtimeOutputSchema>) => void; // Added onMessage
+  onError?: (error: z.infer<typeof ErrorSchema>) => void; // Added onError
 }
 
 export interface UseGenkitRealtimeReturn {
-  status: string;
+  status: 'idle' | 'connecting' | 'connected' | 'streaming' | 'disconnected' | 'error' | 'thinking'; // Added status
   isConnected: boolean;
   isConnecting: boolean;
   error: z.infer<typeof ErrorSchema> | null;
@@ -29,10 +32,7 @@ export interface UseGenkitRealtimeReturn {
   aiAudioQueue: string[]; // Base64 encoded audio chunks
   connect: () => Promise<void>;
   disconnect: () => void;
-  sendData: (data: any) => void;
-  sendAudio: (audioData: ArrayBuffer) => void;
-  sendText: (text: string) => void;
-  interrupt: () => void;
+  sendData: (data: z.infer<typeof RealtimeInputSchema>) => void; // Changed from sendAudio/sendText/interrupt
 }
 
 export function useGenkitRealtime(
@@ -41,46 +41,55 @@ export function useGenkitRealtime(
   options: UseGenkitRealtimeOptions = {}
 ): UseGenkitRealtimeReturn {
   const { maxReconnectAttempts = 3, reconnectDelay = 1000, onMessage, onError } = options;
-  
+
+  const [status, setStatus] = useState<UseGenkitRealtimeReturn['status']>('idle'); // Initial state includes 'thinking'
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [status, setStatus] = useState('disconnected');
   const [error, setError] = useState<z.infer<typeof ErrorSchema> | null>(null);
   const [transcript, setTranscript] = useState<z.infer<typeof TranscriptEntrySchema>[]>([]);
   const [aiAudioQueue, setAiAudioQueue] = useState<string[]>([]);
-  
-  const eventSourceRef = useRef<EventSource | null>(null);
+
   const reconnectAttemptsRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleSSEMessage = useCallback((event: MessageEvent) => {
     try {
       const data = JSON.parse(event.data);
-      
-      // Call the onMessage callback if provided
-      if (onMessage) {
-        onMessage(data);
-      }
-      
       const parsed = RealtimeOutputSchema.parse(data);
-      
+
+      if (onMessage) {
+        onMessage(parsed); // Call the provided onMessage callback
+      }
+
+      // Update internal state based on message type (optional, can rely solely on onMessage)
       switch (parsed.type) {
         case 'transcript':
           if (parsed.data && typeof parsed.data === 'object' && 'speaker' in parsed.data) {
+             // Assuming transcript data comes as individual entries
             const entry = TranscriptEntrySchema.parse({
               ...parsed.data,
               timestamp: parsed.timestamp || new Date().toISOString(),
             });
-            setTranscript(prev => [...prev, entry]);
+            setTranscript(prev => {
+              // Append or update the last entry based on speaker
+              if (prev.length > 0 && prev[prev.length - 1].speaker === entry.speaker) {
+                const lastEntry = prev[prev.length - 1];
+                // Simple append logic, may need refinement for streaming
+                lastEntry.text += entry.text;
+                return [...prev.slice(0, -1), lastEntry];
+              } else {
+                return [...prev, entry];
+              }
+            });
           }
           break;
-          
+
         case 'audio':
           if (typeof parsed.data === 'string') {
             setAiAudioQueue(prev => [...prev, parsed.data]);
           }
           break;
-          
+
         case 'error':
           const errorData = ErrorSchema.parse({
             ...parsed.data,
@@ -88,70 +97,79 @@ export function useGenkitRealtime(
           });
           setError(errorData);
           if (onError) {
-            onError(new Error(errorData.message));
+            onError(errorData); // Call the provided onError callback
           }
+          setStatus('error'); // Update status on error
           break;
-          
+
         case 'control':
           if (parsed.data?.status === 'connected') {
             setIsConnected(true);
             setIsConnecting(false);
-            setStatus('connected');
             reconnectAttemptsRef.current = 0;
-          } else if (parsed.data?.status === 'disconnected') {
+            setStatus('connected'); // Update status
+          } else if (parsed.data?.status === 'disconnected' || parsed.data?.status === 'session_ended') {
             setIsConnected(false);
-            setStatus('disconnected');
+            setStatus('disconnected'); // Update status
           } else if (parsed.data?.status === 'streaming') {
-            setStatus('streaming');
+             setStatus('streaming'); // Update status
+          } else if (parsed.data?.status === 'thinking') {
+             setStatus('thinking'); // Update status
           }
           break;
       }
     } catch (err) {
       console.error('Error parsing SSE message:', err);
+      const parseError: z.infer<typeof ErrorSchema> = {
+        code: 'PARSE_ERROR',
+        message: 'Failed to parse server message',
+        details: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      };
+      setError(parseError);
+      if (onError) {
+        onError(parseError);
+      }
+      setStatus('error'); // Update status on parse error
     }
-  }, [onMessage, onError]);
+  }, [onMessage, onError]); // Added onMessage, onError to dependencies
 
   const connect = useCallback(async () => {
     if (isConnected || isConnecting) return;
-    
+
+    setStatus('connecting'); // Update status
     setIsConnecting(true);
     setError(null);
-    
+    setTranscript([]); // Clear previous transcript on new connection
+    setAiAudioQueue([]); // Clear previous audio queue
+
     try {
       // Send initial connection request
-      const payload: z.infer<typeof RealtimeInputSchema> = {
-        sessionId: sessionConfig.sessionId || `session_${Date.now()}`,
-        userId: sessionConfig.userId,
-        jobRole: sessionConfig.domainOrRole,
-        interviewType: sessionConfig.interviewType === 'behavioral' ? 'Behavioral' : 
-                       sessionConfig.interviewType === 'technical' ? 'Technical' : 
-                       sessionConfig.interviewType === 'situational' ? 'General' : 'General',
-        difficulty: 'mid',
-        systemInstruction: `You are an interviewer conducting a ${sessionConfig.interviewType} interview for a ${sessionConfig.domainOrRole} position. Ask relevant questions one at a time and provide constructive feedback.`,
-        controlMessage: { type: 'start' },
-      };
-      
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...sessionConfig,
+          controlMessage: { type: 'start' },
+        } satisfies z.infer<typeof RealtimeInputSchema>),
+        signal: abortControllerRef.current?.signal, // Use abort signal
       });
 
       if (!response.ok) {
-        throw new Error(`Connection failed: ${response.statusText}`);
+        throw new Error(`Connection failed: ${response.status} ${response.statusText}`);
       }
 
       // Set up SSE
       if (response.body) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        
+
         // Process SSE stream
         const processStream = async () => {
           let buffer = '';
-          
+
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -169,165 +187,153 @@ export function useGenkitRealtime(
         };
 
         abortControllerRef.current = new AbortController();
-        processStream().catch(console.error);
+        processStream().catch(err => {
+           // Handle stream processing errors
+           if (err instanceof Error && err.name === 'AbortError') {
+              console.log('Stream aborted');
+           } else {
+              console.error('Stream processing error:', err);
+              const streamError: z.infer<typeof ErrorSchema> = {
+                code: 'STREAM_ERROR',
+                message: 'Real-time stream error',
+                details: err instanceof Error ? err.message : String(err),
+                timestamp: new Date().toISOString(),
+              };
+              setError(streamError);
+              if (onError) {
+                onError(streamError);
+              }
+              setStatus('error'); // Update status on stream error
+              setIsConnected(false);
+              setIsConnecting(false);
+              // Attempt reconnection if not explicitly disconnected
+              if (abortControllerRef.current?.signal.aborted === false) {
+                 attemptReconnect();
+              }
+           }
+        });
+      } else {
+         // Handle no response body
+         const noBodyError: z.infer<typeof ErrorSchema> = {
+            code: 'NO_RESPONSE_BODY',
+            message: 'No response body received from server',
+            timestamp: new Date().toISOString(),
+         };
+         setError(noBodyError);
+         if (onError) {
+            onError(noBodyError);
+         }
+         setStatus('error');
+         setIsConnected(false);
+         setIsConnecting(false);
+         attemptReconnect();
       }
+
     } catch (err) {
-      const error: z.infer<typeof ErrorSchema> = {
-        code: 'CONNECTION_ERROR',
-        message: err instanceof Error ? err.message : 'Failed to connect',
-        retryable: reconnectAttemptsRef.current < maxReconnectAttempts,
-        timestamp: new Date().toISOString(),
-      };
-      setError(error);
-      setIsConnecting(false);
-      
-      // Attempt reconnection
-      if (error.retryable) {
-        reconnectAttemptsRef.current++;
-        setTimeout(connect, reconnectDelay * reconnectAttemptsRef.current);
+      // Handle initial fetch/connection errors
+      if (err instanceof Error && err.name === 'AbortError') {
+         console.log('Connection attempt aborted');
+         setStatus('disconnected'); // Explicitly set status on abort
+         setIsConnected(false);
+         setIsConnecting(false);
+      } else {
+         console.error('Initial connection error:', err);
+         const connectionError: z.infer<typeof ErrorSchema> = {
+           code: 'CONNECTION_ERROR',
+           message: err instanceof Error ? err.message : 'Failed to connect',
+           retryable: reconnectAttemptsRef.current < maxReconnectAttempts,
+           timestamp: new Date().toISOString(),
+         };
+         setError(connectionError);
+         if (onError) {
+           onError(connectionError);
+         }
+         setStatus('error'); // Update status on connection error
+         setIsConnecting(false);
+
+         // Attempt reconnection
+         if (connectionError.retryable) {
+           reconnectAttemptsRef.current++;
+           setTimeout(connect, reconnectDelay * reconnectAttemptsRef.current);
+         }
       }
     }
-  }, [apiUrl, sessionConfig, isConnected, isConnecting, handleSSEMessage, maxReconnectAttempts, reconnectDelay]);
+  }, [apiUrl, sessionConfig, isConnected, isConnecting, handleSSEMessage, maxReconnectAttempts, reconnectDelay, onError]); // Added onError to dependencies
+
+  const attemptReconnect = useCallback(() => {
+     if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+        console.log('Max reconnect attempts reached.');
+        setStatus('disconnected'); // Final status after max attempts
+        return;
+     }
+     setStatus('connecting'); // Status during reconnection attempt
+     reconnectAttemptsRef.current++;
+     console.log(`Attempting to reconnect... (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
+     setTimeout(connect, reconnectDelay * reconnectAttemptsRef.current);
+  }, [connect, maxReconnectAttempts, reconnectDelay]);
+
 
   const disconnect = useCallback(() => {
+    console.log('Disconnect called');
     if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+      abortControllerRef.current.abort(); // Abort the fetch/stream
       abortControllerRef.current = null;
     }
-    
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
+
+    // Send disconnect message to server (best effort)
+    if (isConnected || isConnecting) { // Only send if we were connected or trying to connect
+       fetch(apiUrl, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           ...sessionConfig,
+           controlMessage: { type: 'stop' },
+         } satisfies z.infer<typeof RealtimeInputSchema>),
+       }).catch(console.error); // Log error but don't block
     }
-    
-    // Send disconnect message
-    const payload: z.infer<typeof RealtimeInputSchema> = {
-      sessionId: sessionConfig.sessionId || '',
-      userId: sessionConfig.userId,
-      jobRole: sessionConfig.domainOrRole,
-      interviewType: sessionConfig.interviewType === 'behavioral' ? 'Behavioral' : 
-                     sessionConfig.interviewType === 'technical' ? 'Technical' : 
-                     sessionConfig.interviewType === 'situational' ? 'General' : 'General',
-      difficulty: 'mid',
-      systemInstruction: `Conduct a ${sessionConfig.interviewType} interview for ${sessionConfig.domainOrRole}`,
-      controlMessage: { type: 'stop' },
-    };
-    
-    fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }).catch(console.error);
-    
+
+
     setIsConnected(false);
     setIsConnecting(false);
-    setStatus('disconnected');
-  }, [apiUrl, sessionConfig]);
+    setStatus('disconnected'); // Update status immediately on disconnect
+    reconnectAttemptsRef.current = 0; // Reset reconnect attempts on explicit disconnect
 
-  const sendAudio = useCallback((audioData: ArrayBuffer) => {
-    if (!isConnected) return;
-    
-    // Convert ArrayBuffer to base64
-    const bytes = new Uint8Array(audioData);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    const base64 = btoa(binary);
-    
-    // Ensure we conform to RealtimeInputSchema
-    const payload: z.infer<typeof RealtimeInputSchema> = {
-      sessionId: sessionConfig.sessionId || '',
-      userId: sessionConfig.userId,
-      jobRole: sessionConfig.domainOrRole,
-      interviewType: sessionConfig.interviewType === 'behavioral' ? 'Behavioral' : 
-                     sessionConfig.interviewType === 'technical' ? 'Technical' : 
-                     sessionConfig.interviewType === 'situational' ? 'General' : 'General',
-      difficulty: 'mid', // Default to mid, could be made configurable
-      systemInstruction: `Conduct a ${sessionConfig.interviewType} interview for ${sessionConfig.domainOrRole}`,
-      audioChunk: base64,
-    };
-    
-    fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }).catch(console.error);
-  }, [apiUrl, sessionConfig, isConnected]);
+  }, [apiUrl, sessionConfig, isConnected, isConnecting]); // Added isConnected, isConnecting to dependencies
 
-  const sendText = useCallback((text: string) => {
-    if (!isConnected) return;
-    
-    // Ensure we conform to RealtimeInputSchema
-    const payload: z.infer<typeof RealtimeInputSchema> = {
-      sessionId: sessionConfig.sessionId || '',
-      userId: sessionConfig.userId,
-      jobRole: sessionConfig.domainOrRole,
-      interviewType: sessionConfig.interviewType === 'behavioral' ? 'Behavioral' : 
-                     sessionConfig.interviewType === 'technical' ? 'Technical' : 
-                     sessionConfig.interviewType === 'situational' ? 'General' : 'General',
-      difficulty: 'mid',
-      systemInstruction: `Conduct a ${sessionConfig.interviewType} interview for ${sessionConfig.domainOrRole}`,
-      textInput: text,
-    };
-    
-    fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }).catch(console.error);
-  }, [apiUrl, sessionConfig, isConnected]);
 
-  const interrupt = useCallback(() => {
-    if (!isConnected) return;
-    
-    const payload: z.infer<typeof RealtimeInputSchema> = {
-      sessionId: sessionConfig.sessionId || '',
-      userId: sessionConfig.userId,
-      jobRole: sessionConfig.domainOrRole,
-      interviewType: sessionConfig.interviewType === 'behavioral' ? 'Behavioral' : 
-                     sessionConfig.interviewType === 'technical' ? 'Technical' : 
-                     sessionConfig.interviewType === 'situational' ? 'General' : 'General',
-      difficulty: 'mid',
-      systemInstruction: `Conduct a ${sessionConfig.interviewType} interview for ${sessionConfig.domainOrRole}`,
-      controlMessage: { type: 'interrupt' },
-    };
-    
-    fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }).catch(console.error);
-    
-    // Clear audio queue
-    setAiAudioQueue([]);
-  }, [apiUrl, sessionConfig, isConnected]);
+  const sendData = useCallback((data: z.infer<typeof RealtimeInputSchema>) => {
+     if (!isConnected) {
+       console.warn('Cannot send data: Not connected');
+       return;
+     }
+
+     // Ensure the data includes sessionConfig fields
+     const payload = {
+       ...sessionConfig,
+       ...data,
+     } satisfies z.infer<typeof RealtimeInputSchema>;
+
+
+     fetch(apiUrl, {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify(payload),
+     }).catch(console.error); // Log error but don't block
+
+  }, [apiUrl, sessionConfig, isConnected]); // Added sessionConfig, isConnected to dependencies
+
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      disconnect();
+      console.log('Hook unmounting, disconnecting...');
+      disconnect(); // Ensure disconnect is called on unmount
     };
-  }, [disconnect]);
+  }, [disconnect]); // Added disconnect to dependencies
 
-  const sendData = useCallback((data: any) => {
-    if (data.type === 'control') {
-      if (data.action === 'start') {
-        connect();
-      } else if (data.action === 'stop') {
-        disconnect();
-      } else if (data.action === 'mute' && data.data) {
-        // Handle mute logic if needed
-      }
-    } else if (data.type === 'audio' && data.data) {
-      sendAudio(data.data);
-    } else if (data.type === 'text' && data.text) {
-      sendText(data.text);
-    }
-  }, [connect, disconnect, sendAudio, sendText]);
 
   return {
-    status,
+    status, // Return status
     isConnected,
     isConnecting,
     error,
@@ -335,9 +341,6 @@ export function useGenkitRealtime(
     aiAudioQueue,
     connect,
     disconnect,
-    sendData,
-    sendAudio,
-    sendText,
-    interrupt,
+    sendData, // Return sendData
   };
 }

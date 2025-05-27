@@ -1,17 +1,25 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle } from 'lucide-react';
-import { AudioVisualization } from './AudioVisualization';
-import { TranscriptDisplay } from './TranscriptDisplay';
-import { InterviewControls } from './InterviewControls';
-import { SessionStatus } from './SessionStatus';
+import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { useAudioStream } from '../hooks/useAudioStream';
 import type { UseGenkitRealtimeReturn } from '../hooks/useGenkitRealtime';
-import type { SessionConfig } from '@/src/genkit/schemas/types';
+import AudioVisualization from './AudioVisualization';
+import TranscriptDisplay from './TranscriptDisplay';
+import InterviewControls from './InterviewControls';
+import SessionStatus from './SessionStatus';
+import type { SessionConfig as GenkitSessionConfig, RealtimeInputSchema } from '@/src/genkit/schemas/types';
+import { z } from 'zod';
+
+// Extended SessionConfig that includes both Genkit schema fields and interview-specific fields
+interface SessionConfig extends GenkitSessionConfig {
+  interviewType: string;
+  domainOrRole: string;
+  sessionId?: string;
+}
 
 interface LiveInterviewProps {
   sessionConfig: SessionConfig;
@@ -23,14 +31,12 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd }: LiveInterv
   const {
     status,
     isConnected,
-    isConnecting,
     error,
     transcript,
     aiAudioQueue,
     connect,
     disconnect,
-    sendAudio,
-    interrupt,
+    sendData,
   } = realtimeHook;
 
   // Audio stream management
@@ -44,79 +50,93 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd }: LiveInterv
   const [isPlaying, setIsPlaying] = useState(false);
   const [speakerMuted, setSpeakerMuted] = useState(false);
 
-  // Send audio chunks periodically
+  // Start connection on mount
   useEffect(() => {
-    if (!isConnected || !audioStream.isActive || audioStream.isMuted) return;
+    connect();
+  }, [connect]);
+
+  // Send audio data periodically
+  useEffect(() => {
+    if (!isConnected || !audioStream.isActive) return;
 
     const interval = setInterval(() => {
-      const chunk = audioStream.getAudioChunk();
-      if (chunk) {
-        sendAudio(chunk.buffer);
+      const audioBuffer = audioStream.getAudioBuffer();
+      if (audioBuffer && audioBuffer.byteLength > 0) {
+        // Convert to base64
+        const bytes = new Uint8Array(audioBuffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const base64Audio = btoa(binary);
+        
+        sendData({
+          sessionId: sessionConfig.sessionId || `session_${Date.now()}`,
+          userId: sessionConfig.userId,
+          jobRole: sessionConfig.domainOrRole,
+          interviewType: sessionConfig.interviewType === 'behavioral' ? 'Behavioral' :
+                        sessionConfig.interviewType === 'technical' ? 'Technical' :
+                        sessionConfig.interviewType === 'situational' ? 'General' : 'General',
+          difficulty: 'mid',
+          systemInstruction: `You are an interviewer conducting a ${sessionConfig.interviewType} interview for a ${sessionConfig.domainOrRole} position.`,
+          audioChunk: base64Audio,
+        } satisfies z.infer<typeof RealtimeInputSchema>);
       }
-    }, 100); // Send audio every 100ms
+    }, 100); // Send every 100ms
 
     return () => clearInterval(interval);
-  }, [isConnected, audioStream.isActive, audioStream.isMuted, audioStream.getAudioChunk, sendAudio]);
-
-  // Start audio stream when connected
-  useEffect(() => {
-    if (isConnected && !audioStream.isActive) {
-      audioStream.startStream().catch(console.error);
-    }
-  }, [isConnected, audioStream.isActive, audioStream.startStream]);
+  }, [isConnected, audioStream.isActive, audioStream.getAudioBuffer, sendData, sessionConfig]);
 
   // Play AI audio responses
-  useEffect(() => {
-    if (aiAudioQueue.length === 0 || speakerMuted) return;
+  const playNextChunk = useCallback(async () => {
+    if (aiAudioQueue.length === 0 || speakerMuted) {
+      setIsPlaying(false);
+      return;
+    }
 
-    const playNextChunk = async () => {
-      if (aiAudioQueue.length === 0) {
-        setIsPlaying(false);
-        return;
+    setIsPlaying(true);
+    const base64Audio = aiAudioQueue[0];
+    
+    try {
+      // Decode base64 to ArrayBuffer
+      const binaryString = atob(base64Audio);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
       }
 
-      setIsPlaying(true);
-      const base64Audio = aiAudioQueue[0];
+      // Create audio context if needed
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext();
+      }
+
+      // Decode audio data
+      const audioBuffer = await audioContextRef.current.decodeAudioData(bytes.buffer);
       
-      try {
-        // Decode base64 to ArrayBuffer
-        const binaryString = atob(base64Audio);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-
-        // Create audio context if needed
-        if (!audioContextRef.current) {
-          audioContextRef.current = new AudioContext();
-        }
-
-        // Decode audio data
-        const audioBuffer = await audioContextRef.current.decodeAudioData(bytes.buffer);
-        
-        // Create and play audio source
-        const source = audioContextRef.current.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(audioContextRef.current.destination);
-        
-        source.onended = () => {
-          // Remove played chunk and play next
-          aiAudioQueue.shift();
-          playNextChunk();
-        };
-        
-        source.start();
-      } catch (err) {
-        console.error('Failed to play audio chunk:', err);
+      // Create and play audio source
+      const source = audioContextRef.current.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContextRef.current.destination);
+      
+      source.onended = () => {
+        // Remove played chunk and play next
         aiAudioQueue.shift();
         playNextChunk();
-      }
-    };
+      };
+      
+      source.start();
+    } catch (err) {
+      console.error('Failed to play audio:', err);
+      setIsPlaying(false);
+    }
+  }, [aiAudioQueue, speakerMuted]);
 
-    if (!isPlaying) {
+  // Trigger audio playback when new chunks arrive
+  useEffect(() => {
+    if (aiAudioQueue.length > 0 && !isPlaying) {
       playNextChunk();
     }
-  }, [aiAudioQueue, speakerMuted, isPlaying]);
+  }, [aiAudioQueue, isPlaying, playNextChunk]);
 
   // Handle interview end
   const handleEnd = () => {
@@ -127,7 +147,18 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd }: LiveInterv
 
   // Handle interrupt
   const handleInterrupt = () => {
-    interrupt();
+    sendData({
+      sessionId: sessionConfig.sessionId || `session_${Date.now()}`,
+      userId: sessionConfig.userId,
+      jobRole: sessionConfig.domainOrRole,
+      interviewType: sessionConfig.interviewType === 'behavioral' ? 'Behavioral' :
+                    sessionConfig.interviewType === 'technical' ? 'Technical' :
+                    sessionConfig.interviewType === 'situational' ? 'General' : 'General',
+      difficulty: 'mid',
+      systemInstruction: `You are an interviewer conducting a ${sessionConfig.interviewType} interview for a ${sessionConfig.domainOrRole} position.`,
+      controlMessage: { type: 'interrupt' },
+    } satisfies z.infer<typeof RealtimeInputSchema>);
+    
     // Stop current audio playback
     if (audioContextRef.current) {
       audioContextRef.current.close();
@@ -144,7 +175,7 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd }: LiveInterv
         audioContextRef.current.close();
       }
     };
-  }, [audioStream.stopStream]);
+  }, [audioStream]);
 
   return (
     <div className="space-y-6">
@@ -152,102 +183,56 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd }: LiveInterv
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Live Interview Session</CardTitle>
-            <div className="flex items-center gap-2">
-              <Badge variant={sessionConfig.interviewType === 'technical' ? 'default' : 'secondary'}>
-                {sessionConfig.interviewType}
-              </Badge>
-              <Badge variant="outline">{sessionConfig.domainOrRole}</Badge>
-            </div>
+            <CardTitle className="text-xl">
+              {sessionConfig.interviewType.charAt(0).toUpperCase() + sessionConfig.interviewType.slice(1)} Interview
+            </CardTitle>
+            <Badge variant={isConnected ? 'default' : 'secondary'}>
+              {sessionConfig.domainOrRole}
+            </Badge>
           </div>
         </CardHeader>
       </Card>
 
-      {/* Connection Status */}
-      <SessionStatus
-        status={status}
-        sessionStatus={null}
-      />
+      {/* Session Status */}
+      <SessionStatus status={status} error={error} />
 
-      {/* Error Alert */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <div>
-              <p className="font-semibold mb-1">{error.code.replace(/_/g, ' ')}</p>
-              <p>{error.message}</p>
-              {error.retryable && (
-                <p className="text-sm mt-2 text-muted-foreground">
-                  We'll automatically retry the connection...
-                </p>
-              )}
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Microphone Permission Error */}
-      {audioStream.error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Microphone access error: {audioStream.error.message}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Main Interview Interface */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Audio Visualization */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Audio</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AudioVisualization
-              analyserNode={audioStream.analyserNode}
-              isActive={audioStream.isActive}
-              isMuted={audioStream.isMuted}
+      {/* Audio Controls */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-center gap-4">
+            <Button
+              variant={audioStream.isMuted ? 'secondary' : 'default'}
+              size="icon"
+              onClick={() => audioStream.setIsMuted(!audioStream.isMuted)}
+            >
+              {audioStream.isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </Button>
+            
+            <AudioVisualization 
               audioLevel={audioStream.audioLevel}
+              isActive={audioStream.isActive}
             />
-          </CardContent>
-        </Card>
+            
+            <Button
+              variant={speakerMuted ? 'secondary' : 'default'}
+              size="icon"
+              onClick={() => setSpeakerMuted(!speakerMuted)}
+            >
+              {speakerMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Transcript */}
-        <Card className="max-h-[500px] overflow-hidden">
-          <CardHeader>
-            <CardTitle>Conversation</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-y-auto max-h-[400px]">
-            <TranscriptDisplay entries={transcript} />
-          </CardContent>
-        </Card>
-      </div>
+      {/* Transcript */}
+      <TranscriptDisplay transcript={transcript} />
 
       {/* Controls */}
       <InterviewControls
-        isConnected={isConnected}
-        isMicMuted={audioStream.isMuted}
-        isSpeakerMuted={speakerMuted}
-        isRecording={audioStream.isActive}
-        onToggleMic={() => audioStream.toggleMute()}
-        onToggleSpeaker={() => setSpeakerMuted(!speakerMuted)}
+        onEnd={handleEnd}
         onInterrupt={handleInterrupt}
-        onEndInterview={handleEnd}
+        isConnected={isConnected}
       />
-
-      {/* Loading State */}
-      {isConnecting && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-          <Card className="p-6">
-            <div className="flex items-center space-x-4">
-              <Loader2 className="h-6 w-6 animate-spin" />
-              <p className="text-lg">Connecting to interview session...</p>
-            </div>
-          </Card>
-        </div>
-      )}
     </div>
   );
 }
