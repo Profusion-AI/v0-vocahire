@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { redis } from 'lib/redis';
-import { initSpeechClient, initTextToSpeechClient, initVertexAIClient } from 'lib/google-cloud-utils';
+import { redis } from '@/lib/redis';
+import { initSpeechClient, initTextToSpeechClient, initVertexAIClient } from '@/lib/google-cloud-utils';
 
 export async function GET() {
   const serviceStatuses: { [key: string]: string } = {};

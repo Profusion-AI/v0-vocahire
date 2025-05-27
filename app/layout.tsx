@@ -34,9 +34,6 @@ export default function RootLayout({
           footerActionLink: 'text-blue-600 hover:text-blue-700'
         }
       }}
-      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      signInUrl="https://accounts.vocahire.com/sign-in"
-      signUpUrl="https://accounts.vocahire.com/sign-up"
       signInFallbackRedirectUrl="/interview"
       signUpFallbackRedirectUrl="/interview"
       afterSignOutUrl="/"

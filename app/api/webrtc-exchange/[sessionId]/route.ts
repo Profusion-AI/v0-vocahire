@@ -60,7 +60,7 @@ wss.on('connection', (ws, request) => {
             type: "webrtc.answer",
             timestamp: new Date().toISOString(),
             data: {
-              sdp: "v=0
+              sdp: `v=0
 o=- 12345 1 IN IP4 127.0.0.1
 s=-
 a=group:BUNDLE audio
@@ -94,8 +94,7 @@ a=rtpmap:112 telephone-event/8000
 a=rtpmap:113 DTMF/8000
 a=rtpmap:114 CELP/8000
 a=rtpmap:115 H264/90000
-a=rtpmap:116 VP8/90000
-", // Placeholder for server's SDP answer
+a=rtpmap:116 VP8/90000`, // Placeholder for server's SDP answer
               type: "answer"
             }
           }));

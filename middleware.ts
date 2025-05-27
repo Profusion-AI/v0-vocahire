@@ -19,6 +19,11 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req: NextRequest) => {
+  // Skip auth in development mode
+  if (process.env.DEV_SKIP_AUTH === 'true') {
+    return NextResponse.next();
+  }
+  
   if (!isPublicRoute(req)) {
     await auth.protect(); // If not public, protect the route. Clerk handles redirection automatically
   }

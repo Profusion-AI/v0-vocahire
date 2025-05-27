@@ -97,12 +97,10 @@ if [ $? -eq 0 ]; then
     echo "✅ Prisma client generated"
     echo "✅ Database connectivity handled"
     echo "✅ Next.js application built"
-    echo "✅ Sentry integration active"
     echo ""
     echo "🔍 Post-deployment verification:"
     echo "1. Test /api/diagnostic/connection-test"
     echo "2. Verify user authentication works"
-    echo "3. Check Sentry error reporting"
   fi
 else
   echo ""

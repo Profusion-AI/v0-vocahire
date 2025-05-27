@@ -266,16 +266,16 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error in generate-feedback route:", error)
     
-    // Log to Sentry with context
+    // Log error with context
     if (error instanceof Error) {
-      const sentryContext = {
+      const errorContext = {
         userId: auth.userId,
         interviewId: body.interviewId,
         transcriptLength: body.transcript?.length || 0,
         errorMessage: error.message,
         errorStack: error.stack
       }
-      console.error("Feedback generation failed - Sentry context:", sentryContext)
+      console.error("Feedback generation failed - error context:", errorContext)
     }
     
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 })
@@ -366,17 +366,16 @@ async function generateAndSaveFeedback(interviewId: string, userId: string, tran
   } catch (error) {
     console.error("Failed to generate feedback:", error)
     
-    // Log to Sentry with detailed context
+    // Log error with context
     if (error instanceof Error) {
-      const sentryContext = {
+      console.error("Async feedback generation failed:", {
         userId,
         interviewId,
         transcriptLength: transcript?.length || 0,
         errorMessage: error.message,
         errorStack: error.stack,
         stage: "async_feedback_generation"
-      }
-      console.error("Async feedback generation failed - Sentry context:", sentryContext)
+      })
     }
     
     // Update feedback status to failed

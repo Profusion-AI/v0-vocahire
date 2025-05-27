@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import { z } from 'zod';
-import { setSession } from 'lib/session-store';
+import { setSession } from '@/lib/session-store';
 import { v4 as uuidv4 } from 'uuid';
 
 const CreateSessionSchema = z.object({

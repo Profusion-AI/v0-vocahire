@@ -99,7 +99,7 @@ Claude has successfully refactored the client-side components (`InterviewPageCli
     *   **Unit Tests:** For utilities in `/lib/google-cloud-utils.ts` and individual logic units in your orchestrator.
     *   **Integration Tests:** Plan for testing the STT-LLM-TTS pipeline. You might need to mock Google Cloud API responses for some tests.
     *   **End-to-End Tests:** Collaborate with Claude to test the full client-orchestrator-Google Cloud flow.
-*   **Commits & Error Handling:** Follow project standards (Conventional Commits, Sentry).
+*   **Commits & Error Handling:** Follow project standards (Conventional Commits).
 
 ### Git & GitHub Workflow:
 *   Follow the shared protocol in `CLAUDE.md`. Create feature branches for significant parts of the orchestrator (e.g., `feature/gcp-stt-integration`, `feature/orchestrator-webrtc-signaling`).

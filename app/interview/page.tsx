@@ -23,16 +23,39 @@ interface PageProps {
 async function InterviewPageDataFetcher({ searchParams: searchParamsPromise }: { 
   searchParams: PageProps['searchParams'];
 }) {
-  const { userId } = await auth();
+  // Check if we're in dev mode with auth bypass
+  const isDevMode = process.env.DEV_SKIP_AUTH === 'true';
+  
+  let userId: string | null = null;
+  
+  if (isDevMode) {
+    // Use mock user ID in dev mode
+    userId = 'dev-user-123';
+  } else {
+    const authResult = await auth();
+    userId = authResult.userId;
+  }
+  
   const resolvedSearchParams = await searchParamsPromise; 
   // const resolvedParams = await paramsPromise; // Await params if you need to use them
 
-  if (!userId) {
+  if (!userId && !isDevMode) {
     redirect('/login'); 
   }
 
   // Get Clerk user data (this is fast and doesn't involve database)
-  const clerkServerUser = await currentUser();
+  let clerkServerUser = null;
+  if (isDevMode) {
+    // Mock Clerk user in dev mode
+    clerkServerUser = {
+      id: 'dev-user-123',
+      firstName: 'Dev',
+      lastName: 'User',
+      emailAddresses: [{ emailAddress: 'dev@vocahire.com' }]
+    } as any;
+  } else {
+    clerkServerUser = await currentUser();
+  }
   
   // Skip database query on server-side to prevent timeouts
   // Client-side useUserData hook will handle user data fetching
@@ -69,7 +92,7 @@ async function InterviewPageDataFetcher({ searchParams: searchParamsPromise }: {
       linkedinUrl: (dbUser as DbUserType)?.linkedinUrl || "",
     },
     stripePublishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
-    userId: userId, // userId might still be useful for specific actions not covered by the hook immediately
+    userId: userId || 'dev-user-123', // userId might still be useful for specific actions not covered by the hook immediately
   };
 
   // Add database fallback warning if needed

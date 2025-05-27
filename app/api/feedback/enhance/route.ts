@@ -205,15 +205,15 @@ export async function POST(request: NextRequest) {
       // Enhanced feedback generation failed after credit deduction
       console.error(`[${requestId}] AI generation failed after credit deduction:`, aiError)
       
-      // Log critical error to Sentry
-      const sentryContext = {
+      // Log critical error
+      const errorContext = {
         userId,
         interviewId,
         stage: "enhanced_feedback_ai_generation",
         creditsDeducted: !user.isPremium,
         error: aiError instanceof Error ? aiError.message : "Unknown error"
       }
-      console.error("CRITICAL: Enhanced feedback failed after credit deduction - Sentry:", sentryContext)
+      console.error("CRITICAL: Enhanced feedback failed after credit deduction:", errorContext)
       
       // For MVP, we don't refund credits but log the failure prominently
       // Future: Implement retry mechanism or credit refund
@@ -228,15 +228,15 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error(`[${requestId}] Error in enhance feedback route:`, error)
     
-    // Log to Sentry
+    // Log error
     if (error instanceof Error) {
-      const sentryContext = {
+      const errorContext = {
         requestId,
         userId,
         errorMessage: error.message,
         errorStack: error.stack
       }
-      console.error("Enhanced feedback endpoint error - Sentry:", sentryContext)
+      console.error("Enhanced feedback endpoint error:", errorContext)
     }
     
     return NextResponse.json({ 

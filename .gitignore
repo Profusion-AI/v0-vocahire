@@ -34,3 +34,9 @@ output.md
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# credentials and service accounts
+/credentials/
+*.json
+service-account.json
+*-service-account.json

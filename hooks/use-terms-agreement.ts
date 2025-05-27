@@ -33,6 +33,10 @@ export function useTermsAgreement(userId: string | undefined) {
 
   // Add a safeguard to prevent rendering logic before component is mounted
   const [isMounted, setIsMounted] = useState(false)
+  
+  // Check if we're in dev mode with auth bypass
+  const isDevMode = process.env.NODE_ENV === 'development' && 
+                   process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true'
 
   // Handle mounting state
   useEffect(() => {
@@ -41,6 +45,14 @@ export function useTermsAgreement(userId: string | undefined) {
   }, [])
 
   useEffect(() => {
+    // Skip terms modal entirely in dev mode
+    if (isDevMode) {
+      setIsLoaded(true)
+      setHasAgreedToTerms(true)
+      setShowTermsModal(false)
+      return
+    }
+    
     // Don't run any localStorage logic if not mounted or no userId
     if (!isMounted || !userId) {
       setIsLoaded(true)
@@ -67,10 +79,17 @@ export function useTermsAgreement(userId: string | undefined) {
     }, 0)
 
     return () => clearTimeout(timer)
-  }, [userId, isMounted])
+  }, [userId, isMounted, isDevMode])
 
   const agreeToTerms = () => {
     if (!userId || !isMounted) return
+    
+    // Skip in dev mode
+    if (isDevMode) {
+      setHasAgreedToTerms(true)
+      setShowTermsModal(false)
+      return
+    }
     
     const key = `agreedToTerms_${userId}`
     safeLocalStorageSet(key, "true")

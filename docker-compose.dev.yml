@@ -1,0 +1,53 @@
+# MVP Docker Compose - Fast development with hot reload
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/app                    # Live code sync
+      - /app/node_modules         # Preserve container's node_modules
+      - /app/.next                # Preserve Next.js build cache
+    ports:
+      - "3001:3000"  # Map to 3001 to avoid conflicts
+    environment:
+      # Database (using local container)
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/vocahire_dev
+      MIGRATE_DATABASE_URL: postgresql://postgres:postgres@db:5432/vocahire_dev
+      
+      # Redis (using local container)
+      REDIS_URL: redis://default:devpassword@redis:6379
+      
+      # Development mode
+      NODE_ENV: development
+      
+      # Force the app URL to use the correct external port
+      NEXT_PUBLIC_APP_URL: http://localhost:3001
+      
+      # Load remaining env vars from file
+    env_file:
+      - .env.local
+    depends_on:
+      - db
+      - redis
+    command: pnpm dev
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: vocahire_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"  # Map to 5433 to avoid conflicts with local postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass devpassword
+    ports:
+      - "6380:6379"  # Map to 6380 to avoid conflicts with local redis
+
+volumes:
+  postgres_data:

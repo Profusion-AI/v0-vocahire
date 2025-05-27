@@ -6,7 +6,6 @@ import { Prisma, UserRole } from "../../../prisma/generated/client"
 import { z } from "zod"
 import { getConsistentCreditValue, createPrismaDecimal } from "@/lib/prisma-types"
 import { invalidateUserCache, prefetchUserCredentials } from "@/lib/user-cache"
-import * as Sentry from "@sentry/nextjs"
 
 // Helper function to create consistent fallback user objects
 interface ClerkUser {
@@ -90,12 +89,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     perfLog("CLERK_USER_FETCH_ERROR", { error: error instanceof Error ? error.message : String(error) });
     console.error("Error fetching Clerk user data:", error);
-    Sentry.captureException(error, {
-      tags: { 
-        operation: "clerk_user_fetch",
-        userId: auth.userId 
-      }
-    });
   }
 
   // Fetch user profile from DB with timeout to prevent 504 errors

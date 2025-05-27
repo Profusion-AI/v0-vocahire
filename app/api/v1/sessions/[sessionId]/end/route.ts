@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
-import { getSession, updateSession, deleteSession } from 'lib/session-store';
+import { getSession, updateSession, deleteSession } from '@/lib/session-store';
 
 export async function POST(request: NextRequest, { params }: { params: { sessionId: string } }) {
   const auth = getAuth(request);

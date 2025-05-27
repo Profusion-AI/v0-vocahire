@@ -1,0 +1,24 @@
+# MVP Dockerfile - Optimized for development speed
+FROM node:20-alpine
+
+# Install essentials in one layer
+RUN apk add --no-cache libc6-compat python3 make g++ bash
+
+WORKDIR /app
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Copy dependency files only
+COPY package.json pnpm-lock.yaml ./
+
+# Install dependencies (this layer only rebuilds when deps change)
+RUN pnpm install
+
+# Copy prisma schema for generation
+COPY prisma ./prisma
+RUN pnpm prisma generate
+
+# That's it! Code will be bind-mounted, not copied
+# Default to dev server with hot reload
+CMD ["pnpm", "dev"]
