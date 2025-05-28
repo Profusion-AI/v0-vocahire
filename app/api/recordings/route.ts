@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
-import { saveInterviewRecording, listUserRecordings, deleteBlob } from "@/lib/blob-storage"
 import { getAuth } from "@clerk/nextjs/server"
 import { NextRequest } from "next/server"
-import { prisma } from "@/lib/prisma"
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,15 +25,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Save the recording
-    const url = await saveInterviewRecording(audioBlob, sessionId, auth.userId)
-
-    return NextResponse.json({
-      success: true,
-      url,
-      sessionId,
-      savedAt: new Date().toISOString(),
-    })
+    // TEMPORARY: Recording storage is disabled for MVP
+    // The blob storage implementation needs to be replaced with Google Cloud Storage
+    return NextResponse.json(
+      {
+        error: "Recording storage not implemented",
+        message: "Recording functionality is disabled in the MVP. Interviews work without recording.",
+      },
+      { status: 501 }, // 501 Not Implemented
+    )
   } catch (error) {
     console.error("Error saving recording:", error)
     return NextResponse.json(
@@ -56,12 +54,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // List user recordings
-    const recordings = await listUserRecordings(auth.userId)
-
+    // TEMPORARY: Recording storage is disabled for MVP
     return NextResponse.json({
       success: true,
-      recordings,
+      recordings: [], // Empty array for MVP
+      message: "Recording functionality is disabled in the MVP.",
     })
   } catch (error) {
     console.error("Error listing recordings:", error)
@@ -90,32 +87,14 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "No URL provided" }, { status: 400 })
     }
 
-    // Verify ownership by checking if this recording belongs to the authenticated user
-    const session = await prisma.interviewSession.findFirst({
-      where: {
-        audioUrl: url,
-        userId: auth.userId,
+    // TEMPORARY: Recording storage is disabled for MVP
+    return NextResponse.json(
+      {
+        error: "Recording deletion not implemented",
+        message: "Recording functionality is disabled in the MVP.",
       },
-    })
-
-    if (!session) {
-      return NextResponse.json({ error: "Forbidden - Recording not found or access denied" }, { status: 403 })
-    }
-
-    // Delete the blob
-    await deleteBlob(url)
-
-    // Update the session to remove the audioUrl
-    await prisma.interviewSession.update({
-      where: { id: session.id },
-      data: { audioUrl: null },
-    })
-
-    return NextResponse.json({
-      success: true,
-      deletedUrl: url,
-      deletedAt: new Date().toISOString(),
-    })
+      { status: 501 }, // 501 Not Implemented
+    )
   } catch (error) {
     console.error("Error deleting recording:", error)
     return NextResponse.json(

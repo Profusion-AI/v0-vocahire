@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server"
-import { uploadToBlob } from "@/lib/blob-storage"
 import { getAuth } from "@clerk/nextjs/server"
 import { NextRequest } from "next/server"
 
@@ -20,14 +19,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
 
-    // Upload to Vercel Blob
-    const blob = await uploadToBlob(file, folder)
-
-    return NextResponse.json({
-      success: true,
-      url: blob.url,
-      uploadedAt: new Date().toISOString(),
-    })
+    // TEMPORARY: File upload is disabled for MVP
+    return NextResponse.json(
+      {
+        error: "File upload not implemented",
+        message: "File upload functionality is disabled in the MVP. We'll set up Google Cloud Storage next.",
+      },
+      { status: 501 }, // 501 Not Implemented
+    )
   } catch (error) {
     console.error("Error in upload route:", error)
     return NextResponse.json(
