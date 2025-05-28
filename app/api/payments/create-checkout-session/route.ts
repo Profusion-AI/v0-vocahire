@@ -7,22 +7,8 @@ import Stripe from "stripe";
 import { getAuth } from "@clerk/nextjs/server";
 import { getPrismaClient } from "@/lib/prisma";
 import { ITEM_PRICE_MAP, SUBSCRIPTION_ITEMS } from "@/lib/payment-config";
-import { validateStripeEnv } from "@/lib/env-validation";
 import { transactionLogger, TransactionOperations } from "@/lib/transaction-logger";
 import { getSecrets } from '@/lib/secret-manager';
-
-// Validate Stripe environment variables
-// Note: This validation still uses process.env, which is fine for initial checks,
-// but the actual secret usage will come from Secret Manager.
-try {
-  validateStripeEnv();
-} catch (error) {
-  console.error("Stripe environment validation failed:", error);
-  // In production, we should fail fast
-  if (process.env.NODE_ENV === "production") {
-    throw error;
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
