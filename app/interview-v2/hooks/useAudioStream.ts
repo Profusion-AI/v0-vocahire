@@ -311,7 +311,16 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
     }
     
     // Return a copy of the buffer
-    return audioBufferRef.current.buffer.slice(0);
+    const buffer = audioBufferRef.current.buffer;
+    // Ensure we return an ArrayBuffer (not SharedArrayBuffer)
+    if (buffer instanceof ArrayBuffer) {
+      return buffer.slice(0);
+    } else {
+      // If it's a SharedArrayBuffer, copy to a new ArrayBuffer
+      const arrayBuffer = new ArrayBuffer(buffer.byteLength);
+      new Uint8Array(arrayBuffer).set(new Uint8Array(buffer));
+      return arrayBuffer;
+    }
   }, []);
   
   // Check permission on mount
