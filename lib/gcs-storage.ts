@@ -15,14 +15,15 @@ export async function uploadToBlob(
   userId?: string
 ): Promise<{ url: string; fileName: string }> {
   const buffer = Buffer.from(await file.arrayBuffer());
-  const fileName = `${folder}/${userId || 'anonymous'}/${uuidv4()}-${file.name || 'file'}`;
+  const originalName = file instanceof File ? file.name : 'file';
+  const fileName = `${folder}/${userId || 'anonymous'}/${uuidv4()}-${originalName}`;
   
   const blob = uploadsBucket.file(fileName);
   const stream = blob.createWriteStream({
     metadata: {
       contentType: file.type,
       metadata: {
-        originalName: file.name || 'unknown',
+        originalName: originalName,
         uploadedBy: userId || 'anonymous',
         uploadedAt: new Date().toISOString(),
       },
