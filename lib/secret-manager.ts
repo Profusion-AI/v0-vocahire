@@ -47,22 +47,26 @@ export async function getSecret(secretName: string): Promise<string> {
 
       // Cache the secret
       secretCache.set(secretName, payload);
-    cacheTimestamps.set(secretName, Date.now());
-    
-    return payload;
-  } catch (error) {
-    // If Secret Manager fails in development, check env again
-    if (process.env.NODE_ENV === 'development') {
-      const envValue = process.env[secretName];
-      if (envValue) {
-        console.warn(`Secret Manager failed, using env var for ${secretName}`);
-        return envValue;
+      cacheTimestamps.set(secretName, Date.now());
+      
+      return payload;
+    } catch (error) {
+      // If Secret Manager fails in development, check env again
+      if (process.env.NODE_ENV === 'development') {
+        const envValue = process.env[secretName];
+        if (envValue) {
+          console.warn(`Secret Manager failed, using env var for ${secretName}`);
+          return envValue;
+        }
       }
+      
+      console.error(`Failed to get secret ${secretName}:`, error);
+      throw error;
     }
-    
-    console.error(`Failed to get secret ${secretName}:`, error);
-    throw error;
   }
+  
+  // If we reach here, no secret was found
+  throw new Error(`Secret ${secretName} not found in environment variables or Secret Manager`);
 }
 
 /**
