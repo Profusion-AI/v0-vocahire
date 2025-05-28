@@ -1,5 +1,5 @@
 // No "use client"; here - this makes it a Server Component by default
-import { prisma, withDatabaseFallback } from "@/lib/prisma";
+import { withDatabaseFallback } from "@/lib/prisma";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { type User as PrismaUser } from "../../prisma/generated/client"; // Alias Prisma User type
 import ProfilePageClient from "./ProfilePageClient";
