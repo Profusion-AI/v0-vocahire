@@ -70,7 +70,7 @@ const Navbar = () => {
           <div className="hidden sm:ml-6 sm:flex sm:items-center space-x-3">
             {isSignedIn ? (
               <>
-                <Link href="/interview">
+                <Link href="/interview-v2">
                   <Button variant="default" size="sm" className="mr-2">
                     <Briefcase className="mr-2 h-4 w-4" />
                     Start Interview
@@ -93,7 +93,7 @@ const Navbar = () => {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/interview" className="flex items-center cursor-pointer">
+                      <Link href="/interview-v2" className="flex items-center cursor-pointer">
                         <Briefcase className="mr-2 h-4 w-4" />
                         <span>Interview Practice</span>
                       </Link>
@@ -188,7 +188,7 @@ const Navbar = () => {
                 </div>
                 <div className="mt-3 space-y-1">
                   <Link
-                    href="/interview"
+                    href="/interview-v2"
                     className="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
                     onClick={() => setMobileMenuOpen(false)}
                   >

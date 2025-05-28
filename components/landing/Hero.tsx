@@ -23,7 +23,7 @@ const Hero = () => {
               {isSignedIn ? (
                 <>
                   <Link
-                    href="/interview"
+                    href="/interview-v2"
                     className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                   >
                     Start Practice Interview

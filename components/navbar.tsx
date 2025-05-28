@@ -23,7 +23,7 @@ export function Navbar() {
                 <Link href="/prepare" className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"> {/* Styled link */}
                   Prepare
                 </Link>
-                <Link href="/interview" className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"> {/* Styled link */}
+                <Link href="/interview-v2" className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"> {/* Styled link */}
                   Interview
                 </Link>
                 <Link href="/feedback" className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"> {/* Styled link */}
