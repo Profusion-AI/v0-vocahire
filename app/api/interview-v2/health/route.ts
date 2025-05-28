@@ -15,7 +15,7 @@ export async function GET() {
     }, {
       status: hasApiKey ? 200 : 503
     });
-  } catch (error) {
+  } catch (_error) {
     // If Secret Manager fails, check environment variable as fallback
     const hasApiKey = !!process.env.GOOGLE_AI_API_KEY;
     
