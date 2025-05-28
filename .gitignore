@@ -29,6 +29,9 @@ next-env.d.ts
 output.md
 .mcp.json
 
+# prisma generated files
+/prisma/generated/
+
 # Sentry Config File
 .env.sentry-build-plugin
 

@@ -12,7 +12,6 @@ datasource db {
 
 model User {
   id                    String             @id @unique
-  clerkId               String             @unique
   role                  UserRole           @default(USER)
   credits               Decimal            @default(3) @db.Decimal(10, 2)
   resumeJobTitle        String?
@@ -35,6 +34,7 @@ model User {
   email                 String?            @unique
   image                 String?
   name                  String?
+  clerkId               String             @unique
   feedbacks             Feedback[]
   interviewSessions     InterviewSession[]
   usageEvents           UsageEvent[]
@@ -46,19 +46,13 @@ model InterviewSession {
   id              String       @id @default(uuid())
   userId          String
   jobTitle        String
-  resumeData      Json?
   resumeSnapshot  Json?
   company         String?
   interviewType   String?
   jdContext       String?
+  webrtcSessionId String?      @unique
   openaiSessionId String?      @unique
   fallbackMode    Boolean      @default(false)
-  startTime       DateTime?
-  endTime         DateTime?
-  duration        Int?
-  status          String       @default("pending")
-  feedbackStatus  String       @default("pending") // pending, generating, completed, failed
-  metadata        Json?
   startedAt       DateTime     @default(now())
   endedAt         DateTime?
   durationSeconds Int?
@@ -66,14 +60,21 @@ model InterviewSession {
   expiresAt       DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
-  deletedAt       DateTime?    // For soft delete
+  deletedAt       DateTime?
+  duration        Int?
+  endTime         DateTime?
+  feedbackStatus  String       @default("pending")
+  metadata        Json?
+  resumeData      Json?
+  startTime       DateTime?
+  status          String       @default("pending")
   feedbacks       Feedback[]
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   transcripts     Transcript[]
 
-  @@index([userId, status, createdAt]) // For user's interview history
+  @@index([userId, status, createdAt])
   @@index([userId])
-  @@index([createdAt]) // For admin analytics
+  @@index([createdAt])
 }
 
 model Transcript {
@@ -83,50 +84,45 @@ model Transcript {
   content        String
   confidence     Float?
   timestamp      DateTime
-  sequenceNumber Int              @default(0)
-  metadata       Json?
   expiresAt      DateTime?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
+  metadata       Json?
+  sequenceNumber Int              @default(0)
   session        InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
-  @@index([sessionId, sequenceNumber]) // For ordered retrieval
-  @@index([sessionId, role]) // For filtering by speaker
+  @@index([sessionId, sequenceNumber])
+  @@index([sessionId, role])
   @@index([sessionId])
   @@index([timestamp])
 }
 
 model Feedback {
-  id                       String           @id @default(uuid())
-  sessionId                String
-  userId                   String
-  summary                  String
-  strengths                String?
-  areasForImprovement      String?
-  fillerWordCount          Int?
-  transcriptScore          Float?
-  
-  // Structured feedback data
-  structuredData           Json?            // Full structured feedback JSON
-  clarityScore             Float?           // 0-4 scale
-  concisenessScore         Float?           // 0-4 scale  
-  technicalDepthScore      Float?           // 0-4 scale
-  starMethodScore          Float?           // 0-4 scale
-  overallScore             Float?           // 0-4 scale average
-  
-  // Enhanced feedback fields
-  enhancedFeedbackGenerated Boolean         @default(false)
-  enhancedReportData       Json?            // Enhanced feedback JSON
-  toneAnalysis             Json?            // Emotional tone insights
-  keywordRelevanceScore    Float?           // 0-100 scale
-  sentimentProgression     Json?            // Sentiment over time
-  enhancedGeneratedAt      DateTime?        // When enhanced was generated
-  
-  expiresAt                DateTime?
-  createdAt                DateTime         @default(now())
-  updatedAt                DateTime         @updatedAt
-  session                  InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  user                     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                        String           @id @default(uuid())
+  sessionId                 String
+  userId                    String
+  summary                   String
+  strengths                 String?
+  areasForImprovement       String?
+  fillerWordCount           Int?
+  transcriptScore           Float?
+  expiresAt                 DateTime?
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+  clarityScore              Float?
+  concisenessScore          Float?
+  enhancedFeedbackGenerated Boolean          @default(false)
+  enhancedGeneratedAt       DateTime?
+  enhancedReportData        Json?
+  keywordRelevanceScore     Float?
+  overallScore              Float?
+  sentimentProgression      Json?
+  starMethodScore           Float?
+  structuredData            Json?
+  technicalDepthScore       Float?
+  toneAnalysis              Json?
+  session                   InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user                      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
   @@index([userId])
