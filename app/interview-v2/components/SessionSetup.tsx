@@ -260,12 +260,12 @@ export function SessionSetup({ onComplete, isLoading = false }: SessionSetupProp
               />
               <div className="space-y-1">
                 <Label htmlFor="consentGiven" className="text-sm font-normal cursor-pointer">
-                  I consent to recording this practice interview session
+                  I consent to this practice interview session
                   <span className="text-red-500 ml-1">*</span>
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Your session will be recorded for feedback generation and improvement purposes.
-                  The recording will be automatically deleted after processing.
+                  Your conversation will be transcribed for feedback generation. 
+                  We do not store audio recordings - only transcripts and feedback are saved.
                 </p>
               </div>
             </div>

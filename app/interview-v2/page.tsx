@@ -8,6 +8,9 @@ import { useGenkitRealtime } from './hooks/useGenkitRealtime';
 import { SessionSetup } from './components/SessionSetup';
 import { LiveInterview } from './components/LiveInterview';
 import { FeedbackView } from './components/FeedbackView';
+import { Navbar } from '@/components/navbar';
+import { TermsModal } from '@/components/terms-modal';
+import { useTermsAgreement } from '@/hooks/use-terms-agreement';
 import type { Feedback } from '@/src/genkit/schemas/types';
 
 type ViewState = 'setup' | 'interview' | 'feedback';
@@ -42,6 +45,13 @@ export default function InterviewV2Page() {
   const [componentConfig, setComponentConfig] = useState<ComponentSessionConfig | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [reconnectAttempt, setReconnectAttempt] = useState<{ current: number; max: number } | null>(null);
+  
+  // Terms agreement hook
+  const {
+    showTermsModal,
+    setShowTermsModal,
+    agreeToTerms,
+  } = useTermsAgreement(user?.id);
   
   // Initialize realtime hook with proper config
   const realtimeHook = useGenkitRealtime(
@@ -140,7 +150,9 @@ export default function InterviewV2Page() {
 
   // Render based on view state
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <>
+      <Navbar />
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
       {viewState === 'setup' && (
         <SessionSetup 
           onComplete={handleSetupComplete}
@@ -164,6 +176,12 @@ export default function InterviewV2Page() {
           onClose={handleReturnToSetup}
         />
       )}
-    </div>
+      </div>
+      <TermsModal
+        open={showTermsModal}
+        onOpenChange={setShowTermsModal}
+        onAgree={agreeToTerms}
+      />
+    </>
   );
 }
