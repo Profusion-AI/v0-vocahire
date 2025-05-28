@@ -1,4 +1,3 @@
-import { defineFlow } from 'genkit';
 import { z } from 'zod';
 import { ai } from '..';
 import { gemini15Pro } from '@genkit-ai/googleai';
@@ -43,7 +42,7 @@ const feedbackOutputSchema = z.object({
   nextSteps: z.array(z.string()),
 });
 
-export const generateInterviewFeedback = defineFlow(
+export const generateInterviewFeedback = ai.defineFlow(
   {
     name: 'generateInterviewFeedback',
     inputSchema: feedbackInputSchema,
@@ -83,7 +82,7 @@ Be constructive, specific, and encouraging in your feedback.`;
   }
 );
 
-export const generateEnhancedFeedback = defineFlow(
+export const generateEnhancedFeedback = ai.defineFlow(
   {
     name: 'generateEnhancedFeedback',
     inputSchema: z.object({

@@ -1,4 +1,3 @@
-import { defineFlow } from 'genkit';
 import { z } from 'zod';
 import { ai } from '..';
 import { gemini15Flash } from '@genkit-ai/googleai';
@@ -25,7 +24,7 @@ const sessionResponseSchema = z.object({
   }),
 });
 
-export const createInterviewSession = defineFlow(
+export const createInterviewSession = ai.defineFlow(
   {
     name: 'createInterviewSession',
     inputSchema: interviewSessionSchema,
