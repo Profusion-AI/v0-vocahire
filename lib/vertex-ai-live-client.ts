@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { VertexAI } from '@google-cloud/vertexai';
-import type { GenerativeModel, Content, Part } from '@google-cloud/vertexai';
+import type { GenerativeModel, Content } from '@google-cloud/vertexai';
 
 export interface VertexAILiveConfig {
   projectId: string;
@@ -115,7 +115,7 @@ export class VertexAILiveClient extends EventEmitter {
     }
   }
 
-  async sendAudio(audioData: ArrayBuffer): Promise<void> {
+  async sendAudio(_audioData: ArrayBuffer): Promise<void> {
     // Note: Vertex AI doesn't support real-time audio streaming like Google AI Studio
     // For audio support, you would need to:
     // 1. Convert audio to text using Speech-to-Text API
