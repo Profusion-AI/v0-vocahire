@@ -248,7 +248,11 @@ export function useGenkitRealtime(
               setIsConnecting(false);
               // Attempt reconnection if not explicitly disconnected
               if (abortControllerRef.current?.signal.aborted === false) {
-                 attemptReconnect();
+                 // Attempt reconnection inline
+                 if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+                   reconnectAttemptsRef.current++;
+                   setTimeout(connect, reconnectDelay * reconnectAttemptsRef.current);
+                 }
               }
            }
         });
@@ -266,7 +270,11 @@ export function useGenkitRealtime(
          setStatus('error');
          setIsConnected(false);
          setIsConnecting(false);
-         attemptReconnect();
+         // Attempt reconnection inline
+         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+           reconnectAttemptsRef.current++;
+           setTimeout(connect, reconnectDelay * reconnectAttemptsRef.current);
+         }
       }
 
     } catch (err) {

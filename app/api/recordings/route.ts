@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
 import { NextRequest } from "next/server"
-import { saveInterviewRecording, listUserRecordings, deleteBlob } from "@/lib/blob-storage"
-import { prisma } from "@/lib/prisma"
+import { saveInterviewRecording } from "@/lib/blob-storage"
 import { isStorageConfigured } from "@/lib/storage-config"
 
 export async function POST(request: NextRequest) {

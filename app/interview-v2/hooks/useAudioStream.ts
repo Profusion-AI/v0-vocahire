@@ -108,7 +108,7 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
     } finally {
       setIsCheckingPermission(false);
     }
-  }, []);
+  }, [stopStream]);
 
   // Request microphone permission explicitly
   const requestPermission = useCallback(async () => {
@@ -257,7 +257,7 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
       
       setIsActive(false);
     }
-  }, [mergedOptions, isMuted, hasPermission, requestPermission]);
+  }, [mergedOptions, isMuted, hasPermission, requestPermission, stopStream]);
   
   // Stop audio stream
   const stopStream = useCallback(() => {
@@ -321,7 +321,7 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
       new Uint8Array(arrayBuffer).set(new Uint8Array(buffer));
       return arrayBuffer;
     }
-  }, []);
+  }, [stopStream]);
   
   // Check permission on mount
   useEffect(() => {
