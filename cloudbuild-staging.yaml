@@ -1,0 +1,54 @@
+# Cloud Build configuration for staging environment
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - '--no-cache'
+      - '-t'
+      - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME-staging:$COMMIT_SHA'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$_NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY'
+      - .
+      - '-f'
+      - ./Dockerfile
+    id: Build
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME-staging:$COMMIT_SHA'
+    id: Push
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
+    args:
+      - run
+      - deploy
+      - v0-vocahire-staging
+      - '--platform=managed'
+      - '--image=$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME-staging:$COMMIT_SHA'
+      - '--labels=environment=staging,managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=$COMMIT_SHA,gcb-trigger-id=$_TRIGGER_ID'
+      - '--region=$_DEPLOY_REGION'
+      - '--memory=1Gi'
+      - '--cpu=1'
+      - '--min-instances=0'
+      - '--max-instances=2'
+      - '--set-env-vars=NODE_ENV=staging'
+      - '--quiet'
+    id: Deploy
+    entrypoint: gcloud
+images:
+  - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME-staging:$COMMIT_SHA'
+options:
+  substitutionOption: ALLOW_LOOSE
+  logging: CLOUD_LOGGING_ONLY
+substitutions:
+  _AR_REPOSITORY: cloud-run-source-deploy
+  _AR_PROJECT_ID: vocahire-prod
+  _PLATFORM: managed
+  _TRIGGER_ID: staging-trigger
+  _SERVICE_NAME: v0-vocahire
+  _DEPLOY_REGION: us-central1
+  _AR_HOSTNAME: us-central1-docker.pkg.dev
+  _NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_live_Y2xlcmsudm9jYWhpcmUuY29tJA
+tags:
+  - gcp-cloud-build-deploy-cloud-run
+  - staging
+  - v0-vocahire-staging

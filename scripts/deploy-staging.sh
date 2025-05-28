@@ -1,186 +1,61 @@
 #!/bin/bash
+# Deploy to staging environment
+
 set -e
 
-# VocaHire Staging Deployment Script
-# This script deploys the application to Cloud Run staging environment
-
-echo "🚀 Starting VocaHire staging deployment..."
-
-# Configuration
-PROJECT_ID="${GCP_PROJECT_ID:-your-project-id}"
-REGION="${GCP_REGION:-us-central1}"
-SERVICE_NAME="vocahire-orchestrator-staging"
-IMAGE_NAME="vocahire-orchestrator"
-REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/vocahire"
+echo "🚀 Deploying to staging environment..."
 
 # Colors for output
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# Check prerequisites
-check_prerequisites() {
-    echo "📋 Checking prerequisites..."
-    
-    # Check if gcloud is installed
-    if ! command -v gcloud &> /dev/null; then
-        echo -e "${RED}❌ gcloud CLI not found. Please install it first.${NC}"
-        exit 1
-    fi
-    
-    # Check if Docker is running
-    if ! docker info &> /dev/null; then
-        echo -e "${RED}❌ Docker is not running. Please start Docker.${NC}"
-        exit 1
-    fi
-    
-    # Check if authenticated to GCP
-    if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" &> /dev/null; then
-        echo -e "${YELLOW}⚠️  Not authenticated to GCP. Running 'gcloud auth login'...${NC}"
-        gcloud auth login
-    fi
-    
-    echo -e "${GREEN}✅ Prerequisites check passed${NC}"
-}
+# Check if gcloud is installed
+if ! command -v gcloud &> /dev/null; then
+    echo -e "${RED}Error: gcloud CLI is not installed${NC}"
+    exit 1
+fi
 
-# Build Docker image
-build_image() {
-    echo "🔨 Building Docker image..."
-    
-    # Get git commit hash for tagging
-    GIT_SHA=$(git rev-parse --short HEAD)
-    TIMESTAMP=$(date +%Y%m%d%H%M%S)
-    
-    # Build the image
-    docker build \
-        --build-arg NODE_ENV=staging \
-        -t ${REGISTRY}/${IMAGE_NAME}:${GIT_SHA} \
-        -t ${REGISTRY}/${IMAGE_NAME}:staging \
-        -t ${REGISTRY}/${IMAGE_NAME}:staging-${TIMESTAMP} \
-        .
-    
-    echo -e "${GREEN}✅ Docker image built successfully${NC}"
-}
+# Set project
+PROJECT_ID="vocahire-prod"
+REGION="us-central1"
+SERVICE_NAME="v0-vocahire-staging"
 
-# Push to Artifact Registry
-push_image() {
-    echo "📤 Pushing image to Artifact Registry..."
-    
-    # Configure Docker for Artifact Registry
-    gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
-    
-    # Push all tags
-    docker push ${REGISTRY}/${IMAGE_NAME}:${GIT_SHA}
-    docker push ${REGISTRY}/${IMAGE_NAME}:staging
-    docker push ${REGISTRY}/${IMAGE_NAME}:staging-${TIMESTAMP}
-    
-    echo -e "${GREEN}✅ Image pushed successfully${NC}"
-}
+echo -e "${YELLOW}Project: $PROJECT_ID${NC}"
+echo -e "${YELLOW}Service: $SERVICE_NAME${NC}"
+echo -e "${YELLOW}Region: $REGION${NC}"
 
-# Deploy to Cloud Run
-deploy_to_cloud_run() {
-    echo "☁️  Deploying to Cloud Run..."
-    
-    # Deploy the service
-    gcloud run deploy ${SERVICE_NAME} \
-        --image ${REGISTRY}/${IMAGE_NAME}:${GIT_SHA} \
-        --region ${REGION} \
-        --platform managed \
-        --allow-unauthenticated \
-        --port 3000 \
-        --memory 2Gi \
-        --cpu 2 \
-        --max-instances 10 \
-        --min-instances 1 \
-        --timeout 60m \
-        --concurrency 1000 \
-        --set-env-vars="NODE_ENV=staging,LOG_LEVEL=debug" \
-        --update-secrets="DATABASE_URL=database-url-staging:latest" \
-        --update-secrets="REDIS_URL=redis-url-staging:latest" \
-        --update-secrets="CLERK_SECRET_KEY=clerk-secret-key-staging:latest" \
-        --update-secrets="STRIPE_SECRET_KEY=stripe-secret-key-staging:latest" \
-        --update-secrets="GOOGLE_APPLICATION_CREDENTIALS=google-creds-staging:latest" \
-        --service-account="vocahire-staging@${PROJECT_ID}.iam.gserviceaccount.com"
-    
-    # Get the service URL
-    SERVICE_URL=$(gcloud run services describe ${SERVICE_NAME} \
-        --region ${REGION} \
-        --format 'value(status.url)')
-    
-    echo -e "${GREEN}✅ Deployed successfully!${NC}"
-    echo -e "${GREEN}🌐 Staging URL: ${SERVICE_URL}${NC}"
-}
+# Get current git commit
+COMMIT_SHA=$(git rev-parse HEAD)
+SHORT_SHA=$(git rev-parse --short HEAD)
 
-# Run post-deployment checks
-post_deployment_checks() {
-    echo "🔍 Running post-deployment checks..."
-    
-    # Health check
-    echo -n "  Checking /health endpoint... "
-    if curl -f -s ${SERVICE_URL}/health > /dev/null; then
-        echo -e "${GREEN}✅${NC}"
-    else
-        echo -e "${RED}❌${NC}"
-        echo -e "${RED}Health check failed!${NC}"
-        exit 1
-    fi
-    
-    # Ready check
-    echo -n "  Checking /ready endpoint... "
-    if curl -f -s ${SERVICE_URL}/ready > /dev/null; then
-        echo -e "${GREEN}✅${NC}"
-    else
-        echo -e "${RED}❌${NC}"
-        echo -e "${RED}Ready check failed!${NC}"
-        exit 1
-    fi
-    
-    echo -e "${GREEN}✅ All checks passed!${NC}"
-}
+echo -e "\n${GREEN}Building and deploying commit: $SHORT_SHA${NC}"
 
-# Update frontend environment
-update_frontend_env() {
-    echo "📝 Updating frontend environment..."
-    
-    # Create or update .env.staging
-    cat > .env.staging << EOF
-# Auto-generated by deploy-staging.sh
-NEXT_PUBLIC_API_URL=${SERVICE_URL}
-NEXT_PUBLIC_ENVIRONMENT=staging
-EOF
-    
-    echo -e "${GREEN}✅ Created .env.staging with staging API URL${NC}"
-}
+# Submit build using staging configuration
+gcloud builds submit \
+  --config=cloudbuild-staging.yaml \
+  --substitutions=COMMIT_SHA=$COMMIT_SHA,SHORT_SHA=$SHORT_SHA \
+  --project=$PROJECT_ID
 
-# Main execution
-main() {
-    echo "=====================================
-VocaHire Staging Deployment
-Project: ${PROJECT_ID}
-Region: ${REGION}
-====================================="
-    
-    check_prerequisites
-    build_image
-    push_image
-    deploy_to_cloud_run
-    post_deployment_checks
-    update_frontend_env
-    
-    echo "
-=====================================
-${GREEN}🎉 Staging deployment complete!${NC}
-=====================================
-Staging URL: ${SERVICE_URL}
-Frontend env: .env.staging
+# Get the service URL
+echo -e "\n${GREEN}Deployment complete!${NC}"
+echo -e "${YELLOW}Getting service URL...${NC}"
 
-To test locally with staging backend:
-  cp .env.staging .env.local
-  pnpm dev
-=====================================
-"
-}
+SERVICE_URL=$(gcloud run services describe $SERVICE_NAME \
+  --region=$REGION \
+  --project=$PROJECT_ID \
+  --format="value(status.url)")
 
-# Run main function
-main "$@"
+echo -e "\n${GREEN}Staging URL: $SERVICE_URL${NC}"
+echo -e "${YELLOW}Health check: $SERVICE_URL/api/health${NC}"
+
+# Test the health endpoint
+echo -e "\n${YELLOW}Testing health endpoint...${NC}"
+if curl -s -o /dev/null -w "%{http_code}" "$SERVICE_URL/api/health" | grep -q "200"; then
+    echo -e "${GREEN}✅ Health check passed!${NC}"
+else
+    echo -e "${RED}❌ Health check failed!${NC}"
+    echo -e "${YELLOW}Check logs with:${NC}"
+    echo "gcloud logging read \"resource.type=cloud_run_revision AND resource.labels.service_name=$SERVICE_NAME\" --limit=50 --project=$PROJECT_ID"
+fi
