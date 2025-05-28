@@ -65,8 +65,13 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
 
   // Send audio data periodically
   useEffect(() => {
-    // Only send data when status is 'streaming' to ensure stable connection
-    if (status !== 'streaming' || !audioStream.isActive) return;
+    // Add detailed logging before the guard
+    console.log(`[LiveInterview] sendData useEffect: status=${status}, isActive=${audioStream.isActive}`);
+
+    if (status !== 'streaming' || !audioStream.isActive) {
+      console.warn(`[LiveInterview] sendData bypassed: status is not 'streaming' or audio is not active. Current status: ${status}.`);
+      return;
+    }
 
     const interval = setInterval(() => {
       const audioBuffer = audioStream.getAudioBuffer();
@@ -157,7 +162,10 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
   // Handle interrupt
   const handleInterrupt = () => {
     // Only send interrupt if we're actively streaming
-    if (status !== 'streaming') return;
+    if (status !== 'streaming') {
+      console.warn(`[LiveInterview] Interrupt bypassed: Not in 'streaming' status. Current status: ${status}.`);
+      return;
+    }
     
     sendData({
       sessionId: sessionConfig.sessionId || `session_${Date.now()}`,

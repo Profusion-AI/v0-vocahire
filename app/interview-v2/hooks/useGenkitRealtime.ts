@@ -119,7 +119,9 @@ export function useGenkitRealtime(
           break;
 
         case 'control':
+          // In handleSSEMessage, for case 'control': ready
           if (parsed.control?.type === 'ready') {
+            console.log(`[GenkitRealtime] SSE Control: 'ready' received. Setting connected state.`);
             const wasReconnecting = reconnectAttemptsRef.current > 0;
             setIsConnected(true);
             setIsConnecting(false);
@@ -131,9 +133,13 @@ export function useGenkitRealtime(
               onReconnected();
             }
           } else if (parsed.control?.type === 'end') {
+            // In handleSSEMessage, for case 'control': end
+            console.log(`[GenkitRealtime] SSE Control: 'end' received. Setting disconnected state.`);
             setIsConnected(false);
             setStatus('disconnected'); // Update status
           } else if (parsed.control?.type === 'busy') {
+            // In handleSSEMessage, for case 'control': busy / thinking
+            console.log(`[GenkitRealtime] SSE Control: 'thinking' status received. Setting status: 'thinking'.`);
             setStatus('thinking'); // Update status when AI is processing
           }
           break;
@@ -147,6 +153,8 @@ export function useGenkitRealtime(
           break;
 
         case 'session_status':
+          // In handleSSEMessage, for case 'session_status': active/completed/error
+          console.log(`[GenkitRealtime] SSE Session Status: ${parsed.sessionStatus?.status} received. Setting status.`);
           if (parsed.sessionStatus?.status === 'active') {
             setStatus('streaming');
           } else if (parsed.sessionStatus?.status === 'completed' || parsed.sessionStatus?.status === 'error') {
@@ -172,6 +180,10 @@ export function useGenkitRealtime(
   }, [onMessage, onError, onReconnected]); // Added onMessage, onError, onReconnected to dependencies
 
   const connect = useCallback(async () => {
+    // In useGenkitRealtime.ts, inside connect() at the very beginning
+    console.log(`[GenkitRealtime] Connect: Called. Status: ${status}, isConnected: ${isConnected}, isConnecting: ${isConnecting}`);
+    console.log(`[GenkitRealtime] Connect: Session Config: ${JSON.stringify(sessionConfig)}`);
+
     // Prevent connection with invalid config
     if (!sessionConfig.sessionId || !sessionConfig.userId || 
         sessionConfig.sessionId === 'dummy' || sessionConfig.userId === 'dummy') {
@@ -188,6 +200,8 @@ export function useGenkitRealtime(
     setAiAudioQueue([]); // Clear previous audio queue
 
     try {
+      // After the safeguards, before fetch
+      console.log(`[GenkitRealtime] Connect: Safeguards passed, initiating fetch to ${apiUrl}.`);
       // Send initial connection request
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -201,8 +215,12 @@ export function useGenkitRealtime(
         signal: abortControllerRef.current?.signal, // Use abort signal
       });
 
+      // After response.ok check
       if (!response.ok) {
+        console.error(`[GenkitRealtime] Connect: Initial fetch FAILED. Status: ${response.status}, Text: ${response.statusText}`);
         throw new Error(`Connection failed: ${response.status} ${response.statusText}`);
+      } else {
+        console.log(`[GenkitRealtime] Connect: Initial fetch SUCCEEDED. Setting up SSE.`);
       }
 
       // Set up SSE
@@ -314,7 +332,9 @@ export function useGenkitRealtime(
          }
       }
     }
-  }, [apiUrl, sessionConfig, isConnected, isConnecting, handleSSEMessage, maxReconnectAttempts, reconnectDelay, onError]); // Added onError to dependencies
+    // At the end of `connect` (success path)
+    console.log(`[GenkitRealtime] Connect: Completed successfully. New status: ${status}.`);
+  }, [apiUrl, sessionConfig, isConnected, isConnecting, handleSSEMessage, maxReconnectAttempts, reconnectDelay, onError, status]); // Added onError to dependencies
 
   const disconnect = useCallback(() => {
     console.log('Disconnect called');
@@ -356,6 +376,10 @@ export function useGenkitRealtime(
 
 
   const sendData = useCallback((data: z.infer<typeof RealtimeInputSchema>) => {
+     // In useGenkitRealtime.ts, inside sendData() at the very beginning
+     console.log(`[GenkitRealtime] sendData: Called. Status: ${status}, isConnected: ${isConnected}, isConnecting: ${isConnecting}.`);
+     console.log(`[GenkitRealtime] sendData: Payload Preview: ${JSON.stringify(data).substring(0, 200)}...`); // Log only part of payload if large
+
      // Prevent sending with invalid config
      if (!sessionConfig.sessionId || !sessionConfig.userId || 
          sessionConfig.sessionId === 'dummy' || sessionConfig.userId === 'dummy') {
@@ -379,9 +403,15 @@ export function useGenkitRealtime(
        method: 'POST',
        headers: { 'Content-Type': 'application/json' },
        body: JSON.stringify(payload),
-     }).catch(console.error); // Log error but don't block
+     }).then(() => {
+        // After successful fetch
+        console.log(`[GenkitRealtime] sendData: Fetch successful.`);
+     }).catch(err => {
+        // Inside the catch block
+        console.error('[GenkitRealtime] sendData: Fetch FAILED.', err);
+     });
 
-  }, [apiUrl, sessionConfig, isConnected]); // Added sessionConfig, isConnected to dependencies
+  }, [apiUrl, sessionConfig, isConnected, status, isConnecting]); // Added sessionConfig, isConnected to dependencies
 
 
   // Cleanup on unmount and page unload

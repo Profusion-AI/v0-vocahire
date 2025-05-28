@@ -17,6 +17,8 @@ export async function POST(request: NextRequest) {
     // Parse and validate session config
     const body = await request.json();
     const sessionConfig = SessionConfigSchema.parse(body);
+    console.log('[API Route] Request received for /api/interview-v2/session.');
+    console.log('[API Route] Parsed Session Config:', JSON.stringify(sessionConfig));
 
     // Create a unique session ID
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -69,6 +71,34 @@ Start by introducing yourself and asking the candidate to tell you about themsel
               candidateCount: 1
             },
             tools: []
+          });
+
+          // After liveSession.connect();
+          console.log(`[API Route] Server-side Live API connect for session ${sessionId} completed.`);
+
+          // Add explicit handlers for liveSession errors/disconnects on the server side
+          liveSession.on('error', (error: Error) => {
+            console.error(`[API Route] Live API Session ${sessionId} (server-side) error:`, error);
+            // Ensure this error is propagated to the client via SSE
+            controller.enqueue(
+              encoder.encode(
+                createSSEMessage({
+                  type: 'error',
+                  error: {
+                    code: 'LIVE_API_ERROR_SERVER', // Differentiate backend error
+                    message: `Server-side Live API error: ${error.message}`
+                  }
+                })
+              )
+            );
+            controller.close(); // Close client SSE stream if backend Live API fails
+          });
+          liveSession.on('close', () => { // Or 'disconnect' depending on LiveAPIClient
+            console.log(`[API Route] Live API Session ${sessionId} (server-side) closed by Live API.`);
+            controller.close(); // Ensure client SSE stream is also closed
+          });
+          liveSession.on('data', (data: any) => { // If your LiveAPIClient supports this for inbound data
+              console.log(`[API Route] Received data from Live API for session ${sessionId}:`, data);
           });
 
           // Handle messages from the client
@@ -162,14 +192,15 @@ Start by introducing yourself and asking the candidate to tell you about themsel
           });
 
         } catch (error) {
-          console.error('Stream error:', error);
+          console.error(`[API Route] Fatal error in SSE stream for session ${sessionId}:`, error);
+          // Ensure client receives a final error and stream closes
           controller.enqueue(
             encoder.encode(
               createSSEMessage({
                 type: 'error',
                 error: {
-                  code: 'STREAM_ERROR',
-                  message: error instanceof Error ? error.message : 'Unknown error'
+                  code: 'STREAM_INIT_FAILED_SERVER',
+                  message: `Server-side stream initialization failed: ${error instanceof Error ? error.message : String(error)}`
                 }
               })
             )
