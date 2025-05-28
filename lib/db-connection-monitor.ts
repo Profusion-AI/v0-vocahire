@@ -3,7 +3,7 @@
  * Tracks connection pool health and provides metrics for debugging
  */
 
-import { prisma } from './prisma';
+import { getPrismaClient } from './prisma';
 
 export interface ConnectionPoolMetrics {
   activeConnections: number;
@@ -32,8 +32,11 @@ class ConnectionPoolMonitor {
    */
   async updateMetrics(): Promise<ConnectionPoolMetrics> {
     try {
+      // Get the actual Prisma client instance
+      const prismaClient = await getPrismaClient();
+      
       // Query pg_stat_activity to get connection information
-      const connections = await prisma.$queryRaw<Array<{
+      const connections = await prismaClient.$queryRaw<Array<{
         state: string;
         count: string;
       }>>`

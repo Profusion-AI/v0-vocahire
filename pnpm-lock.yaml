@@ -252,6 +252,9 @@ importers:
       eslint-config-next:
         specifier: 15.2.3
         version: 15.2.3(eslint@9.27.0(jiti@2.4.2))(typescript@5.8.3)
+      eventsource:
+        specifier: ^4.0.0
+        version: 4.0.0
       genkit-cli:
         specifier: ^1.10.0
         version: 1.10.0
@@ -3825,6 +3828,14 @@ packages:
   eventid@2.0.1:
     resolution: {integrity: sha512-sPNTqiMokAvV048P2c9+foqVJzk49o6d4e0D/sq5jog3pw+4kBgyR0gaM1FM7Mx6Kzd9dztesh9oYz1LWWOpzw==}
     engines: {node: '>=10'}
+
+  eventsource-parser@3.0.2:
+    resolution: {integrity: sha512-6RxOBZ/cYgd8usLwsEl+EC09Au/9BcmCKYF2/xbml6DNczf7nv0MQb+7BA2F+li6//I+28VNlQR37XfQtcAJuA==}
+    engines: {node: '>=18.0.0'}
+
+  eventsource@4.0.0:
+    resolution: {integrity: sha512-fvIkb9qZzdMxgZrEQDyll+9oJsyaVvY92I2Re+qK0qEJ+w5s0X3dtz+M0VAPOjP1gtU3iqWyjQ0G3nvd5CLZ2g==}
+    engines: {node: '>=20.0.0'}
 
   expect-type@1.2.1:
     resolution: {integrity: sha512-/kP8CAwxzLVEeFrMm4kMmy4CCDlpipyA7MYLVrdJIkV0fYF0UaigQHRsxHiuY/GEea+bh4KSv3TIlgr+2UL6bw==}
@@ -10175,6 +10186,12 @@ snapshots:
   eventid@2.0.1:
     dependencies:
       uuid: 8.3.2
+
+  eventsource-parser@3.0.2: {}
+
+  eventsource@4.0.0:
+    dependencies:
+      eventsource-parser: 3.0.2
 
   expect-type@1.2.1: {}
 
