@@ -14,7 +14,7 @@ export default function AudioVisualization({ isActive, className }: AudioVisuali
   const animationRef = useRef<number | null>(null);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
-  const [dataArray, setDataArray] = useState<Uint8Array | null>(null);
+  const [dataArray, setDataArray] = useState<Uint8Array<ArrayBuffer> | null>(null);
 
   useEffect(() => {
     if (!isActive) {

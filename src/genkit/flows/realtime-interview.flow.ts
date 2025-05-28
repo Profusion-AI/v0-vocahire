@@ -1,11 +1,12 @@
-import { defineStreamingFlow } from 'genkit';
 import { z } from 'zod';
+import { FlowSideChannel } from 'genkit'; // Import FlowSideChannel
 import { LiveAPISessionManager } from '@/lib/live-api-session-manager';
 import { GoogleLiveAPIClient } from '@/lib/google-live-api';
 import {
   RealtimeInputSchema,
   RealtimeOutputSchema,
 } from '../schemas/types';
+import { ai } from '../index'; // Import the initialized genkit instance
 
 // Store for active streaming contexts
 const activeStreams = new Map<string, AbortController>();
@@ -13,14 +14,14 @@ const activeStreams = new Map<string, AbortController>();
 // Get the singleton instance of LiveAPISessionManager
 const liveAPISessionManager = LiveAPISessionManager.getInstance();
 
-export const realtimeInterviewFlow = defineStreamingFlow( // Use defineStreamingFlow
+export const realtimeInterviewFlow = ai.defineFlow( // Use ai.defineFlow
   {
     name: 'realtimeInterviewFlow',
     inputSchema: RealtimeInputSchema,
     outputSchema: RealtimeOutputSchema,
-    streamSchema: RealtimeOutputSchema,
+    streamSchema: RealtimeOutputSchema, // streamSchema is a top-level property
   },
-  async (input: z.infer<typeof RealtimeInputSchema>, { streamingCallback }: { streamingCallback: (chunk: z.infer<typeof RealtimeOutputSchema>) => Promise<void> }) => {
+  async (input: z.infer<typeof RealtimeInputSchema>, sideChannel: FlowSideChannel<z.infer<typeof RealtimeOutputSchema>>) => {
     const { sessionId, systemInstruction } = input;
     
     try {
@@ -38,7 +39,7 @@ export const realtimeInterviewFlow = defineStreamingFlow( // Use defineStreaming
 
       // Handle control messages
       if (input.controlMessage) {
-        return await handleControlMessage(input, streamingCallback);
+        return await handleControlMessage(input, sideChannel);
       }
 
       // Get or create Live API session
@@ -55,7 +56,7 @@ export const realtimeInterviewFlow = defineStreamingFlow( // Use defineStreaming
       
       // Ensure liveClient is not null before proceeding
       if (!liveClient) {
-           await streamingCallback({
+           await sideChannel.sendChunk({
             type: 'error',
             data: {
               code: 'SESSION_CREATION_FAILED',
@@ -70,13 +71,13 @@ export const realtimeInterviewFlow = defineStreamingFlow( // Use defineStreaming
 
 
       // Set up event listeners for streaming
-      setupLiveClientListeners(liveClient, sessionId, streamingCallback);
+      setupLiveClientListeners(liveClient, sessionId, sideChannel);
 
       // Connect to Live API
       await liveClient.connect();
       
       // Send connection established message
-      await streamingCallback({
+      await sideChannel.sendChunk({
         type: 'control',
         data: { 
           status: 'connected',
@@ -97,7 +98,7 @@ export const realtimeInterviewFlow = defineStreamingFlow( // Use defineStreaming
         liveClient.sendText(input.textInput);
         
         // Echo user text to transcript
-        await streamingCallback({
+        await sideChannel.sendChunk({
           type: 'transcript',
           data: {
             speaker: 'user',
@@ -136,7 +137,7 @@ export const realtimeInterviewFlow = defineStreamingFlow( // Use defineStreaming
       console.error('Realtime interview flow error:', error);
       
       // Send error to client
-      await streamingCallback({
+      await sideChannel.sendChunk({
         type: 'error',
         data: {
           code: 'FLOW_ERROR',
@@ -157,12 +158,12 @@ export const realtimeInterviewFlow = defineStreamingFlow( // Use defineStreaming
 function setupLiveClientListeners(
   client: GoogleLiveAPIClient,
   sessionId: string,
-  streamingCallback: (chunk: z.infer<typeof RealtimeOutputSchema>) => Promise<void>
+  sideChannel: FlowSideChannel<z.infer<typeof RealtimeOutputSchema>>
 ) {
   // Audio data handler
   client.on('audioData', async (audioBuffer: ArrayBuffer) => {
     try {
-      await streamingCallback({
+      await sideChannel.sendChunk({
         type: 'audio',
         data: client.arrayBufferToBase64(audioBuffer),
         timestamp: new Date().toISOString(),
@@ -175,7 +176,7 @@ function setupLiveClientListeners(
   // Transcript handler
   client.on('transcript', async ({ type, text }: { type: string; text: string }) => {
     try {
-      await streamingCallback({
+      await sideChannel.sendChunk({
         type: 'transcript',
         data: {
           speaker: type === 'user' ? 'user' : 'ai',
@@ -191,7 +192,7 @@ function setupLiveClientListeners(
   // Ready handler
   client.on('ready', async () => {
     try {
-      await streamingCallback({
+      await sideChannel.sendChunk({
         type: 'control',
         data: {
           status: 'ready',
@@ -207,7 +208,7 @@ function setupLiveClientListeners(
   client.on('error', async (error: any) => {
     console.error('Live API error:', error);
     try {
-      await streamingCallback({
+      await sideChannel.sendChunk({
         type: 'error',
         data: {
           code: 'LIVE_API_ERROR',
@@ -224,7 +225,7 @@ function setupLiveClientListeners(
   // Disconnection handler
   client.on('disconnected', async () => {
     try {
-      await streamingCallback({
+      await sideChannel.sendChunk({
         type: 'control',
         data: {
           status: 'disconnected',
@@ -242,7 +243,7 @@ function setupLiveClientListeners(
   // Turn complete handler
   client.on('turnComplete', async () => {
     try {
-      await streamingCallback({
+      await sideChannel.sendChunk({
         type: 'control',
         data: {
           status: 'turn_complete',
@@ -257,7 +258,7 @@ function setupLiveClientListeners(
 
 async function handleControlMessage(
   input: z.infer<typeof RealtimeInputSchema>,
-  streamingCallback: (chunk: z.infer<typeof RealtimeOutputSchema>) => Promise<void>
+  sideChannel: FlowSideChannel<z.infer<typeof RealtimeOutputSchema>>
 ): Promise<z.infer<typeof RealtimeOutputSchema>> {
   const { sessionId, controlMessage } = input;
   
@@ -295,7 +296,7 @@ async function handleControlMessage(
       // Interrupt current AI response
       client.interrupt();
       
-      await streamingCallback({
+      await sideChannel.sendChunk({
         type: 'control',
         data: {
           status: 'interrupted',
