@@ -118,7 +118,7 @@ export default function InterviewV2Page() {
       console.log("Disconnecting due to viewState change");
       realtimeHook.disconnect();
     }
-  }, [viewState, sessionConfig, realtimeHook]);
+  }, [viewState, sessionConfig, realtimeHook.isConnected, realtimeHook.isConnecting, realtimeHook.connect, realtimeHook.disconnect]);
 
   // Handle session setup completion
   const handleSetupComplete = async (config: ComponentSessionConfig) => {
