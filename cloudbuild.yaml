@@ -94,6 +94,8 @@ images:
   - 'gcr.io/$PROJECT_ID/vocahire-deps:latest'
   - 'gcr.io/$PROJECT_ID/vocahire-deps:$BUILD_ID'
 
-# Substitutions (to be configured in Cloud Build trigger)
+# Substitutions (MUST be configured in Cloud Build trigger settings)
+# Without this, the build will fail during static page generation
+# Go to Cloud Console > Cloud Build > Triggers > Edit trigger > Substitution variables
 substitutions:
   _NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_live_Y2xlcmsudm9jYWhpcmUuY29tJA'
