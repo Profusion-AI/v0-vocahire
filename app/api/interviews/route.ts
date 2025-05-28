@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { trackUsage, UsageType } from "@/lib/usage-tracking"
 import { getOrCreatePrismaUser } from "@/lib/auth-utils"
 import { z } from "zod"
-import { InterviewSession } from "@/prisma/generated/client"
+import { InterviewSession, Prisma } from "@/prisma/generated/client"
 
 // Input validation schema
 const CreateInterviewSchema = z.object({
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
     
     // 4. Create interview session with transaction for data integrity
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create the interview session
       const interviewSession = await tx.interviewSession.create({
         data: {
