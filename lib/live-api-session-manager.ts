@@ -124,8 +124,14 @@ export class LiveAPISessionManager {
     // Try Redis
     if (redis) {
       const data = await redis.get(`session:${sessionId}`);
-      if (data) {
-        return JSON.parse(data) as SessionMetadata;
+      // Ensure data is a non-empty string before parsing
+      if (typeof data === 'string' && data.length > 0) {
+        try {
+          return JSON.parse(data) as SessionMetadata;
+        } catch (e) {
+          console.error(`Error parsing session metadata for ${sessionId}:`, e);
+          return null; // Return null if parsing fails
+        }
       }
     }
 
