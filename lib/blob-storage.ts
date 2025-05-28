@@ -1,18 +1,12 @@
-// Storage implementation with fallback for MVP
-import { isStorageConfigured } from './storage-config';
+// Stub implementation for MVP - no file storage needed
+// The magic is in the real-time conversation, not recordings!
 
-// Define functions that will either use GCS or provide stub implementations
 export async function uploadToBlob(
   file: File | Blob,
   folder: string,
   userId?: string
 ): Promise<{ url: string; fileName: string }> {
-  if (isStorageConfigured()) {
-    const { uploadToBlob: gcsUploadToBlob } = await import('./gcs-storage');
-    return gcsUploadToBlob(file, folder, userId);
-  } else {
-    throw new Error("File storage not configured. Set up Google Cloud Storage environment variables.");
-  }
+  throw new Error("File uploads are not available in the MVP. Focus on the amazing conversation experience!");
 }
 
 export async function saveInterviewRecording(
@@ -20,12 +14,9 @@ export async function saveInterviewRecording(
   sessionId: string,
   userId: string
 ): Promise<string> {
-  if (isStorageConfigured()) {
-    const { saveInterviewRecording: gcsSaveInterviewRecording } = await import('./gcs-storage');
-    return gcsSaveInterviewRecording(audioBlob, sessionId, userId);
-  } else {
-    throw new Error("Recording storage not configured. Set up Google Cloud Storage environment variables.");
-  }
+  // MVP: We save transcripts and feedback, not audio
+  console.log(`Recording feature not implemented for MVP - session ${sessionId}`);
+  return "";
 }
 
 export async function listUserRecordings(
@@ -42,21 +33,11 @@ export async function listUserRecordings(
   }>;
   nextPageToken?: string;
 }> {
-  if (isStorageConfigured()) {
-    const { listUserRecordings: gcsListUserRecordings } = await import('./gcs-storage');
-    return gcsListUserRecordings(userId, limit, pageToken);
-  } else {
-    // Return empty result for MVP when not configured
-    return { recordings: [] };
-  }
+  // MVP: Return empty recordings list
+  return { recordings: [] };
 }
 
 export async function deleteBlob(fileName: string): Promise<void> {
-  if (isStorageConfigured()) {
-    const { deleteBlob: gcsDeleteBlob } = await import('./gcs-storage');
-    return gcsDeleteBlob(fileName);
-  } else {
-    // No-op for MVP when not configured
-    return;
-  }
+  // No-op for MVP
+  return;
 }
