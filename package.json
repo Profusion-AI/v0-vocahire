@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "./scripts/build-cloud-run.sh",
-    "build:vercel": "./scripts/build-vercel-safe.sh",
+    // "build:vercel": "./scripts/build-vercel-safe.sh", // Deprecated - use Cloud Run build
     "start": "next start",
     "lint": "next lint",
     "test": "vitest",
@@ -61,7 +61,7 @@
     "@radix-ui/react-tooltip": "latest",
     "@stripe/stripe-js": "^7.3.0",
     "@upstash/redis": "latest",
-    "@vercel/blob": "latest",
+    // "@vercel/blob": "latest", // Removed - not needed for Cloud Run
     "autoprefixer": "^10.4.20",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",

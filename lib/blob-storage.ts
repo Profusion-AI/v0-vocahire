@@ -1,93 +1,24 @@
-import { put, list, del, type PutBlobResult } from "@vercel/blob"
+// TEMPORARY: Blob storage disabled for Cloud Run deployment
+// This file was using @vercel/blob which is not available on Cloud Run
+// TODO: Implement alternative storage solution (Google Cloud Storage or similar)
 
 /**
- * Uploads a file to Vercel Blob storage
- * @param file The file to upload
- * @param folder Optional folder path to organize blobs
- * @returns The blob URL and other metadata
+ * Temporary stub for blob storage functionality
+ * All functions throw errors to prevent usage until proper implementation
  */
-export async function uploadToBlob(
-  file: File | Blob | ArrayBuffer | Buffer,
-  folder = "uploads",
-): Promise<PutBlobResult> {
-  try {
-    // Generate a unique filename with timestamp
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
-    let filename = ""
 
-    if (file instanceof File) {
-      // For File objects, use the original filename
-      const _extension = file.name.split(".").pop()
-      filename = `${folder}/${timestamp}-${file.name}`
-    } else {
-      // For other types, generate a name
-      filename = `${folder}/${timestamp}-blob.data`
-    }
-
-    // Upload to Vercel Blob
-    const blob = await put(filename, file, {
-      access: "public",
-    })
-
-    return blob
-  } catch (error) {
-    console.error("Error uploading to blob storage:", error)
-    throw error
-  }
+export async function uploadToBlob(): Promise<never> {
+  throw new Error("Blob storage not implemented for Cloud Run. Please use Google Cloud Storage or another solution.")
 }
 
-/**
- * Uploads an interview recording to Vercel Blob
- * @param audioData The audio data to upload
- * @param sessionId The interview session ID
- * @returns The blob URL
- */
-export async function saveInterviewRecording(
-  audioData: Blob | ArrayBuffer,
-  sessionId: string,
-  userId: string
-): Promise<string> {
-  try {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
-    const filename = `interviews/${userId}/${sessionId}-${timestamp}.webm`
-
-    const blob = await put(filename, audioData, {
-      access: "public", // Changed from "private" as only "public" is supported
-    })
-
-    return blob.url
-  } catch (error) {
-    console.error("Error saving interview recording:", error)
-    throw error
-  }
+export async function saveInterviewRecording(): Promise<never> {
+  throw new Error("Interview recording storage not implemented for Cloud Run. Please use Google Cloud Storage or another solution.")
 }
 
-/**
- * Lists all interview recordings for the current user
- * @returns Array of blob URLs and metadata
- */
-export async function listUserRecordings(userId: string) {
-  try {
-    const { blobs } = await list({
-      prefix: `interviews/${userId}/`,
-    })
-
-    return blobs
-  } catch (error) {
-    console.error("Error listing user recordings:", error)
-    throw error
-  }
+export async function listUserRecordings(): Promise<never> {
+  throw new Error("Recording listing not implemented for Cloud Run. Please use Google Cloud Storage or another solution.")
 }
 
-/**
- * Deletes a blob from storage
- * @param url The URL of the blob to delete
- */
-export async function deleteBlob(url: string): Promise<void> {
-  try {
-    await del(url)
-  } catch (error) {
-    console.error("Error deleting blob:", error)
-    throw error
-  }
+export async function deleteBlob(): Promise<never> {
+  throw new Error("Blob deletion not implemented for Cloud Run. Please use Google Cloud Storage or another solution.")
 }
