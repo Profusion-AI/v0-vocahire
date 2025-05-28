@@ -3,11 +3,37 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
+// Define type for user data with usage counts
+type UserWithUsage = {
+  id: string;
+  email: string | null;
+  credits: number;
+  role: string; // Assuming role is a string, adjust if it's an enum
+  _count: {
+    interviewSessions: number;
+    feedbacks: number;
+  };
+};
+
+// Define type for user data after transformation for the UI
+type TransformedUserWithUsage = {
+  id: string;
+  email: string | null;
+  usageCount: number;
+  credits: number;
+  role: string;
+  status: "active" | "inactive";
+  lastUsed: Date;
+};
+
 // Force dynamic rendering to avoid prerendering issues
 export const dynamic = 'force-dynamic';
 
-// Fetch real user data with usage statistics
-async function getUsersWithUsage() {
+/**
+ * Fetches user data with usage statistics from the database.
+ * @returns A promise that resolves to an array of users with their usage details.
+ */
+async function getUsersWithUsage(): Promise<TransformedUserWithUsage[]> {
   const { prisma } = await import("@/lib/prisma");
   
   // Get all users with their interview session counts
@@ -27,7 +53,7 @@ async function getUsersWithUsage() {
   });
 
   // Transform the data for the UI
-  return users.map((user: any) => ({
+  return users.map((user: UserWithUsage) => ({
     id: user.id,
     email: user.email || "No email",
     usageCount: user._count.interviewSessions + user._count.feedbacks,
@@ -43,7 +69,7 @@ export default async function AdminUsersPage() {
   // TODO: Implement Clerk-based admin authentication and admin check here.
   // Example: Use Clerk's server-side helpers to verify admin status and redirect if unauthorized.
 
-  const users = await getUsersWithUsage()
+  const users: TransformedUserWithUsage[] = await getUsersWithUsage()
 
   return (
     <div className="container mx-auto py-10">
@@ -65,7 +91,7 @@ export default async function AdminUsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {users.map((user: TransformedUserWithUsage) => (
                 <TableRow key={user.id}>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{user.usageCount} requests</TableCell>
