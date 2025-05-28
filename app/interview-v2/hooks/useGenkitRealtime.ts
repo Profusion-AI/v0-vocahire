@@ -298,7 +298,7 @@ export function useGenkitRealtime(
          }
       }
     }
-  }, [apiUrl, sessionConfig, isConnected, isConnecting, handleSSEMessage, maxReconnectAttempts, reconnectDelay, onError]); // Added onError to dependencies
+  }, [apiUrl, sessionConfig, isConnected, isConnecting, handleSSEMessage, maxReconnectAttempts, reconnectDelay, onError, attemptReconnect]); // Added onError and attemptReconnect to dependencies
 
   const attemptReconnect = useCallback(() => {
      if (isReconnectingRef.current) {
