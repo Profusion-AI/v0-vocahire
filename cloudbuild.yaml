@@ -81,11 +81,8 @@ steps:
 # Build configuration options
 options:
   machineType: 'E2_HIGHCPU_8'
-  diskSizeGb: 100
-  logging: CLOUD_LOGGING_ONLY
-
-# Timeout for the entire build
-timeout: '1800s'
+  diskSizeGb: "100"
+  logging: CLOUD_LOGGING_ONLY # Ensure this is correctly indented
 
 # Images to be pushed
 images:

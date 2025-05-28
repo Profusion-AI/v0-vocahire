@@ -15,7 +15,7 @@ import AudioVisualization from './AudioVisualization';
 import TranscriptDisplay from './TranscriptDisplay';
 import InterviewControls from './InterviewControls';
 import SessionStatus from './SessionStatus';
-import type { SessionConfig as GenkitSessionConfig, RealtimeInputSchema } from '@/src/genkit/schemas/types';
+import type { RealtimeInputSchema } from '@/src/genkit/schemas/types'; // Removed GenkitSessionConfig
 import { z } from 'zod';
 import type { ExtendedSessionConfig } from '../page'; // Import ExtendedSessionConfig
 
