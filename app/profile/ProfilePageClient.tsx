@@ -118,7 +118,7 @@ export default function ProfilePageClient({
         <Button
           type="button"
           variant="outline"
-          onClick={() => router.push("/interview")}
+          onClick={() => router.push("/interview-v2")}
           className="border-gray-300 hover:bg-gray-50 text-gray-700 rounded-md"
         >
           Back to Interview

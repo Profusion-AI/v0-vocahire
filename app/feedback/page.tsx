@@ -597,7 +597,7 @@ function FeedbackPageContent() {
             <p>Practice makes perfect! Schedule another mock interview to continue improving your skills.</p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg" className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md">
-                <Link href="/interview">Start New Interview</Link>
+                <Link href="/interview-v2">Start New Interview</Link>
               </Button>
               <Button variant="outline" size="lg" onClick={handleRegenerateFeedback} disabled={isGenerating} className="border-gray-300 hover:bg-gray-50 text-gray-700 rounded-md">
                 {isGenerating ? (

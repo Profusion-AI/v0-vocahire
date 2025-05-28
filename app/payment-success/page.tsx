@@ -79,7 +79,7 @@ export default function PaymentSuccessPage() {
           )}
 
           <div className="flex flex-col sm:flex-row gap-3 w-full mt-2">
-            <Link href="/interview" className="w-full sm:w-auto">
+            <Link href="/interview-v2" className="w-full sm:w-auto">
               <Button className="w-full" variant="default">Continue to Interview</Button>
             </Link>
             <Link href="/profile" className="w-full sm:w-auto">

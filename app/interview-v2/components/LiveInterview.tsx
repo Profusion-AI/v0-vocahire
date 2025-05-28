@@ -65,7 +65,8 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
 
   // Send audio data periodically
   useEffect(() => {
-    if (!isConnected || !audioStream.isActive) return;
+    // Only send data when status is 'streaming' to ensure stable connection
+    if (status !== 'streaming' || !audioStream.isActive) return;
 
     const interval = setInterval(() => {
       const audioBuffer = audioStream.getAudioBuffer();
@@ -93,7 +94,7 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
     }, 100); // Send every 100ms
 
     return () => clearInterval(interval);
-  }, [isConnected, audioStream.isActive, audioStream.getAudioBuffer, sendData, sessionConfig, audioStream]);
+  }, [status, audioStream.isActive, audioStream.getAudioBuffer, sendData, sessionConfig, audioStream]);
 
   // Play AI audio responses
   const playNextChunk = useCallback(async () => {
@@ -155,6 +156,9 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
 
   // Handle interrupt
   const handleInterrupt = () => {
+    // Only send interrupt if we're actively streaming
+    if (status !== 'streaming') return;
+    
     sendData({
       sessionId: sessionConfig.sessionId || `session_${Date.now()}`,
       userId: sessionConfig.userId,
