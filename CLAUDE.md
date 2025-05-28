@@ -1,31 +1,24 @@
 # CLAUDE.md - VocaHire Development Guide
 
-**Last Updated**: May 27, 2025 11:59 PM CST  
+**Last Updated**: May 28, 2025 8:00 AM CST  
 **Target Launch**: June 1, 2025 (Public Beta) 🎯
 
-## ⚠️ Current Status & Blockers
+## 🎉 Current Status
 
-**Overall Status**: TypeScript Errors Resolved, Next.js 15.3.2 Webpack Issue Pending ⚠️
+**Overall Status**: ✅ SUCCESSFULLY DEPLOYED TO CLOUD RUN! 🚀
 
-### Current Blockers
+### Production URLs
+- **Cloud Run**: https://v0-vocahire-727828254616.us-central1.run.app/
+- **Custom Domain**: https://vocahire.com (DNS propagating, SSL pending)
+- **WWW Domain**: https://www.vocahire.com (DNS propagating, SSL pending)
 
-1. **Next.js 15.3.2 Webpack Bug**
+### Resolved Blockers
 
-    ```typescript
-    TypeError: Cannot read properties of undefined (reading 'length')
-    at WasmHash._updateWithBuffer
-    ```
-
-    - Affects production builds only
-    - Workaround: Downgrade to Next.js 15.2.x
-
-2. **IAM Permissions**
-    - `kyle@profusion.ai` needs Cloud Run deployment roles
-    - Required for production deployment
-
-3. **Cloud Build vs Private Pools**
-    - Evaluated private pools - NOT needed for MVP
-    - Standard Cloud Build sufficient for current needs
+1. **✅ Next.js 15.3.2 Issue** - Downgraded to 15.2.3
+2. **✅ Cloud Build CI/CD** - Working with custom inline config
+3. **✅ TypeScript Errors** - All strict mode errors fixed
+4. **✅ Authentication** - Clerk integration working
+5. **✅ Docker Build** - Optimized Dockerfile with proper Clerk key handling
 
 ## 🤝 Collaborative Development Protocol
 
@@ -138,6 +131,39 @@ git push origin main
     - `/app/api/interviews/route.ts` - InterviewSession types
     - `/app/interview-v2/components/SessionSetup.tsx` - Zod types
     - `/app/interview-v2/hooks/useAudioStream.ts` - Buffer types
+
+### May 28, 2025 - Cloud Run Production Deployment Success! (8:00 AM CST)
+
+#### Key Fixes That Enabled Successful Deployment
+
+1. **TypeScript Compilation Errors**
+   - Fixed `parsed.data` vs `parsed.control` in useGenkitRealtime.ts
+   - Added 'Leadership' to interviewType enum
+   - Fixed session feedback handling
+   - Removed circular dependencies in React hooks
+
+2. **Build Configuration**
+   - Removed module-level Stripe validation preventing builds
+   - Added Clerk publishable key as Docker build ARG
+   - Fixed Prisma client copy path in Dockerfile
+   - Updated Cloud Build inline config with proper build args
+
+3. **Production Access**
+   - Made Cloud Run service public with IAM binding
+   - Added health/ready endpoints to public routes in middleware
+   - Set up custom domain mapping for vocahire.com
+
+#### Successful Builds
+- ✅ Build 575ccc8d: First successful Cloud Run deployment
+- ✅ Build f1cb6ed6: Fixed React hook dependencies
+- ✅ Build 74eb5196: Added public health endpoints
+
+#### Infrastructure Achievements
+- Created comprehensive maintenance documentation
+- Set up staging environment configuration
+- Implemented image retention/cleanup scripts
+- Configured health checks and monitoring
+- Added rollback procedures
 
 ### May 26, 2025 - Client Refactoring
 
@@ -381,28 +407,29 @@ REDIS_URL=
 
 ## 🚦 Critical Path to June 1 Launch
 
-### Timeline (4 days remaining)
+### Timeline (3 days remaining)
 
-- **May 27**: ✅ Fixed all TypeScript errors, hit Next.js 15.3.2 webpack issue
-- **May 28**: Downgrade Next.js to 15.2.x, complete Cloud Run deployment
-- **May 29**: Integration testing with production environment
-- **May 30**: Deploy to staging, fix critical bugs
+- **May 27**: ✅ Fixed all TypeScript errors, identified Next.js issue
+- **May 28**: ✅ DEPLOYED TO CLOUD RUN SUCCESSFULLY! 🎉
+- **May 29**: Integration testing, backend orchestrator completion
+- **May 30**: Full system testing, performance optimization
 - **May 31**: Final testing, prepare launch
 - **June 1**: Public Beta launch! 🚀
 
 ### Launch Checklist
 
-- [ ] **Fix Next.js 15.3.2 webpack issue** (Critical blocker)
-- [ ] Grant Cloud Run IAM permissions to `kyle@profusion.ai`
-- [ ] Deploy to Cloud Run successfully
-- [ ] Backend orchestrator deployed (Gemini)
-- [ ] WebRTC connection stable
-- [ ] Google AI integration working
-- [ ] Credits/payments flowing
-- [ ] Basic monitoring in place
-- [ ] Landing page updated for beta
-- [x] **✅ Production Authentication Ready** - All dev bypasses removed!
-- [x] **✅ Cloud Run Build Script Ready** - Replaced Vercel scripts
-- [x] **✅ All TypeScript Errors Fixed** - Strict mode compliance achieved
-- [x] **✅ Docker Development Environment** - Hot reload working locally
-- [x] **✅ Gemini 2.5 Native Audio** - Interview AI model integrated
+- [x] **✅ Fix Next.js webpack issue** - Downgraded to 15.2.3
+- [x] **✅ Deploy to Cloud Run successfully** - Live at production URL!
+- [x] **✅ Make service publicly accessible** - IAM permissions configured
+- [x] **✅ Configure custom domain** - vocahire.com mapping active
+- [x] **✅ Set up maintenance procedures** - Scripts and docs ready
+- [ ] Backend orchestrator deployed (Gemini - In Progress)
+- [ ] WebRTC connection stable (Testing needed)
+- [ ] Credits/payments flow testing
+- [ ] Performance optimization
+- [ ] Final production testing
+- [x] **✅ Production Authentication Ready** - Clerk fully integrated
+- [x] **✅ Cloud Build CI/CD Working** - Automated deployments active
+- [x] **✅ All TypeScript Errors Fixed** - Strict mode compliant
+- [x] **✅ Docker Production Build** - Optimized and working
+- [x] **✅ Health Monitoring** - Endpoints configured
