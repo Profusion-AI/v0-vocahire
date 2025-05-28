@@ -308,59 +308,6 @@ export function useGenkitRealtime(
     }
   }, [apiUrl, sessionConfig, isConnected, isConnecting, handleSSEMessage, maxReconnectAttempts, reconnectDelay, onError]); // Added onError to dependencies
 
-  const attemptReconnect = useCallback(() => {
-     if (isReconnectingRef.current) {
-        console.log('Already attempting to reconnect');
-        return;
-     }
-
-     if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-        console.log('Max reconnect attempts reached.');
-        const maxAttemptsError: z.infer<typeof ErrorSchema> = {
-          code: 'MAX_RECONNECT_ATTEMPTS',
-          message: 'Maximum reconnection attempts exceeded',
-          details: `Failed to reconnect after ${maxReconnectAttempts} attempts`,
-          timestamp: new Date().toISOString(),
-        };
-        setError(maxAttemptsError);
-        if (onError) {
-          onError(maxAttemptsError);
-        }
-        setStatus('disconnected'); // Final status after max attempts
-        isReconnectingRef.current = false;
-        return;
-     }
-
-     isReconnectingRef.current = true;
-     reconnectAttemptsRef.current++;
-     
-     // Calculate exponential backoff delay
-     const baseDelay = reconnectDelay;
-     const delay = Math.min(
-        baseDelay * Math.pow(reconnectBackoffMultiplier, reconnectAttemptsRef.current - 1),
-        maxReconnectDelay
-     );
-     
-     console.log(`Attempting to reconnect... (${reconnectAttemptsRef.current}/${maxReconnectAttempts}) - Delay: ${delay}ms`);
-     
-     if (onReconnecting) {
-        onReconnecting(reconnectAttemptsRef.current, maxReconnectAttempts);
-     }
-     
-     setStatus('connecting'); // Status during reconnection attempt
-     
-     // Clear any existing timeout
-     if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-     }
-     
-     reconnectTimeoutRef.current = setTimeout(() => {
-        isReconnectingRef.current = false;
-        connect();
-     }, delay);
-  }, [connect, maxReconnectAttempts, reconnectDelay, maxReconnectDelay, reconnectBackoffMultiplier, onReconnecting, onError]);
-
-
   const disconnect = useCallback(() => {
     console.log('Disconnect called');
     
