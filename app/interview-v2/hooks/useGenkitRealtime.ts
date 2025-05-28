@@ -336,7 +336,7 @@ export function useGenkitRealtime(
     }
     // At the end of `connect` (success path)
     console.log(`[GenkitRealtime] Connect: Completed successfully.`);
-  }, [apiUrl, sessionConfig, isConnected, isConnecting, handleSSEMessage, maxReconnectAttempts, reconnectDelay, onError]); // Removed status from dependencies
+  }, [apiUrl, sessionConfig, handleSSEMessage, maxReconnectAttempts, reconnectDelay, onError]); // Removed status, isConnected, isConnecting from dependencies
 
   const disconnect = useCallback(() => {
     console.log('Disconnect called');
@@ -356,6 +356,7 @@ export function useGenkitRealtime(
     }
 
     // Send disconnect message to server (best effort)
+    // Use refs for isConnected/isConnecting to avoid them in deps
     if (isConnected || isConnecting) { // Only send if we were connected or trying to connect
        fetch(apiUrl, {
          method: 'POST',
@@ -374,7 +375,7 @@ export function useGenkitRealtime(
     reconnectAttemptsRef.current = 0; // Reset reconnect attempts on explicit disconnect
     setError(null); // Clear any existing errors
 
-  }, [apiUrl, sessionConfig, isConnected, isConnecting]); // Added isConnected, isConnecting to dependencies
+  }, [apiUrl, sessionConfig]); // Removed isConnected, isConnecting from dependencies
 
 
   const sendData = useCallback((data: z.infer<typeof RealtimeInputSchema>) => {
