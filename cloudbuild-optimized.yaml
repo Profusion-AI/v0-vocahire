@@ -1,0 +1,139 @@
+# Optimized Cloud Build configuration for faster builds
+# Target: Reduce 7-8 minute builds to 3-4 minutes
+
+steps:
+  # Step 1: Pull cache images in parallel
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'pull-cache-deps'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - 'docker pull gcr.io/$PROJECT_ID/vocahire-deps:latest || exit 0'
+    waitFor: ['-']  # Start immediately
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'pull-cache-prod'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - 'docker pull gcr.io/$PROJECT_ID/vocahire:latest || exit 0'
+    waitFor: ['-']  # Start immediately
+
+  # Step 2: Build dependencies stage with BuildKit
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-deps'
+    args:
+      - 'build'
+      - '--target=deps'
+      - '--cache-from=gcr.io/$PROJECT_ID/vocahire-deps:latest'
+      - '--build-arg'
+      - 'BUILDKIT_INLINE_CACHE=1'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/vocahire-deps:latest'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/vocahire-deps:$BUILD_ID'
+      - '.'
+    env:
+      - 'DOCKER_BUILDKIT=1'
+    waitFor: ['pull-cache-deps']
+
+  # Step 3: Build production image with BuildKit
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-prod'
+    args:
+      - 'build'
+      - '--cache-from=gcr.io/$PROJECT_ID/vocahire-deps:latest'
+      - '--cache-from=gcr.io/$PROJECT_ID/vocahire:latest'
+      - '--build-arg'
+      - 'BUILDKIT_INLINE_CACHE=1'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsudm9jYWhpcmUuY29tJA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/vocahire:latest'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/vocahire:$BUILD_ID'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/vocahire:$SHORT_SHA'
+      - '.'
+    env:
+      - 'DOCKER_BUILDKIT=1'
+    waitFor: ['build-deps', 'pull-cache-prod']
+
+  # Step 4: Push images in parallel
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-prod'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'gcr.io/$PROJECT_ID/vocahire'
+    waitFor: ['build-prod']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-deps'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'gcr.io/$PROJECT_ID/vocahire-deps'
+    waitFor: ['build-deps']
+
+  # Step 5: Deploy to Cloud Run (can start once prod image is pushed)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'v0-vocahire'
+      - '--image=gcr.io/$PROJECT_ID/vocahire:$BUILD_ID'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--memory=2Gi'
+      - '--cpu=2'
+      - '--min-instances=1'
+      - '--max-instances=100'
+      - '--concurrency=80'
+      - '--cpu-throttling'
+      - '--set-env-vars=NODE_ENV=production'
+      - '--update-secrets=GOOGLE_AI_API_KEY=GOOGLE_AI_API_KEY:latest'
+    waitFor: ['push-prod']
+
+# Build configuration options
+options:
+  # Use high-CPU machine for faster builds
+  machineType: 'E2_HIGHCPU_8'
+  
+  # Increase disk size for better performance
+  diskSizeGb: '100'
+  
+  # Enable BuildKit for better caching
+  env:
+    - 'DOCKER_BUILDKIT=1'
+  
+  # Set reasonable timeout
+  timeout: '1200s'  # 20 minutes
+  
+  # Use Cloud Logging
+  logging: CLOUD_LOGGING_ONLY
+  
+  # Enable Kaniko cache (experimental)
+  # cache:
+  #   ttl: '3600s'  # 1 hour
+  #   key: 'docker-cache-${{.Repo}}-${{.Branch}}'
+  #   paths:
+  #     - '/workspace/.docker-cache'
+
+# Images to be pushed
+images:
+  - 'gcr.io/$PROJECT_ID/vocahire:latest'
+  - 'gcr.io/$PROJECT_ID/vocahire:$BUILD_ID'
+  - 'gcr.io/$PROJECT_ID/vocahire:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/vocahire-deps:latest'
+  - 'gcr.io/$PROJECT_ID/vocahire-deps:$BUILD_ID'
+
+# Key optimizations:
+# 1. Parallel cache pulls (waitFor: ['-'])
+# 2. BuildKit enabled for better layer caching
+# 3. Parallel image pushes
+# 4. High-CPU machine (E2_HIGHCPU_8)
+# 5. Proper cache-from directives
+# 6. Optimized Dockerfile with multi-stage builds (already in place)
