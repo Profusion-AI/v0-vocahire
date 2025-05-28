@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { trackUsage, UsageType } from "@/lib/usage-tracking"
 import { getOrCreatePrismaUser } from "@/lib/auth-utils"
 import { z } from "zod"
+import { InterviewSession } from "@/prisma/generated/client"
 
 // Input validation schema
 const CreateInterviewSchema = z.object({
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Map results to desired structure
-    const formattedInterviews = interviews.map(interview => ({
+    const formattedInterviews = interviews.map((interview: InterviewSession) => ({
       id: interview.id,
       date: interview.createdAt.toISOString(),
       jobTitle: interview.jobTitle,
