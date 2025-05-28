@@ -1,0 +1,103 @@
+# VocaHire Optimized Dockerfile for Cloud Build
+# Optimized for layer caching and faster builds
+
+# Use specific version for reproducibility
+ARG NODE_VERSION=20-alpine
+FROM node:${NODE_VERSION} AS base
+
+# Install system dependencies once
+RUN apk add --no-cache libc6-compat python3 make g++ \
+    && corepack enable && corepack prepare pnpm@9.15.9 --activate
+
+WORKDIR /app
+
+# Stage 1: Dependencies (rarely changes)
+FROM base AS deps
+
+# Copy only package files for better cache utilization
+COPY package.json pnpm-lock.yaml ./
+
+# Install production dependencies
+RUN pnpm install --frozen-lockfile --prod
+
+# Stage 2: Dev Dependencies (changes less frequently than code)
+FROM deps AS deps-dev
+
+# Install all dependencies including devDependencies
+RUN pnpm install --frozen-lockfile
+
+# Stage 3: Prisma Generation (changes when schema changes)
+FROM deps-dev AS prisma
+
+# Copy prisma schema
+COPY prisma/schema.prisma ./prisma/schema.prisma
+
+# Generate Prisma Client
+RUN pnpm prisma generate
+
+# Stage 4: Build (changes with code)
+FROM prisma AS builder
+
+# Copy source code
+COPY . .
+
+# Make scripts executable
+RUN chmod +x ./scripts/*.sh 2>/dev/null || true
+
+# Build environment
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+ENV NEXT_BUILD_SKIP_LINT=true
+ENV NEXT_BUILD_SKIP_TYPE_CHECK=false
+
+# Build Next.js with standalone output
+RUN pnpm exec next build
+
+# Stage 5: Production Runner
+FROM node:${NODE_VERSION}-alpine AS runner
+
+# Install only runtime dependencies
+RUN apk add --no-cache libc6-compat
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs \
+    && adduser -S nextjs -u 1001 -G nodejs
+
+WORKDIR /app
+
+# Production environment
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Copy public assets
+COPY --from=builder /app/public ./public
+
+# Copy package.json for reference
+COPY --from=builder /app/package.json ./package.json
+
+# Copy standalone build
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy Prisma files
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+
+# Switch to non-root user
+USER nextjs
+
+# Port configuration
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (res) => { \
+    if (res.statusCode === 200) process.exit(0); \
+    else process.exit(1); \
+  }).on('error', () => process.exit(1));"
+
+# Start the application
+CMD ["node", "server.js"]

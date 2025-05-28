@@ -1,0 +1,105 @@
+# Node modules
+node_modules/
+**/node_modules/
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+
+# Development files
+*.log
+*.pid
+*.seed
+*.pid.lock
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Docker files (we'll build in Cloud Build)
+docker-compose*.yml
+Dockerfile.dev
+
+# Git directory
+.git/
+.gitignore
+
+# Environment files (should use Secret Manager)
+.env
+.env.*
+!.env.example
+
+# Documentation (not needed for build)
+*.md
+docs/
+LICENSE
+
+# Test files (not needed for production build)
+__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+vitest.config.ts
+vitest.setup.ts
+jest.config.js
+
+# Scripts not needed in Cloud Build
+scripts/docker-dev.sh
+scripts/test-*.js
+scripts/setup-*.sh
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Cache directories
+.cache/
+.turbo/
+.parcel-cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Prisma - we'll generate in build
+prisma/generated/
+
+# Development configs
+Makefile
+docker-compose.dev.yml
+
+# IAM and credentials (should not be in repo)
+credentials/
+iam/
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!next.config.json
+
+# Misc
+.npmrc
+.yarnrc
+.pnpmrc

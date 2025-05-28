@@ -1,24 +1,97 @@
 steps:
-  # Build the container image
+  # Pull the previous image for cache
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/vocahire-web', '.']
-  
-  # Push the container image
+    id: 'pull-cache'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        docker pull gcr.io/$PROJECT_ID/vocahire:latest || exit 0
+        docker pull gcr.io/$PROJECT_ID/vocahire-deps:latest || exit 0
+
+  # Build dependencies stage separately for better caching
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/vocahire-web']
-  
-  # Deploy to Cloud Run with secrets
-  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'build-deps'
+    args:
+      - 'build'
+      - '--target=deps'
+      - '--cache-from=gcr.io/$PROJECT_ID/vocahire-deps:latest'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/vocahire-deps:latest'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/vocahire-deps:$BUILD_ID'
+      - '.'
+    waitFor: ['pull-cache']
+
+  # Build the production image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-prod'
+    args:
+      - 'build'
+      - '--cache-from=gcr.io/$PROJECT_ID/vocahire-deps:latest'
+      - '--cache-from=gcr.io/$PROJECT_ID/vocahire:latest'
+      - '--build-arg'
+      - 'BUILDKIT_INLINE_CACHE=1'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/vocahire:latest'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/vocahire:$BUILD_ID'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/vocahire:$SHORT_SHA'
+      - '.'
+    waitFor: ['build-deps']
+
+  # Push all images
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-images'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'gcr.io/$PROJECT_ID/vocahire'
+    waitFor: ['build-prod']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-deps'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'gcr.io/$PROJECT_ID/vocahire-deps'
+    waitFor: ['build-deps']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy'
+    entrypoint: 'gcloud'
     args:
       - 'run'
       - 'deploy'
-      - 'vocahire-web'
-      - '--image'
-      - 'gcr.io/$PROJECT_ID/vocahire-web'
-      - '--region'
-      - 'us-central1'
-      - '--platform'
-      - 'managed'
-      - '--set-secrets'
-      - 'DATABASE_URL=DATABASE_URL:latest,CLERK_SECRET_KEY=CLERK_SECRET_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,REDIS_URL=REDIS_URL:latest'
-      - '--allow-unauthenticated'
+      - 'vocahire'
+      - '--image=gcr.io/$PROJECT_ID/vocahire:$BUILD_ID'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--memory=2Gi'
+      - '--cpu=2'
+      - '--min-instances=1'
+      - '--max-instances=100'
+      - '--concurrency=80'
+      - '--cpu-throttling'
+      - '--set-env-vars=NODE_ENV=production'
+    waitFor: ['push-images']
+
+# Build configuration options
+options:
+  machineType: 'E2_HIGHCPU_8'
+  diskSizeGb: 100
+  logging: CLOUD_LOGGING_ONLY
+  dynamic_substitutions: true
+
+# Timeout for the entire build
+timeout: '30m'
+
+# Images to be pushed
+images:
+  - 'gcr.io/$PROJECT_ID/vocahire:latest'
+  - 'gcr.io/$PROJECT_ID/vocahire:$BUILD_ID'
+  - 'gcr.io/$PROJECT_ID/vocahire:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/vocahire-deps:latest'
+  - 'gcr.io/$PROJECT_ID/vocahire-deps:$BUILD_ID'

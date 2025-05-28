@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { UsageData, UsageType } from "@/app/admin/usage/UsageDashboardClient"; // Import from client component path
 import { isAdminUser } from "@/lib/admin-config";
-import { User } from "@prisma/client";
+import { User } from "@/prisma/generated/client";
 
 export async function GET(request: NextRequest) {
   try {
