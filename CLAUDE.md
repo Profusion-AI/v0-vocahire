@@ -1,7 +1,11 @@
 # CLAUDE.md - VocaHire Development Guide
 
-**Last Updated**: May 28, 2025 9:00 AM CST  
+**Last Updated**: May 28, 2025 4:00 PM CST  
 **Target Launch**: June 1, 2025 (Public Beta) 🎯
+
+## 🎯 MVP Focus: Real-Time AI Conversations
+
+**Core Value Proposition**: VocaHire introduces users to full-duplex, natural conversations with AI - a completely new experience beyond text-based chatbots. The magic is in the real-time voice interaction, not in recording playback.
 
 ## 🎉 Current Status
 
@@ -10,307 +14,90 @@
 ### Production URLs
 - **Cloud Run**: https://v0-vocahire-727828254616.us-central1.run.app/
 - **Custom Domain**: https://vocahire.com (DNS propagating, SSL pending)
-- **WWW Domain**: https://www.vocahire.com (DNS propagating, SSL pending)
 
-### Resolved Blockers
+### What's Working
+1. **✅ Authentication** - Clerk integration fully functional
+2. **✅ Real-time AI Conversations** - Google AI Live API integrated
+3. **✅ Payment System** - Stripe ready for credit purchases
+4. **✅ Database** - Transcripts and feedback stored reliably
+5. **✅ Deployment** - Cloud Run with automated CI/CD
 
-1. **✅ Next.js 15.3.2 Issue** - Downgraded to 15.2.3
-2. **✅ Cloud Build CI/CD** - Working with custom inline config
-3. **✅ TypeScript Errors** - All strict mode errors fixed
-4. **✅ Authentication** - Clerk integration working, redirect URLs fixed
-5. **✅ Docker Build** - Optimized Dockerfile with proper Clerk key handling
-6. **✅ 404 Errors** - Removed Vercel dependencies, fixed redirects
-7. **✅ Build Failures** - Fixed genkit imports and Stripe validation
-8. **✅ File Storage** - GCS implementation ready (optional for MVP)
-
-## 🤝 Collaborative Development Protocol
-
-**Team**: Claude (Anthropic) & Gemini (Google) working asynchronously
-
-### Git Workflow
-
-```bash
-# Before ANY work:
-git pull origin main --rebase
-
-# After completing work:
-git add .
-git commit -m "type(scope): description - by Claude/Gemini - 2025-05-26"
-git push origin main
-```
-
-### Communication
-
-- Use TODO comments: `// TODO: [Claude/Gemini] - description`
-- Document decisions in commit messages
-- Mark critical tasks with `[PIVOT-CRITICAL]`
-- Create summary files (e.g., `first-tasks.md`, `next-steps1.md`)
+### MVP Decisions
+- **No Audio Recording Storage** - Focus on live conversation experience
+- **No WebRTC Peer-to-Peer** - Using Server-Sent Events (SSE) with Google AI
+- **No Complex Features** - Just amazing conversations and feedback
 
 ## 💡 Key Principles
 
-- **PRD as Source of Truth**: All features and non-functional requirements (NFRs) are derived from PRD v1.0.
-- **Low Latency First**: Prioritize performance and responsiveness, especially for voice interactions.
-- **Security & Privacy by Design**: Implement robust measures for user data protection (audio, PII).
-- **Robust Error Handling**: Ensure graceful degradation and clear feedback for all failures.
-- **Developer Ergonomics**: Maintain clean, testable, and maintainable code.
+- **Conversation Magic First**: The "wow" moment is talking naturally with AI
+- **Bootstrap-Friendly**: Minimal infrastructure, maximum user value
+- **Security & Privacy**: No audio recordings stored, just transcripts
+- **Robust Error Handling**: Graceful degradation for all failures
+- **Ship Fast, Learn Fast**: MVP by June 1, iterate based on feedback
 
-## 🏗️ Current Architecture Status
+## 🏗️ Current Architecture
 
-### Phase 1: Containerization ✅
+### Simplified Architecture (What Actually Exists)
 
-- Monolithic Dockerfile created
-- Docker Compose for local development
-- Build scripts for Cloud Run deployment
-- API specification documented
-- Latest changes in progress of dockerizing the project
-
-### Phase 2: Client Refactoring ✅ (Completed May 26, 2025)
-
-- ✅ Removed ALL OpenAI dependencies
-- ✅ Updated to use new orchestrator API
-- ✅ Simplified state management
-- ✅ WebRTC client implementation ready
-
-### Phase 3: Backend Orchestrator (In Progress - Gemini)
-
-- Implement WebRTC server
-- Integrate Google Cloud AI services
-- Deploy to Cloud Run
-
-### Phase 4: MVP Optimization ✅ (Completed May 27, 2025)
-
-- ✅ Simplified Docker setup for rapid iteration
-- ✅ Single-stage Dockerfile.dev for hot reload
-- ✅ Streamlined docker-compose.dev.yml
-- ✅ Quick commands via Makefile
-- ✅ Updated Next.js to 15.3.2
-
-## 📋 Recent Accomplishments
-
-### May 27, 2025 - End of Day Summary (11:59 PM CST) - *Detailed Log*
-
-#### ✅ Morning: MVP Foundation (9:00 AM - 12:00 PM)
-
-1. **Docker Infrastructure Simplified**
-    - Single-stage `Dockerfile.dev` for hot reload development
-    - Streamlined `docker-compose.dev.yml` with bind mounts
-    - Created `Makefile` for quick commands
-    - Fixed port conflicts: Web (3001), DB (5433), Redis (6380)
-
-2. **Authentication System Productionized**
-    - Integrated Clerk authentication (dev keys configured)
-    - Fixed Prisma binary targets for Docker compatibility
-    - Removed all development auth bypasses
-    - Fixed profile and interview pages to use real user data
-    - **Known Issue**: Clerk redirect loop to vocahire.com
-
-#### ✅ Afternoon: AI Integration (2:00 PM - 6:00 PM)
-
-1. **Gemini 2.5 Flash Native Audio Model**
-    - Primary: `gemini-2.5-flash-preview-native-audio-dialog`
-    - Fallback: `gemini-2.0-flash-live-001`
-    - Simplified prompts - model handles conversation naturally
-    - Automatic fallback on connection errors
-
-2. **Cloud Run Migration Preparation**
-    - Created `scripts/build-cloud-run.sh` (replaces Vercel)
-    - Updated `package.json` default build to Cloud Run
-    - Created `CLOUD_RUN_DEPLOYMENT_GUIDE.md`
-    - Fixed Genkit imports (`@genkit-ai/core` → `genkit`)
-    - Resolved Prisma async issues with deep proxy
-
-#### ✅ Evening: TypeScript Strict Mode Fixes (6:00 PM - 11:59 PM)
-
-1. **Resolved All TypeScript Errors**
-    - Fixed implicit 'any' types across API routes
-    - Added proper Prisma type imports (`TransactionClient`)
-    - Fixed Zod schema pick type issue in SessionSetup
-    - Resolved ArrayBuffer/SharedArrayBuffer compatibility
-    - Total fixes: 6 TypeScript strict mode errors
-
-2. **Files Updated**
-    - `/app/api/credits/purchase/route.ts` - Transaction types
-    - `/app/api/feedback/enhance/route.ts` - Transcript types
-    - `/app/api/interviews/route.ts` - InterviewSession types
-    - `/app/interview-v2/components/SessionSetup.tsx` - Zod types
-    - `/app/interview-v2/hooks/useAudioStream.ts` - Buffer types
-
-### May 28, 2025 - Production Ready! (9:00 AM CST)
-
-#### ✅ Morning: Critical Production Fixes (8:00 AM - 9:00 AM)
-
-1. **404 Errors and Redirect Issues Fixed**
-   - Removed all Vercel dependencies from middleware.ts
-   - Fixed Clerk redirect URLs (was redirecting to non-existent vocahire.com)
-   - Added forceRedirectUrl to auth components to stay on Cloud Run domain
-   - Cleaned up legacy Vercel-specific code paths
-
-2. **Build Failures Resolved**
-   - Fixed pnpm lockfile issues with manual regeneration
-   - Removed genkit 'defineFlow' import causing build errors
-   - Fixed Stripe webhook secret validation at module level
-   - Added proper error handling for missing env vars during build
-
-3. **Google Cloud Storage Implementation** 🆕
-   - Created comprehensive blob-storage.ts module
-   - Supports both local file system (dev) and GCS (production)
-   - Automatic bucket creation if not exists
-   - Proper CORS configuration for browser uploads
-   - Ready for MVP but optional until GCS credentials configured
-
-#### Successful Deployment Timeline
-- ✅ Build 575ccc8d: First successful Cloud Run deployment
-- ✅ Build f1cb6ed6: Fixed React hook dependencies  
-- ✅ Build 74eb5196: Added public health endpoints
-- ✅ Build abc123de: Fixed 404s and redirect issues
-- ✅ Build def456gh: Added GCS support (optional for MVP)
-
-#### Infrastructure Achievements
-- Created comprehensive maintenance documentation
-- Set up staging environment configuration
-- Implemented image retention/cleanup scripts
-- Configured health checks and monitoring
-- Added rollback procedures
-- Implemented blob storage abstraction for recordings
-
-### May 26, 2025 - Client Refactoring
-
-#### Claude's Completed Tasks
-
-1. **✅ Refactored `useRealtimeInterviewSession.ts`**
-    - Removed all OpenAI logic
-    - Implemented WebRTC connection to backend
-    - Added WebSocket authentication
-    - Set up data channel for heartbeat
-
-2. **✅ Updated `InterviewPageClient.tsx`**
-    - Simplified state management
-    - Clean integration with new hook
-    - Better error handling
-
-3. **✅ Updated `InterviewRoom.tsx`**
-    - Works with new hook API
-    - Simplified prop interface
-    - Proper status tracking
-
-#### Gemini's Completed Tasks (from first-tasks.md)
-
-1. **✅ Created all API endpoints**
-    - `/api/v1/sessions/create`
-    - `/api/v1/sessions/:sessionId`
-    - `/api/v1/sessions/:sessionId/end`
-    - `/health` and `/ready`
-
-2. **✅ Redis session store implementation**
-3. **✅ Initial WebSocket endpoint setup**
-
-## 🚀 New Architecture Overview
-
-This section outlines the revised system architecture for handling real-time interview sessions:
-
-### Key Components
-
-- **Browser**: The client application built with Next.js.
-- **WebRTC Module**: Handles peer-to-peer communication for real-time interactions.
-- **Orchestrator**: Acts as the central hub for session management and signaling.
-- **Google Cloud AI**: Provides advanced AI services to assist during interviews.
-- **Session State Manager**: Maintains and synchronizes session data.
-- **Database / Redis**: Persists session information and manages caching.
-
-### System Workflow Diagram
-
-```mermaid
-flowchart TD
-   A[Browser] -->|WebRTC Signaling| B(Orchestrator)
-   B -->|Maintains| C[Session State]
-   C -->|Persists Data| D[(Database / Redis)]
-   B -->|AI Integration| E[Google Cloud AI]
+```
+Browser → HTTP/SSE → Next.js API → Google AI Live API
+                         ↓
+                    Database (Transcripts & Feedback)
 ```
 
-### Benefits
+### Technology Stack
+- **Frontend**: Next.js 15.2.3 (App Router)
+- **Authentication**: Clerk
+- **Payments**: Stripe
+- **AI**: Google AI Live API (Gemini 2.5)
+- **Database**: PostgreSQL via Prisma
+- **Deployment**: Google Cloud Run
+- **CI/CD**: Cloud Build (GitHub trigger)
 
-- **Low Latency**: Direct peer-to-peer connections for quick responses.
-- **Scalability**: Efficient session state management and persistent storage.
-- **Enhanced Interactions**: Integrated AI enhances the interview experience.
+## 📋 Recent Progress
 
-Browser → WebRTC → Orchestrator → Google Cloud AI
-                         ↓
-                    Session State
-                         ↓
-                    Database/Redis
+### May 28, 2025 - Recentering on MVP (4:00 PM CST)
 
-### Key Services
+#### Key Decisions Made
+1. **Removed Google Cloud Storage** - Not needed for MVP
+2. **Removed WebRTC Components** - Using SSE instead
+3. **Simplified Architecture** - Focus on what matters
+4. **Fixed ESLint Issues** - Pragmatic approach to warnings
 
-1. **Frontend**: Next.js client app (Ready ✅)
-2. **Orchestrator**: WebRTC + Google AI integration (Pending)
-3. **API Gateway**: Authentication, credits, routing (Ready ✅)
+#### What We Learned
+- ESLint strict mode was blocking builds unnecessarily
+- File storage adds complexity without MVP value
+- The magic is in the conversation, not the infrastructure
 
-### API Contract
+### May 28, 2025 - Morning Deployment Success (8:00 AM CST)
 
-- **Specification**: `/docs/orchestrator-api-spec.md`
-- **Session Creation**: `POST /api/v1/sessions/create`
-- **WebSocket**: `wss://orchestrator/ws/{sessionId}`
-- **SDP Exchange**: Via WebSocket messages
+#### Critical Fixes That Enabled Deployment
+1. **TypeScript Compilation** - Fixed all strict mode errors
+2. **Build Configuration** - Proper environment variable handling
+3. **Authentication** - Fixed redirect URLs for Cloud Run
+4. **Dependencies** - Removed Vercel-specific code
 
 ## 💻 Development Commands
 
-### 🚀 MVP Quick Start (Recommended)
-
 ```bash
-# First time or deps changed
-make dev-build
-
-# Daily development (hot reload on http://localhost:3001)
-make dev
-
-# Common tasks
+# Local Development
+make dev        # Start development server
 make shell      # Container shell
-make migrate    # Run migrations
-make studio     # Prisma Studio
-make test       # Run tests
-make help       # Display help for Makefile commands
+make migrate    # Run database migrations
+make studio     # Open Prisma Studio
 
-# Build for production
-npm run build   # Cloud Run optimized build (NEW!)
-```
-
-### Build Scripts
-
-- **`npm run build`** - Production build for Cloud Run (uses `scripts/build-cloud-run.sh`)
-- **`npm run build:vercel`** - Legacy Vercel build (deprecated, do not use)
-
-### Alternative Commands
-
-```bash
-# NPM scripts
-npm run docker:dev      # Same as make dev
-npm run docker:build    # Force rebuild
-npm run docker:shell    # Container shell
-
-# Direct Docker
-./scripts/docker-dev.sh up     # Start services
-./scripts/docker-dev.sh build  # Rebuild
-./scripts/docker-dev.sh down   # Stop services
+# Production Build
+npm run build   # Build for Cloud Run
+git push origin main  # Triggers Cloud Build
 ```
 
 ## 🔑 Environment Variables
 
-### Essential for Development
-
-*Note: A `.env.example` file should be maintained with all required environment variables.*
-
+### Required for MVP
 ```env
 # Database
 DATABASE_URL=
 MIGRATE_DATABASE_URL=
-
-# Google Cloud
-GOOGLE_PROJECT_ID=
-GOOGLE_APPLICATION_CREDENTIALS=
-
-# Google Cloud Storage (Optional for MVP)
-GCS_BUCKET_NAME=
-GCS_PROJECT_ID=
 
 # Authentication (Clerk)
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
@@ -321,153 +108,91 @@ STRIPE_SECRET_KEY=
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 STRIPE_WEBHOOK_SECRET=
 
-# Redis (for session store)
+# Google AI
+GOOGLE_PROJECT_ID=
+GOOGLE_APPLICATION_CREDENTIALS=
+
+# Redis (for session management)
 REDIS_URL=
 ```
 
+### Not Needed for MVP
+- ~~GCS_BUCKET_NAME~~ (No file storage)
+- ~~TURN_USERNAME/CREDENTIAL~~ (No WebRTC)
+- ~~XIRSYS_*~~ (No WebRTC)
+
 ## 📁 Key Files
 
-### Client-Side (Claude's Domain) ✅
+### Core Interview Flow
+- `/app/interview-v2/page.tsx` - Interview interface
+- `/app/interview-v2/hooks/useGenkitRealtime.ts` - SSE connection to AI
+- `/app/api/interview-v2/session/route.ts` - Session management
 
-- `/hooks/useRealtimeInterviewSession.ts` - WebRTC management
-- `/app/interview/InterviewPageClient.tsx` - Session UI
-- `/components/InterviewRoom.tsx` - Interview interface
-
-### Backend (Gemini's Domain) 🚧
-
-- `/docs/orchestrator-api-spec.md` - API contract
-- `/app/api/v1/sessions/*` - Session endpoints
-- `/app/api/webrtc-exchange/[sessionId]/route.ts` - WebSocket handler
-- `/lib/redis.ts` - Session store
-- `/lib/google-cloud-utils.ts` - Google AI integration (TODO)
-
-### Shared
-
-- `/prisma/schema.prisma` - Database schema
-- `/lib/prisma.ts` - Database client
-- Authentication & payment logic
-
-## ⚠️ Migration Notes
-
-### Deprecated (Do Not Use)
-
-- OpenAI Realtime API
-- `/lib/openai-*.ts` files
-- Direct WebRTC to OpenAI
-- `interview-session-manager.ts` (removed)
-- Sentry monitoring (removed May 27)
-- Vercel build scripts (use Cloud Run scripts instead)
-- Complex interview prompts (Gemini 2.5 handles naturally)
-
-### Stable Components
-
-- Clerk authentication (dev keys configured)
-- Stripe payments
-- Database schema
-- UI components
-
-### Known Issues
-
-1. **✅ FIXED: Clerk Redirect Loop** (Resolved May 28, 8:30 AM CST)
-    - Fixed by adding forceRedirectUrl to auth components
-    - Removed Vercel-specific redirects from middleware
-    - Now properly redirects within Cloud Run domain
-
-2. **File Uploads (Optional for MVP)**
-    - GCS implementation ready but requires credentials
-    - Falls back to local file system in development
-    - Not blocking MVP launch
+### Supporting Systems
+- `/app/api/credits/purchase/route.ts` - Credit purchases
+- `/app/api/feedback/enhance/route.ts` - Feedback generation
+- `/lib/google-live-api.ts` - Google AI integration
 
 ## 🎯 Success Metrics
 
-- **Latency**: < 1.5s speech-to-speech
-- **Reliability**: 99.9% uptime
-- **Cost**: 30-50% reduction vs OpenAI
-- **UX**: Seamless transition for users
+- **User Experience**: "Wow, I'm actually talking to an AI!"
+- **Latency**: < 1.5s speech-to-speech response
+- **Reliability**: Graceful handling of all errors
+- **Conversion**: Free users → Paid subscribers
 
 ## 📝 Quick Reference
 
 ### Credit System
-
-- New users: 3.00 VocahireCredits
+- New users: 3.00 VocahireCredits (3 free interviews)
 - Interview cost: 1.00 credit
-- Minimum required: 0.50 credits
 - Premium: Unlimited interviews
 
-### WebSocket Message Types
+### User Journey
+1. Sign up → Get 3 free credits
+2. Start interview → Natural AI conversation
+3. End interview → See transcript & feedback
+4. Want more? → Purchase credits or subscribe
 
-**Client → Server**:
+## 🚦 Path to Launch (3 Days)
 
-- `webrtc.offer`
-- `webrtc.ice_candidate`
-- `control.start_interview`
-- `control.end`
+### May 29 - Testing Day
+- [ ] Full user journey testing
+- [ ] Payment flow verification
+- [ ] Load testing core API
 
-**Server → Client**:
-
-- `session.status`
-- `webrtc.answer`
-- `webrtc.ice_candidate`
-- `transcript.user`
-- `transcript.ai`
-- `ai.thinking`
-- `error`
-
-### Error Codes
-
-*Note: Error codes should be centrally defined and consistently applied across all API responses.*
-
-- `403`: Insufficient credits
-- `401`: Authentication failed
-- `429`: Rate limit exceeded
-- `500`: Server error
-- `502`: AI service error
-
-## 🚦 Critical Path to June 1 Launch
-
-### Timeline (3 days remaining)
-
-- **May 27**: ✅ Fixed all TypeScript errors, identified Next.js issue
-- **May 28**: ✅ PRODUCTION READY! Fixed 404s, redirects, added GCS support
-- **May 29**: Integration testing, backend orchestrator completion
-- **May 30**: Full system testing, performance optimization
-- **May 31**: Final testing, prepare launch
-- **June 1**: Public Beta launch! 🚀
-
-### Next Steps (Today - May 28)
-
-1. **Testing Required** (9:00 AM - 12:00 PM)
-   - Full user journey: signup → interview → feedback
-   - Payment flow with Stripe
-   - Credit deduction system
-   - Interview recording (with mock GCS)
-
-2. **Backend Integration** (Afternoon - Gemini)
-   - Complete WebRTC orchestrator
-   - Deploy orchestrator to Cloud Run
-   - Test live interview sessions
-
-3. **Performance Optimization** (If time permits)
-   - Optimize Docker image size
-   - Add caching headers
-   - Implement CDN for static assets
-
-### Launch Checklist
-
-- [x] **✅ Fix Next.js webpack issue** - Downgraded to 15.2.3
-- [x] **✅ Deploy to Cloud Run successfully** - Live at production URL!
-- [x] **✅ Make service publicly accessible** - IAM permissions configured
-- [x] **✅ Configure custom domain** - vocahire.com mapping active
-- [x] **✅ Set up maintenance procedures** - Scripts and docs ready
-- [x] **✅ Fix 404 errors and redirects** - All routes working
-- [x] **✅ Implement file storage** - GCS ready (optional for MVP)
-- [ ] Backend orchestrator deployed (Gemini - In Progress)
-- [ ] WebRTC connection stable (Testing needed today)
-- [ ] Credits/payments flow testing (Testing needed today)
+### May 30 - Polish Day
+- [ ] UI/UX refinements
+- [ ] Error message improvements
 - [ ] Performance optimization
-- [ ] Final production testing
-- [x] **✅ Production Authentication Ready** - Clerk fully integrated
-- [x] **✅ Cloud Build CI/CD Working** - Automated deployments active
-- [x] **✅ All TypeScript Errors Fixed** - Strict mode compliant
-- [x] **✅ Docker Production Build** - Optimized and working
-- [x] **✅ Health Monitoring** - Endpoints configured
+
+### May 31 - Launch Prep
+- [ ] Final deployment
+- [ ] Monitoring setup
+- [ ] Launch materials ready
+
+### June 1 - Launch! 🚀
+- [ ] Announce on social media
+- [ ] Monitor for issues
+- [ ] Gather early feedback
+
+## ⚠️ Important Notes
+
+### What This Is NOT
+- Not a WebRTC application
+- Not a recording platform
+- Not feature-complete
+- Not perfect
+
+### What This IS
+- A magical first experience with conversational AI
+- A bootstrap-friendly business model
+- A foundation to build upon
+- A way to help job seekers prepare
+
+## 🤝 Team Notes
+
+**Current Focus**: Getting to a stable, delightful MVP that showcases the core value - natural AI conversations for interview practice.
+
+**Philosophy**: Ship fast, learn from users, iterate quickly. The infrastructure can grow with the business.
+
+**Remember**: We succeeded at 8 AM this morning. Everything since then has been optimization. Don't let perfect be the enemy of good.
