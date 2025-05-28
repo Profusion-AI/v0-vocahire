@@ -37,7 +37,7 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
     error,
     transcript,
     aiAudioQueue,
-    connect,
+    // connect, // Not used since connection is controlled by parent
     disconnect,
     sendData,
   } = realtimeHook;
