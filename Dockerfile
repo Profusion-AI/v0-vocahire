@@ -6,8 +6,10 @@
 ARG NODE_VERSION=20-alpine
 FROM node:${NODE_VERSION} AS deps
 
-# Install build dependencies in one layer
-RUN apk add --no-cache libc6-compat python3 make g++
+# Install build dependencies (split to avoid I/O errors)
+RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache python3 make
+RUN apk add --no-cache g++
 
 WORKDIR /app
 
@@ -23,9 +25,10 @@ RUN pnpm install --frozen-lockfile
 # Stage 2: Builder
 FROM node:${NODE_VERSION} AS builder
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++ \
-    && corepack enable && corepack prepare pnpm@9.15.9 --activate
+# Install build dependencies (split to avoid I/O errors)
+RUN apk add --no-cache python3 make
+RUN apk add --no-cache g++
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
 WORKDIR /app
 
