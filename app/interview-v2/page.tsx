@@ -108,6 +108,18 @@ export default function InterviewV2Page() {
     }
   }, [isLoaded, user, router]);
 
+  // Handle connection lifecycle based on view state and session config
+  useEffect(() => {
+    if (viewState === 'interview' && sessionConfig && !realtimeHook.isConnected && !realtimeHook.isConnecting) {
+      console.log("Triggering connect from page.tsx useEffect with latest config:", sessionConfig);
+      realtimeHook.connect();
+    } else if (viewState !== 'interview' && realtimeHook.isConnected) {
+      // If we navigate away from 'interview' state, disconnect
+      console.log("Disconnecting due to viewState change");
+      realtimeHook.disconnect();
+    }
+  }, [viewState, sessionConfig, realtimeHook]);
+
   // Handle session setup completion
   const handleSetupComplete = async (config: ComponentSessionConfig) => {
     // Convert component config to extended config for the hook
@@ -130,11 +142,7 @@ export default function InterviewV2Page() {
     setComponentConfig(config);
     setViewState('interview');
     
-    // Start the connection after setting the config
-    // Small delay to ensure state is updated
-    setTimeout(() => {
-      realtimeHook.connect();
-    }, 100);
+    // Connection will be initiated by useEffect after state updates
   };
 
   // Handle interview end
