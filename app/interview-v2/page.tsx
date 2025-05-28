@@ -56,9 +56,9 @@ export default function InterviewV2Page() {
     },
     {
       onMessage: (data) => {
-        // Handle feedback completion
-        if (data.type === 'thinking' && data.data?.type === 'feedback') {
-          setFeedback(data.data as Feedback);
+        // Handle feedback completion when session ends
+        if (data.type === 'session_status' && data.sessionStatus?.status === 'completed' && data.sessionStatus?.feedback) {
+          setFeedback(data.sessionStatus.feedback as Feedback);
           setViewState('feedback');
         }
       },

@@ -133,13 +133,28 @@ export function useGenkitRealtime(
             if (wasReconnecting && onReconnected) {
               onReconnected();
             }
-          } else if (parsed.data?.status === 'disconnected' || parsed.data?.status === 'session_ended') {
+          } else if (parsed.control?.type === 'end') {
             setIsConnected(false);
             setStatus('disconnected'); // Update status
-          } else if (parsed.data?.status === 'streaming') {
-             setStatus('streaming'); // Update status
-          } else if (parsed.data?.status === 'thinking') {
-             setStatus('thinking'); // Update status
+          } else if (parsed.control?.type === 'busy') {
+            setStatus('thinking'); // Update status when AI is processing
+          }
+          break;
+        
+        case 'thinking':
+          if (parsed.thinking?.isThinking) {
+            setStatus('thinking');
+          } else {
+            setStatus('connected');
+          }
+          break;
+
+        case 'session_status':
+          if (parsed.sessionStatus?.status === 'active') {
+            setStatus('streaming');
+          } else if (parsed.sessionStatus?.status === 'completed' || parsed.sessionStatus?.status === 'error') {
+            setIsConnected(false);
+            setStatus('disconnected');
           }
           break;
       }

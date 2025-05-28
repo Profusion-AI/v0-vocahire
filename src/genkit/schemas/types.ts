@@ -29,7 +29,7 @@ export const RealtimeInputSchema = z.object({
   sessionId: z.string(),
   userId: z.string(),
   jobRole: z.string(),
-  interviewType: z.enum(['Behavioral', 'Technical', 'General']),
+  interviewType: z.enum(['Behavioral', 'Technical', 'General', 'Leadership']),
   difficulty: z.enum(['entry', 'mid', 'senior']),
   systemInstruction: z.string(),
   audioChunk: z.string().optional(),
@@ -40,7 +40,7 @@ export const RealtimeInputSchema = z.object({
 
 // Realtime Output Schema for WebSocket/SSE responses
 export const RealtimeOutputSchema = z.object({
-  type: z.enum(['session_status', 'transcript', 'audio', 'error', 'control']),
+  type: z.enum(['session_status', 'transcript', 'audio', 'error', 'control', 'thinking']),
   sessionStatus: z.object({
     sessionId: z.string(),
     status: z.enum(['active', 'completed', 'error']),
@@ -68,6 +68,10 @@ export const RealtimeOutputSchema = z.object({
   control: z.object({
     type: z.enum(['ready', 'busy', 'end'])
   }).optional(),
+  thinking: z.object({
+    isThinking: z.boolean(),
+    message: z.string().optional(),
+  }).optional(),
 });
 
 // Session Config Schema
@@ -81,7 +85,7 @@ export const SessionConfigSchema = z.object({
 
 // Streaming Message Schema
 export const StreamingMessageSchema = z.object({
-  type: z.enum(['session_status', 'transcript', 'audio', 'error', 'control']),
+  type: z.enum(['session_status', 'transcript', 'audio', 'error', 'control', 'thinking']),
   sessionStatus: z.object({
     sessionId: z.string(),
     status: z.enum(['active', 'completed', 'error']),
@@ -105,6 +109,13 @@ export const StreamingMessageSchema = z.object({
   error: z.object({
     code: z.string(),
     message: z.string(),
+  }).optional(),
+  control: z.object({
+    type: z.enum(['ready', 'busy', 'end'])
+  }).optional(),
+  thinking: z.object({
+    isThinking: z.boolean(),
+    message: z.string().optional(),
   }).optional(),
 });
 

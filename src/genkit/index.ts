@@ -12,7 +12,6 @@ export const ai = genkit({
       location: process.env.GOOGLE_CLOUD_REGION || 'us-central1',
     }),
   ],
-  enableTracingAndMetrics: true,
 });
 
 export * from './flows';
