@@ -17,13 +17,10 @@ import InterviewControls from './InterviewControls';
 import SessionStatus from './SessionStatus';
 import type { SessionConfig as GenkitSessionConfig, RealtimeInputSchema } from '@/src/genkit/schemas/types';
 import { z } from 'zod';
+import type { ExtendedSessionConfig } from '../page'; // Import ExtendedSessionConfig
 
-// Extended SessionConfig that includes both Genkit schema fields and interview-specific fields
-interface SessionConfig extends GenkitSessionConfig {
-  interviewType: string;
-  domainOrRole: string;
-  sessionId?: string;
-}
+// Alias SessionConfig to ExtendedSessionConfig
+type SessionConfig = ExtendedSessionConfig;
 
 interface LiveInterviewProps {
   sessionConfig: SessionConfig;
@@ -90,12 +87,12 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
         sendData({
           sessionId: sessionConfig.sessionId || `session_${Date.now()}`,
           userId: sessionConfig.userId,
-          jobRole: sessionConfig.domainOrRole,
-          interviewType: sessionConfig.interviewType === 'behavioral' ? 'Behavioral' :
-                        sessionConfig.interviewType === 'technical' ? 'Technical' :
-                        sessionConfig.interviewType === 'situational' ? 'General' : 'General',
+          jobRole: sessionConfig.jobRole,
+          interviewType: sessionConfig.interviewType === 'Behavioral' ? 'Behavioral' :
+                        sessionConfig.interviewType === 'Technical' ? 'Technical' :
+                        sessionConfig.interviewType === 'General' ? 'General' : 'General', // Changed 'situational' to 'General'
           difficulty: 'mid',
-          systemInstruction: `You are an interviewer conducting a ${sessionConfig.interviewType} interview for a ${sessionConfig.domainOrRole} position.`,
+          systemInstruction: `You are an interviewer conducting a ${sessionConfig.interviewType} interview for a ${sessionConfig.jobRole} position.`,
           audioChunk: base64Audio,
         } satisfies z.infer<typeof RealtimeInputSchema>);
       }
@@ -167,12 +164,12 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
     sendData({
       sessionId: sessionConfig.sessionId || `session_${Date.now()}`,
       userId: sessionConfig.userId,
-      jobRole: sessionConfig.domainOrRole,
-      interviewType: sessionConfig.interviewType === 'behavioral' ? 'Behavioral' :
-                    sessionConfig.interviewType === 'technical' ? 'Technical' :
-                    sessionConfig.interviewType === 'situational' ? 'General' : 'General',
+      jobRole: sessionConfig.jobRole,
+      interviewType: sessionConfig.interviewType === 'Behavioral' ? 'Behavioral' :
+                    sessionConfig.interviewType === 'Technical' ? 'Technical' :
+                    sessionConfig.interviewType === 'General' ? 'General' : 'General', // Changed 'situational' to 'General'
       difficulty: 'mid',
-      systemInstruction: `You are an interviewer conducting a ${sessionConfig.interviewType} interview for a ${sessionConfig.domainOrRole} position.`,
+      systemInstruction: `You are an interviewer conducting a ${sessionConfig.interviewType} interview for a ${sessionConfig.jobRole} position.`,
       controlMessage: { type: 'interrupt' },
     } satisfies z.infer<typeof RealtimeInputSchema>);
     
@@ -226,7 +223,7 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
               {sessionConfig.interviewType.charAt(0).toUpperCase() + sessionConfig.interviewType.slice(1)} Interview
             </CardTitle>
             <Badge variant={isConnected ? 'default' : 'secondary'}>
-              {sessionConfig.domainOrRole}
+              {sessionConfig.jobRole}
             </Badge>
           </div>
         </CardHeader>

@@ -13,13 +13,17 @@ import type { Feedback } from '@/src/genkit/schemas/types';
 type ViewState = 'setup' | 'interview' | 'feedback';
 
 // Extended SessionConfig for use with the realtime hook
-interface ExtendedSessionConfig {
+export interface ExtendedSessionConfig {
   sessionId: string;
   userId: string;
   jobRole: string;
   interviewType: 'Behavioral' | 'Technical' | 'Leadership' | 'General';
   difficulty: 'entry' | 'mid' | 'senior';
   systemInstruction: string;
+  jobPosition: string;
+  jobDescription: string;
+  userEmail: string;
+  userName: string;
 }
 
 // Component SessionConfig from SessionSetup
@@ -91,6 +95,10 @@ export default function InterviewV2Page() {
                      config.interviewType === 'situational' ? 'General' : 'General',
       difficulty: 'mid',
       systemInstruction: `You are an interviewer conducting a ${config.interviewType} interview for a ${config.domainOrRole} position. Ask relevant questions one at a time and provide constructive feedback.`,
+      jobPosition: config.domainOrRole, // Using domainOrRole for jobPosition
+      jobDescription: `Interview for a ${config.domainOrRole} position.`, // Placeholder
+      userEmail: user?.emailAddresses[0]?.emailAddress || 'unknown@example.com',
+      userName: user?.fullName || 'Unknown User',
     };
     
     setSessionConfig(extendedConfig);
@@ -140,9 +148,9 @@ export default function InterviewV2Page() {
         />
       )}
       
-      {viewState === 'interview' && componentConfig && (
+      {viewState === 'interview' && sessionConfig && ( // Use sessionConfig state
         <LiveInterview
-          sessionConfig={componentConfig}
+          sessionConfig={sessionConfig}
           realtimeHook={realtimeHook}
           onEnd={handleInterviewEnd}
           reconnectAttempt={reconnectAttempt}
@@ -152,7 +160,7 @@ export default function InterviewV2Page() {
       {viewState === 'feedback' && feedback && (
         <FeedbackView
           feedback={feedback}
-          sessionConfig={componentConfig}
+          sessionConfig={componentConfig || undefined}
           onClose={handleReturnToSetup}
         />
       )}
