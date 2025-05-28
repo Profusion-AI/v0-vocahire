@@ -1,9 +1,30 @@
 import { EventEmitter } from 'events';
 
+export type SchemaType = 'STRING' | 'NUMBER' | 'INTEGER' | 'BOOLEAN' | 'ARRAY' | 'OBJECT';
+
+export interface Schema {
+  type: SchemaType;
+  description?: string;
+  properties?: { [key: string]: Schema };
+  items?: Schema;
+  required?: string[];
+}
+
+export interface FunctionDeclaration {
+  name: string;
+  description?: string;
+  parameters?: Schema;
+}
+
+export interface Tool {
+  functionDeclarations?: FunctionDeclaration[];
+  googleSearch?: {}; // Placeholder for googleSearch tool
+}
+
 export interface LiveAPIConfig {
   apiKey: string;
   model?: string;
-  systemInstruction?: string;
+  systemInstruction?: { parts: { text: string }[] };
   generationConfig?: {
     temperature?: number;
     topP?: number;
@@ -11,7 +32,7 @@ export interface LiveAPIConfig {
     maxOutputTokens?: number;
     responseMimeType?: string;
   };
-  tools?: any[];
+  tools?: Tool[];
 }
 
 export interface LiveAPIMessage {
@@ -118,9 +139,7 @@ export class GoogleLiveAPIClient extends EventEmitter {
     };
 
     if (this.config.systemInstruction) {
-      (setupMessage.setup as any).system_instruction = {
-        parts: [{ text: this.config.systemInstruction }]
-      };
+      (setupMessage.setup as any).system_instruction = this.config.systemInstruction;
     }
 
     if (this.config.tools) {
@@ -178,8 +197,6 @@ export class GoogleLiveAPIClient extends EventEmitter {
       if (content.turnComplete) {
         this.emit('turnComplete');
       }
-    } else if (message.toolCall) {
-      this.emit('toolCall', message.toolCall);
     }
   }
 

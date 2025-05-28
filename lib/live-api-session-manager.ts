@@ -1,4 +1,4 @@
-import { GoogleLiveAPIClient } from './google-live-api';
+import { GoogleLiveAPIClient, Tool } from './google-live-api';
 import { redis } from './redis';
 import { getSecret } from './secret-manager';
 
@@ -33,9 +33,9 @@ export class LiveAPISessionManager {
     sessionId: string,
     config: {
       model: string;
-      systemInstruction: any;
+      systemInstruction: { parts: { text: string }[] };
       generationConfig?: any;
-      tools?: any[];
+      tools?: Tool[];
     }
   ): Promise<GoogleLiveAPIClient> {
     // Check if session already exists

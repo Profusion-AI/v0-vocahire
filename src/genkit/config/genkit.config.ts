@@ -1,31 +1,25 @@
-import { configureGenkit } from '@genkit-ai/core';
+import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
-import { firebase } from '@genkit-ai/firebase';
-import { nextAdapter } from '@genkit-ai/next';
-import { evaluator } from '@genkit-ai/evaluator';
+import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
+import evaluator from '@genkit-ai/evaluator';
+import { logger } from 'genkit/logging';
+import { GenkitMetric } from '@genkit-ai/evaluator';
 
-export const initGenKit = () => {
-  return configureGenkit({
-    plugins: [
-      googleAI({
-        apiKey: process.env.GOOGLE_AI_API_KEY!,
-      }),
-      vertexAI({
-        projectId: process.env.GOOGLE_PROJECT_ID!,
-        location: 'us-central1',
-      }),
-      firebase(),
-      nextAdapter(),
-      evaluator(),
-    ],
-    flowStateStore: firebase({
-      collectionName: 'genkit-flow-states',
+logger.setLogLevel(process.env.NODE_ENV === 'development' ? 'debug' : 'info');
+enableFirebaseTelemetry();
+
+export const genkitApp = genkit({
+  plugins: [
+    googleAI({
+      apiKey: process.env.GOOGLE_AI_API_KEY!,
     }),
-    logLevel: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
-    telemetry: {
-      provider: 'google-cloud',
+    vertexAI({
       projectId: process.env.GOOGLE_PROJECT_ID!,
-    },
-  });
-};
+      location: 'us-central1',
+    }),
+    evaluator({
+      metrics: [GenkitMetric.MALICIOUSNESS],
+    }),
+  ],
+});

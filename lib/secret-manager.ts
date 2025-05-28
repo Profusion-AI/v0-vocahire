@@ -121,7 +121,14 @@ export async function getVocaHireSecrets(): Promise<VocaHireSecrets> {
     }
   }
   
-  return secrets as VocaHireSecrets;
+  return {
+    DATABASE_URL: secrets.DATABASE_URL,
+    CLERK_SECRET_KEY: secrets.CLERK_SECRET_KEY,
+    STRIPE_SECRET_KEY: secrets.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: secrets.STRIPE_WEBHOOK_SECRET,
+    REDIS_URL: secrets.REDIS_URL,
+    SUPABASE_SERVICE_ROLE_KEY: secrets.SUPABASE_SERVICE_ROLE_KEY,
+  };
 }
 
 /**
