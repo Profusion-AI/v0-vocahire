@@ -56,6 +56,14 @@ Browser → HTTP/SSE → Next.js API → Google AI Live API
 
 ## 📋 Recent Progress
 
+### May 28, 2025 - Evening Update (5:00 PM CST)
+
+#### Architectural Clarity
+1. **Backend Orchestrator Status**: ✅ COMPLETED - Google AI Live API integration is working
+2. **No Gemini Separate Work** - The "Backend Orchestrator" IS the Google AI integration
+3. **WebRTC Fully Removed** - All references eliminated, using SSE exclusively
+4. **Recording Routes Stubbed** - Returns 501 Not Implemented for MVP
+
 ### May 28, 2025 - Recentering on MVP (4:00 PM CST)
 
 #### Key Decisions Made
@@ -155,39 +163,54 @@ REDIS_URL=
 
 ## 🚦 Path to Launch (3 Days)
 
+### Current Build Status
+- **Latest Build**: Fixing storage-config import (5:00 PM CST)
+- **Build Pipeline**: Direct push to main → Cloud Build → Cloud Run
+- **Note**: Using pragmatic approach - PR workflow post-MVP
+
 ### May 29 - Testing Day
-- [ ] Full user journey testing
-- [ ] Payment flow verification
-- [ ] Load testing core API
+- [ ] Full user journey testing (Sign up → Interview → Feedback)
+- [ ] Payment flow verification (Free credits → Purchase → Premium)
+- [ ] Basic load testing (Can we handle 100 concurrent users?)
+- [ ] Fix any critical bugs found
 
 ### May 30 - Polish Day
-- [ ] UI/UX refinements
-- [ ] Error message improvements
-- [ ] Performance optimization
+- [ ] UI/UX quick wins only
+- [ ] Clear error messages for common failures
+- [ ] Ensure graceful degradation
+- [ ] Test on multiple devices/browsers
 
 ### May 31 - Launch Prep
-- [ ] Final deployment
-- [ ] Monitoring setup
-- [ ] Launch materials ready
+- [ ] Final deployment verification
+- [ ] Basic monitoring (Cloud Run metrics)
+- [ ] Prepare launch announcement
+- [ ] Have rollback plan ready
 
 ### June 1 - Launch! 🚀
-- [ ] Announce on social media
-- [ ] Monitor for issues
-- [ ] Gather early feedback
+- [ ] Soft launch to limited audience
+- [ ] Monitor Cloud Run logs closely
+- [ ] Be ready to fix issues quickly
+- [ ] Gather and act on early feedback
 
 ## ⚠️ Important Notes
 
 ### What This Is NOT
-- Not a WebRTC application
-- Not a recording platform
-- Not feature-complete
-- Not perfect
+- Not a WebRTC application (uses SSE)
+- Not a recording platform (no audio storage)
+- Not feature-complete (MVP only)
+- Not perfect (but it works!)
 
 ### What This IS
 - A magical first experience with conversational AI
 - A bootstrap-friendly business model
 - A foundation to build upon
 - A way to help job seekers prepare
+
+### Known Limitations
+- Direct push to main (PR workflow coming post-MVP)
+- Basic error handling (will improve based on user feedback)
+- Limited monitoring (Cloud Run metrics only)
+- No audio playback (transcripts only)
 
 ## 🤝 Team Notes
 
