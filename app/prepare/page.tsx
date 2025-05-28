@@ -33,9 +33,9 @@ function PreparePageContent() {
     localStorage.setItem("vocahire_job_title", jobTitle)
     localStorage.setItem("vocahire_resume_data", JSON.stringify(resumeData))
 
-    // Navigate to interview page
-    router.push("/interview")
-  }
+         // Navigate to interview page
+         router.push("/interview-v2")
+       }
 
   const handleResumeUpload = (url: string, _filename: string) => {
     setResumeData((prev: ResumeData) => ({ // Added type for prev
