@@ -40,3 +40,23 @@ output.md
 *.json
 service-account.json
 *-service-account.json
+
+# personal and internal planning documents
+AI_ORCHESTRATOR_RESUME_POINTS.md
+AI_ASSISTED_CICD_STRATEGY.md
+MVP_LAUNCH_SPRINT.md
+POST_MVP_SCALING_CHECKLIST.md
+CLAUDE.local.md
+GEMINI.md
+first-tasks.md
+claude-qa3.md
+claude-qa4.md
+phase3-summary.md
+phase4-summary.md
+edge-case-implementation-progress.md
+edge-testing.md
+genkit-integration-optimizations.md
+genkit-live-api-optimizations.md
+auth-cleanup-summary.md
+production-url-updates.md
+PRODUCTION_CHECKLIST_MAY31.md

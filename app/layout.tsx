@@ -3,7 +3,6 @@ import {
   ClerkProvider,
 } from '@clerk/nextjs'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/react'
 import './globals.css'
 
 const geistSans = Geist({
@@ -34,14 +33,13 @@ export default function RootLayout({
           footerActionLink: 'text-blue-600 hover:text-blue-700'
         }
       }}
-      signInFallbackRedirectUrl="/interview"
-      signUpFallbackRedirectUrl="/interview"
+      signInFallbackRedirectUrl="/interview-v2"
+      signUpFallbackRedirectUrl="/interview-v2"
       afterSignOutUrl="/"
     >
       <html lang="en">
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
           {children}
-          <Analytics />
         </body>
       </html>
     </ClerkProvider>
