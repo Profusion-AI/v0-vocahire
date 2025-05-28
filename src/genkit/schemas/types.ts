@@ -24,6 +24,52 @@ export const InterviewQuestionsOutputSchema = z.object({
 
 // Note: Realtime communication is handled directly via WebSockets, not through Genkit flows
 
+// Realtime Input Schema for WebSocket/SSE communication
+export const RealtimeInputSchema = z.object({
+  sessionId: z.string(),
+  userId: z.string(),
+  jobRole: z.string(),
+  interviewType: z.enum(['Behavioral', 'Technical', 'General']),
+  difficulty: z.enum(['entry', 'mid', 'senior']),
+  systemInstruction: z.string(),
+  audioChunk: z.string().optional(),
+  controlMessage: z.object({
+    type: z.enum(['start', 'stop', 'interrupt'])
+  }).optional(),
+});
+
+// Realtime Output Schema for WebSocket/SSE responses
+export const RealtimeOutputSchema = z.object({
+  type: z.enum(['session_status', 'transcript', 'audio', 'error', 'control']),
+  sessionStatus: z.object({
+    sessionId: z.string(),
+    status: z.enum(['active', 'completed', 'error']),
+    startTime: z.string(),
+    duration: z.number(),
+    transcript: z.array(z.any()).optional(),
+    feedback: z.any().optional(),
+  }).optional(),
+  transcript: z.object({
+    id: z.string(),
+    role: z.enum(['user', 'assistant']),
+    text: z.string(),
+    timestamp: z.string(),
+    confidence: z.number().optional(),
+  }).optional(),
+  audio: z.object({
+    data: z.string(),
+    format: z.string(),
+    sampleRate: z.number(),
+  }).optional(),
+  error: z.object({
+    code: z.string(),
+    message: z.string(),
+  }).optional(),
+  control: z.object({
+    type: z.enum(['ready', 'busy', 'end'])
+  }).optional(),
+});
+
 // Session Config Schema
 export const SessionConfigSchema = z.object({
   jobPosition: z.string(),
@@ -216,3 +262,5 @@ export type InterviewSessionInput = z.infer<typeof InterviewSessionInputSchema>;
 export type InterviewQuestionsOutput = z.infer<typeof InterviewQuestionsOutputSchema>;
 export type AudioMetrics = z.infer<typeof AudioMetricsSchema>;
 export type ErrorSchema = z.infer<typeof ErrorSchema>;
+export type RealtimeInput = z.infer<typeof RealtimeInputSchema>;
+export type RealtimeOutput = z.infer<typeof RealtimeOutputSchema>;

@@ -80,11 +80,11 @@ export function useGenkitRealtime(
       // Update internal state based on message type (optional, can rely solely on onMessage)
       switch (parsed.type) {
         case 'transcript':
-          if (parsed.data && typeof parsed.data === 'object' && 'speaker' in parsed.data) {
-             // Assuming transcript data comes as individual entries
+          if (parsed.transcript) {
             const entry = TranscriptEntrySchema.parse({
-              ...parsed.data,
-              timestamp: parsed.timestamp || new Date().toISOString(),
+              speaker: parsed.transcript.role === 'user' ? 'user' : 'ai',
+              text: parsed.transcript.text,
+              timestamp: parsed.transcript.timestamp || new Date().toISOString(),
             });
             setTranscript(prev => {
               // Append or update the last entry based on speaker
@@ -101,25 +101,28 @@ export function useGenkitRealtime(
           break;
 
         case 'audio':
-          if (typeof parsed.data === 'string') {
-            setAiAudioQueue(prev => [...prev, parsed.data]);
+          if (parsed.audio?.data) {
+            setAiAudioQueue(prev => [...prev, parsed.audio!.data]);
           }
           break;
 
         case 'error':
-          const errorData = ErrorSchema.parse({
-            ...parsed.data,
-            timestamp: parsed.timestamp || new Date().toISOString(),
-          });
-          setError(errorData);
-          if (onError) {
-            onError(errorData); // Call the provided onError callback
+          if (parsed.error) {
+            const errorData = ErrorSchema.parse({
+              code: parsed.error.code,
+              message: parsed.error.message,
+              timestamp: new Date().toISOString(),
+            });
+            setError(errorData);
+            if (onError) {
+              onError(errorData); // Call the provided onError callback
+            }
+            setStatus('error'); // Update status on error
           }
-          setStatus('error'); // Update status on error
           break;
 
         case 'control':
-          if (parsed.data?.status === 'connected') {
+          if (parsed.control?.type === 'ready') {
             const wasReconnecting = reconnectAttemptsRef.current > 0;
             setIsConnected(true);
             setIsConnecting(false);
