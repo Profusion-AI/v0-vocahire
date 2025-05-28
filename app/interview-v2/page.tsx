@@ -122,10 +122,16 @@ export default function InterviewV2Page() {
 
   // Handle session setup completion
   const handleSetupComplete = async (config: ComponentSessionConfig) => {
+    if (!user || !user.id) {
+      console.error("Attempted to start session without a loaded user ID. Please ensure user is authenticated.");
+      // Optional: Display a user-facing error message or disable the start button.
+      return; // Crucially, stop execution if user.id is missing.
+    }
+
     // Convert component config to extended config for the hook
     const extendedConfig: ExtendedSessionConfig = {
       sessionId: config.sessionId || `session_${Date.now()}`,
-      userId: user?.id || '',
+      userId: user.id, // user.id is guaranteed to be valid here
       jobRole: config.domainOrRole,
       interviewType: config.interviewType === 'behavioral' ? 'Behavioral' :
                      config.interviewType === 'technical' ? 'Technical' :

@@ -37,7 +37,6 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
     error,
     transcript,
     aiAudioQueue,
-    // connect, // Not used since connection is controlled by parent
     disconnect,
     sendData,
   } = realtimeHook;
@@ -63,12 +62,6 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
   const audioContextRef = useRef<AudioContext | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speakerMuted, setSpeakerMuted] = useState(false);
-
-  // Don't auto-connect on mount - let the user control when to start
-  // The connection should be initiated by the SessionSetup component
-  // useEffect(() => {
-  //   connect();
-  // }, [connect]);
 
   // Send audio data periodically
   useEffect(() => {
