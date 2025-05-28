@@ -3,6 +3,7 @@ import { getAuth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { transactionLogger, TransactionOperations } from "@/lib/transaction-logger";
+import { Prisma } from "@/prisma/generated/client";
 
 // Request body schema
 const purchaseSchema = z.object({
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
     });
     
     // Use a transaction to ensure both operations succeed together
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // TODO: Add purchase transaction record for audit trail when model is created
       // await tx.purchaseTransaction.create({
       //   data: {
