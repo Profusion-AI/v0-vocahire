@@ -27,7 +27,7 @@ async function getUsersWithUsage() {
   });
 
   // Transform the data for the UI
-  return users.map((user) => ({
+  return users.map((user: any) => ({
     id: user.id,
     email: user.email || "No email",
     usageCount: user._count.interviewSessions + user._count.feedbacks,
