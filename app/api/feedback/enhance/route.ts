@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma"
 import { getOrCreatePrismaUser } from "@/lib/auth-utils"
 import { generateEnhancedInterviewFeedback } from "@/lib/enhancedFeedback"
 import { transactionLogger, TransactionOperations } from "@/lib/transaction-logger"
+import { Transcript } from "@/prisma/generated/client"
 
 const ENHANCED_FEEDBACK_COST = 0.50
 
@@ -144,7 +145,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 9. Prepare transcript for enhanced analysis
-    const transcript = interview.transcripts.map(t => ({
+    const transcript = interview.transcripts.map((t: Transcript) => ({
       role: t.role,
       content: t.content,
       timestamp: t.timestamp.getTime()
