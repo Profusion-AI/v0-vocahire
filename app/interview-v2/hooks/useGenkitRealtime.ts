@@ -172,6 +172,13 @@ export function useGenkitRealtime(
   }, [onMessage, onError, onReconnected]); // Added onMessage, onError, onReconnected to dependencies
 
   const connect = useCallback(async () => {
+    // Prevent connection with invalid config
+    if (!sessionConfig.sessionId || !sessionConfig.userId || 
+        sessionConfig.sessionId === 'dummy' || sessionConfig.userId === 'dummy') {
+      console.warn('Cannot connect with invalid session config');
+      return;
+    }
+    
     if (isConnected || isConnecting) return;
 
     setStatus('connecting'); // Update status
@@ -349,6 +356,13 @@ export function useGenkitRealtime(
 
 
   const sendData = useCallback((data: z.infer<typeof RealtimeInputSchema>) => {
+     // Prevent sending with invalid config
+     if (!sessionConfig.sessionId || !sessionConfig.userId || 
+         sessionConfig.sessionId === 'dummy' || sessionConfig.userId === 'dummy') {
+       console.warn('Cannot send data with invalid session config');
+       return;
+     }
+     
      if (!isConnected) {
        console.warn('Cannot send data: Not connected');
        return;

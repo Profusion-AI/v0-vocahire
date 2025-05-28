@@ -64,10 +64,11 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
   const [isPlaying, setIsPlaying] = useState(false);
   const [speakerMuted, setSpeakerMuted] = useState(false);
 
-  // Start connection on mount
-  useEffect(() => {
-    connect();
-  }, [connect]);
+  // Don't auto-connect on mount - let the user control when to start
+  // The connection should be initiated by the SessionSetup component
+  // useEffect(() => {
+  //   connect();
+  // }, [connect]);
 
   // Send audio data periodically
   useEffect(() => {

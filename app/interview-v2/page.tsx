@@ -53,19 +53,27 @@ export default function InterviewV2Page() {
     agreeToTerms,
   } = useTermsAgreement(user?.id);
   
-  // Initialize realtime hook with proper config
+  // Initialize realtime hook only when we have a valid session config
+  // This prevents connection attempts before the user starts the interview
   const realtimeHook = useGenkitRealtime(
     '/api/interview-v2/session',
     sessionConfig || {
-      sessionId: '',
-      userId: user?.id || '',
-      jobRole: '',
+      sessionId: 'dummy', // Dummy values to satisfy type requirements
+      userId: 'dummy',
+      jobRole: 'dummy',
       interviewType: 'General',
       difficulty: 'mid',
-      systemInstruction: '',
+      systemInstruction: 'dummy',
+      jobPosition: 'dummy',
+      jobDescription: 'dummy',
+      userEmail: 'dummy@example.com',
+      userName: 'dummy'
     },
     {
       onMessage: (data) => {
+        // Only process messages if we have a real session config
+        if (!sessionConfig) return;
+        
         // Handle feedback completion when session ends
         if (data.type === 'session_status' && data.sessionStatus?.status === 'completed' && data.sessionStatus?.feedback) {
           setFeedback(data.sessionStatus.feedback as Feedback);
@@ -73,13 +81,20 @@ export default function InterviewV2Page() {
         }
       },
       onError: (error) => {
-        console.error('Connection error:', error);
+        // Only log errors if we have a real session config
+        if (sessionConfig) {
+          console.error('Connection error:', error);
+        }
       },
       onReconnecting: (attempt, maxAttempts) => {
-        setReconnectAttempt({ current: attempt, max: maxAttempts });
+        if (sessionConfig) {
+          setReconnectAttempt({ current: attempt, max: maxAttempts });
+        }
       },
       onReconnected: () => {
-        setReconnectAttempt(null);
+        if (sessionConfig) {
+          setReconnectAttempt(null);
+        }
       },
     }
   );
@@ -94,7 +109,7 @@ export default function InterviewV2Page() {
   }, [isLoaded, user, router]);
 
   // Handle session setup completion
-  const handleSetupComplete = (config: ComponentSessionConfig) => {
+  const handleSetupComplete = async (config: ComponentSessionConfig) => {
     // Convert component config to extended config for the hook
     const extendedConfig: ExtendedSessionConfig = {
       sessionId: config.sessionId || `session_${Date.now()}`,
@@ -114,6 +129,12 @@ export default function InterviewV2Page() {
     setSessionConfig(extendedConfig);
     setComponentConfig(config);
     setViewState('interview');
+    
+    // Start the connection after setting the config
+    // Small delay to ensure state is updated
+    setTimeout(() => {
+      realtimeHook.connect();
+    }, 100);
   };
 
   // Handle interview end
