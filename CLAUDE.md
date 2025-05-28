@@ -124,7 +124,40 @@ make studio     # Open Prisma Studio
 # Production Build
 npm run build   # Build for Cloud Run
 git push origin main  # Triggers Cloud Build
+
+# Genkit Developer UI (Powerful Debugging)
+pnpm genkit start     # Start Developer UI on http://localhost:4000
+GENKIT_ENV=dev pnpm dev  # Run app with Genkit telemetry enabled
 ```
+
+### 🔍 Genkit Developer UI - Debug Like a Pro
+
+**Discovered**: May 28, 2025 - This is a game-changer for debugging AI flows!
+
+The Genkit Developer UI provides incredible visibility into our AI flows:
+
+1. **Start the Developer UI**:
+   ```bash
+   pnpm genkit start  # Opens http://localhost:4000
+   ```
+
+2. **Run app with telemetry**:
+   ```bash
+   GENKIT_ENV=dev pnpm dev  # Connects to Developer UI
+   ```
+
+3. **What you get**:
+   - **Flow Visualization**: See all registered Genkit flows
+   - **Direct Testing**: Run flows with test inputs right from the UI
+   - **Trace Inspection**: Step-by-step debugging of every flow execution
+   - **Error Tracking**: See exactly where and why flows fail
+   - **Telemetry Server**: Performance metrics at http://localhost:4033
+
+4. **Key Insights**:
+   - Flows must be properly registered in `/src/genkit/flows/index.ts`
+   - Models and prompts are also visible in the UI
+   - Every flow execution creates a detailed trace for debugging
+   - No production impact - this is purely for development
 
 ## 🔑 Environment Variables
 
