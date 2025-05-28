@@ -56,7 +56,9 @@ export function SessionSetup({ onComplete, isLoading = false }: SessionSetupProp
 
   const validateField = (field: keyof SetupFormData, value: any) => {
     try {
-      const schema = SetupFormSchema.pick({ [field]: true });
+      // Create a type-safe pick object
+      const pickObj = { [field]: true } as const;
+      const schema = SetupFormSchema.pick(pickObj as any);
       schema.parse({ [field]: value });
       // Clear error for this field
       setErrors(prev => {
