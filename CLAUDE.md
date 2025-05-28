@@ -170,8 +170,6 @@ git push origin main
 2. **✅ Redis session store implementation**
 3. **✅ Initial WebSocket endpoint setup**
 
-## 🚀 New Architecture
-
 ## 🚀 New Architecture Overview
 
 This section outlines the revised system architecture for handling real-time interview sessions:
