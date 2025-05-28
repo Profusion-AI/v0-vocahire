@@ -47,11 +47,8 @@ export function useGenkitRealtime(
   const { 
     maxReconnectAttempts = 5, 
     reconnectDelay = 1000,
-    maxReconnectDelay = 30000,
-    reconnectBackoffMultiplier = 2,
     onMessage, 
     onError,
-    onReconnecting,
     onReconnected
   } = options;
 
