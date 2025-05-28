@@ -1,6 +1,6 @@
 # CLAUDE.md - VocaHire Development Guide
 
-**Last Updated**: May 28, 2025 4:00 PM CST  
+**Last Updated**: May 28, 2025 1:30 PM CST  
 **Target Launch**: June 1, 2025 (Public Beta) 🎯
 
 ## 🎯 MVP Focus: Real-Time AI Conversations
@@ -56,15 +56,42 @@ Browser → HTTP/SSE → Next.js API → Google AI Live API
 
 ## 📋 Recent Progress
 
-### May 28, 2025 - Evening Update (5:00 PM CST)
+### May 28, 2025 - Afternoon Success (1:30 PM CST)
 
-#### Architectural Clarity
-1. **Backend Orchestrator Status**: ✅ COMPLETED - Google AI Live API integration is working
-2. **No Gemini Separate Work** - The "Backend Orchestrator" IS the Google AI integration
-3. **WebRTC Fully Removed** - All references eliminated, using SSE exclusively
-4. **Recording Routes Stubbed** - Returns 501 Not Implemented for MVP
+#### 🎉 Latest Successful Deployment
+- **Build ID**: dffa7516-9b1e-4998-b4fb-be83a554206a
+- **Status**: ✅ SUCCESS
+- **Deployment Time**: ~7.5 minutes
+- **Revision**: v0-vocahire-00013-flq
 
-### May 28, 2025 - Recentering on MVP (4:00 PM CST)
+#### Key Fixes That Enabled Success
+1. **Google AI API Key** - Properly configured in Secret Manager
+2. **Cloud Run Environment** - Added GOOGLE_AI_API_KEY via `--update-secrets`
+3. **Reverted to Google AI Studio** - Removed Vertex AI complexity for MVP
+4. **Removed Unused Files** - Eliminated vertex-ai-live-client.ts build errors
+
+#### Current Configuration
+- **Authentication**: Google AI Studio with API key (temporary for MVP)
+- **Environment Variables**:
+  - `GOOGLE_AI_API_KEY` - From Secret Manager
+  - `GOOGLE_CLOUD_PROJECT` - For logging/monitoring
+  - `GOOGLE_CLOUD_LOCATION` - us-central1
+- **Health Check**: ✅ Working at `/api/health`
+- **Known Issue**: `/api/interview-v2/health` returns 404 (non-critical)
+
+### May 28, 2025 - Morning Decisions (11:00 AM CST)
+
+#### Vertex AI vs Google AI Studio Analysis
+1. **Discovery**: Vertex AI has Live API (Preview) but not suitable for MVP
+2. **Decision**: Keep Google AI Studio for real-time audio
+3. **Rationale**: 
+   - Working solution in place
+   - 3-day timeline too tight for migration
+   - Preview status = risk
+   - No clear UX benefit for MVP
+4. **Future**: Created POST_MVP_VERTEX_AI_MIGRATION_BLUEPRINT.md
+
+### May 28, 2025 - Morning Deployment Success (8:00 AM CST)
 
 #### Key Decisions Made
 1. **Removed Google Cloud Storage** - Not needed for MVP
