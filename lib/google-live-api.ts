@@ -1,36 +1,30 @@
 import { EventEmitter } from 'events';
+import { SchemaType } from '@google/generative-ai';
+import type { 
+  Schema,
+  FunctionDeclaration,
+  Tool,
+  GenerationConfig
+} from '@google/generative-ai';
+import { arrayBufferToBase64, base64ToArrayBuffer } from './google-ai-utils';
 
-export type SchemaType = 'STRING' | 'NUMBER' | 'INTEGER' | 'BOOLEAN' | 'ARRAY' | 'OBJECT';
-
-export interface Schema {
-  type: SchemaType;
-  description?: string;
-  properties?: { [key: string]: Schema };
-  items?: Schema;
-  required?: string[];
-}
-
-export interface FunctionDeclaration {
-  name: string;
-  description?: string;
-  parameters?: Schema;
-}
-
-export interface Tool {
-  functionDeclarations?: FunctionDeclaration[];
-  googleSearch?: {}; // Placeholder for googleSearch tool
-}
+// Re-export types and enums for backward compatibility
+export { SchemaType };
+export type { Schema, FunctionDeclaration, Tool };
 
 export interface LiveAPIConfig {
   apiKey: string;
   model?: string;
   systemInstruction?: { parts: { text: string }[] };
-  generationConfig?: {
-    temperature?: number;
-    topP?: number;
-    topK?: number;
-    maxOutputTokens?: number;
-    responseMimeType?: string;
+  generationConfig?: Partial<GenerationConfig> & {
+    response_modalities?: string[];
+    speech_config?: {
+      voice_config?: {
+        prebuilt_voice_config?: {
+          voice_name?: string;
+        };
+      };
+    };
   };
   tools?: Tool[];
 }
@@ -177,7 +171,7 @@ export class GoogleLiveAPIClient extends EventEmitter {
             // This shouldn't happen with AUDIO modality
             console.warn('Received text in AUDIO mode:', part.text);
           } else if (part.inlineData) {
-            const audioData = this.base64ToArrayBuffer(part.inlineData.data);
+            const audioData = base64ToArrayBuffer(part.inlineData.data);
             this.emit('audioData', audioData);
           } else if (part.functionCall) {
             this.emit('functionCall', part.functionCall);
@@ -206,7 +200,7 @@ export class GoogleLiveAPIClient extends EventEmitter {
       return;
     }
 
-    const base64Audio = this.arrayBufferToBase64(audioData);
+    const base64Audio = arrayBufferToBase64(audioData);
     const message = {
       realtimeInput: {
         mediaChunks: [{
@@ -274,22 +268,13 @@ export class GoogleLiveAPIClient extends EventEmitter {
     this.isConnected = false;
   }
 
+  // Utility methods exposed for backward compatibility
   arrayBufferToBase64(buffer: ArrayBuffer): string {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
+    return arrayBufferToBase64(buffer);
   }
 
   base64ToArrayBuffer(base64: string): ArrayBuffer {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes.buffer;
+    return base64ToArrayBuffer(base64);
   }
 
   getConnectionState(): 'connecting' | 'connected' | 'disconnected' {
