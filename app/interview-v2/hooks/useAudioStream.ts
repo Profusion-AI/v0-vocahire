@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 
 interface UseAudioStreamOptions {
   sampleRate?: number;
@@ -58,7 +58,7 @@ export class MicrophoneNotFoundError extends Error {
 }
 
 export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStreamReturn {
-  const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
+  const mergedOptions = useMemo(() => ({ ...DEFAULT_OPTIONS, ...options }), [options]);
   
   // State management
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -108,7 +108,7 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
     } finally {
       setIsCheckingPermission(false);
     }
-  }, [stopStream]);
+  }, []);
 
   // Request microphone permission explicitly
   const requestPermission = useCallback(async () => {
@@ -257,7 +257,7 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
       
       setIsActive(false);
     }
-  }, [mergedOptions, isMuted, hasPermission, requestPermission, stopStream]);
+  }, [mergedOptions, isMuted, hasPermission, requestPermission]);
   
   // Stop audio stream
   const stopStream = useCallback(() => {
