@@ -10,6 +10,8 @@ const isPublicRoute = createRouteMatcher([
   '/sso-callback(.*)', // Added generic SSO callback
   '/api/webhooks/clerk',
   '/api/webhooks/stripe',
+  '/api/health', // Health check endpoint
+  '/api/ready', // Readiness check endpoint
   '/forgot-password(.*)', // Added forgot-password as public
   '/terms(.*)', // Added terms as public
   '/privacy(.*)', // Added privacy as public
