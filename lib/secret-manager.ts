@@ -13,18 +13,16 @@ const PROJECT_ID = process.env.GOOGLE_PROJECT_ID || 'vocahire-prod-20810233';
 
 /**
  * Gets a secret from Google Secret Manager or environment variable
- * Falls back to environment variables in development
+ * Falls back to environment variables in both development and production
  */
 export async function getSecret(secretName: string): Promise<string> {
-  // In development, prefer environment variables
-  if (process.env.NODE_ENV === 'development') {
-    const envValue = process.env[secretName];
-    if (envValue) {
-      return envValue;
-    }
+  // Always check environment variables first (for both dev and prod)
+  const envValue = process.env[secretName];
+  if (envValue) {
+    return envValue;
   }
 
-  // Check cache first
+  // Check cache
   const cached = secretCache.get(secretName);
   const cachedTime = cacheTimestamps.get(secretName);
   
@@ -32,22 +30,23 @@ export async function getSecret(secretName: string): Promise<string> {
     return cached;
   }
 
-  // In production or if env var not found, use Secret Manager
-  try {
-    if (!client) {
-      client = new SecretManagerServiceClient();
-    }
+  // Try Secret Manager only in production with proper auth
+  if (process.env.NODE_ENV === 'production' && process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    try {
+      if (!client) {
+        client = new SecretManagerServiceClient();
+      }
 
-    const name = `projects/${PROJECT_ID}/secrets/${secretName}/versions/latest`;
-    const [version] = await client.accessSecretVersion({ name });
-    
-    const payload = version.payload?.data?.toString();
-    if (!payload) {
-      throw new Error(`Secret ${secretName} not found in Secret Manager`);
-    }
+      const name = `projects/${PROJECT_ID}/secrets/${secretName}/versions/latest`;
+      const [version] = await client.accessSecretVersion({ name });
+      
+      const payload = version.payload?.data?.toString();
+      if (!payload) {
+        throw new Error(`Secret ${secretName} not found in Secret Manager`);
+      }
 
-    // Cache the secret
-    secretCache.set(secretName, payload);
+      // Cache the secret
+      secretCache.set(secretName, payload);
     cacheTimestamps.set(secretName, Date.now());
     
     return payload;

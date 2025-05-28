@@ -45,8 +45,8 @@ export function useGenkitRealtime(
   options: UseGenkitRealtimeOptions = {}
 ): UseGenkitRealtimeReturn {
   const { 
-    maxReconnectAttempts = 5, 
-    reconnectDelay = 1000,
+    maxReconnectAttempts = 3, 
+    reconnectDelay = 2000,
     onMessage, 
     onError,
     onReconnected
@@ -248,7 +248,8 @@ export function useGenkitRealtime(
                  // Attempt reconnection inline
                  if (reconnectAttemptsRef.current < maxReconnectAttempts) {
                    reconnectAttemptsRef.current++;
-                   setTimeout(connect, reconnectDelay * reconnectAttemptsRef.current);
+                   const backoffDelay = Math.min(reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1), 10000);
+                   setTimeout(connect, backoffDelay);
                  }
               }
            }
@@ -267,10 +268,11 @@ export function useGenkitRealtime(
          setStatus('error');
          setIsConnected(false);
          setIsConnecting(false);
-         // Attempt reconnection inline
+         // Attempt reconnection inline with exponential backoff
          if (reconnectAttemptsRef.current < maxReconnectAttempts) {
            reconnectAttemptsRef.current++;
-           setTimeout(connect, reconnectDelay * reconnectAttemptsRef.current);
+           const backoffDelay = Math.min(reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1), 10000);
+           setTimeout(connect, backoffDelay);
          }
       }
 
@@ -296,10 +298,12 @@ export function useGenkitRealtime(
          setStatus('error'); // Update status on connection error
          setIsConnecting(false);
 
-         // Attempt reconnection
+         // Attempt reconnection with exponential backoff
          if (connectionError.retryable) {
            reconnectAttemptsRef.current++;
-           setTimeout(connect, reconnectDelay * reconnectAttemptsRef.current);
+           const backoffDelay = Math.min(reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1), 10000);
+           console.log(`Retrying connection in ${backoffDelay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
+           setTimeout(connect, backoffDelay);
          }
       }
     }
