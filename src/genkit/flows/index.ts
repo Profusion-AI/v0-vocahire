@@ -1,2 +1,2 @@
-export * from './interview-session.flow';
+export * from './generate-interview-questions.flow';
 export * from './generate-feedback.flow';

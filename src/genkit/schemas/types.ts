@@ -12,10 +12,7 @@ export const InterviewSessionInputSchema = z.object({
   focusAreas: z.array(z.string()).optional(),
 });
 
-export const InterviewSessionOutputSchema = z.object({
-  sessionId: z.string(),
-  liveApiEndpoint: z.string(),
-  wsToken: z.string(),
+export const InterviewQuestionsOutputSchema = z.object({
   systemPrompt: z.string(),
   interviewStructure: z.object({
     warmupQuestions: z.array(z.string()),
@@ -25,26 +22,7 @@ export const InterviewSessionOutputSchema = z.object({
   }),
 });
 
-// Realtime Communication Schemas
-export const RealtimeInputSchema = z.object({
-  sessionId: z.string(),
-  userId: z.string(),
-  jobRole: z.string(),
-  interviewType: z.enum(['Behavioral', 'Technical', 'Leadership', 'General']), // Added interviewType
-  difficulty: z.enum(['entry', 'mid', 'senior']),
-  systemInstruction: z.string(),
-  audioChunk: z.string().optional(), // Base64 encoded audio
-  textInput: z.string().optional(),
-  controlMessage: z.object({ 
-    type: z.enum(['start', 'stop', 'interrupt', 'ping']) 
-  }).optional(),
-});
-
-export const RealtimeOutputSchema = z.object({
-  type: z.enum(['audio', 'transcript', 'control', 'error', 'thinking']),
-  data: z.any(),
-  timestamp: z.string().datetime().optional(),
-});
+// Note: Realtime communication is handled directly via WebSockets, not through Genkit flows
 
 // Session Config Schema
 export const SessionConfigSchema = z.object({
@@ -235,8 +213,6 @@ export type TranscriptEntry = z.infer<typeof TranscriptEntrySchema>;
 export type Feedback = z.infer<typeof FeedbackSchema>;
 export type SessionStatus = z.infer<typeof SessionStatusSchema>;
 export type InterviewSessionInput = z.infer<typeof InterviewSessionInputSchema>;
-export type InterviewSessionOutput = z.infer<typeof InterviewSessionOutputSchema>;
-export type RealtimeInput = z.infer<typeof RealtimeInputSchema>;
-export type RealtimeOutput = z.infer<typeof RealtimeOutputSchema>;
+export type InterviewQuestionsOutput = z.infer<typeof InterviewQuestionsOutputSchema>;
 export type AudioMetrics = z.infer<typeof AudioMetricsSchema>;
 export type ErrorSchema = z.infer<typeof ErrorSchema>;

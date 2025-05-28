@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  RealtimeInputSchema,
-  RealtimeOutputSchema,
   TranscriptEntrySchema,
   TranscriptSchema,
   FeedbackCategorySchema,
@@ -11,7 +9,7 @@ import {
   ErrorSchema,
   SessionStatusSchema,
   InterviewSessionInputSchema,
-  InterviewSessionOutputSchema,
+  InterviewQuestionsOutputSchema,
 } from '../types';
 
 describe('InterviewDifficultySchema', () => {
@@ -50,87 +48,39 @@ describe('InterviewSessionInputSchema', () => {
   });
 });
 
-describe('RealtimeInputSchema', () => {
-  it('should validate a minimal valid input', () => {
-    const input = {
-      sessionId: 'session123',
-      userId: 'user456',
-      jobRole: 'Software Engineer',
-      difficulty: 'mid',
-      systemInstruction: 'Be a friendly interviewer.',
-    };
-    expect(() => RealtimeInputSchema.parse(input)).not.toThrow();
-  });
-
-  it('should validate a complete valid input with optional fields', () => {
-    const input = {
-      sessionId: 'session123',
-      userId: 'user456',
-      jobRole: 'Software Engineer',
-      difficulty: 'mid',
-      systemInstruction: 'Be a friendly interviewer.',
-      audioChunk: 'base64audiochunk',
-      textInput: 'Hello, how are you?',
-      controlMessage: { type: 'start' },
-    };
-    expect(() => RealtimeInputSchema.parse(input)).not.toThrow();
-  });
-
-  it('should validate all control message types', () => {
-    const baseInput = {
-      sessionId: 'session123',
-      userId: 'user456',
-      jobRole: 'Software Engineer',
-      difficulty: 'mid',
-      systemInstruction: 'Be a friendly interviewer.',
-    };
-
-    ['start', 'stop', 'interrupt', 'ping'].forEach(type => {
-      const input = { ...baseInput, controlMessage: { type } };
-      expect(() => RealtimeInputSchema.parse(input)).not.toThrow();
-    });
-  });
-
-  it('should reject invalid control message type', () => {
-    const input = {
-      sessionId: 'session123',
-      userId: 'user456',
-      jobRole: 'Software Engineer',
-      difficulty: 'mid',
-      systemInstruction: 'Be a friendly interviewer.',
-      controlMessage: { type: 'invalid' },
-    };
-    expect(() => RealtimeInputSchema.parse(input)).toThrow();
-  });
-});
-
-describe('RealtimeOutputSchema', () => {
-  it('should validate all output types', () => {
-    const types = ['audio', 'transcript', 'control', 'error', 'thinking'];
-    types.forEach(type => {
-      const output = {
-        type,
-        data: type === 'error' ? { code: 'TEST', message: 'Test error' } : 'test data',
-      };
-      expect(() => RealtimeOutputSchema.parse(output)).not.toThrow();
-    });
-  });
-
-  it('should validate output with timestamp', () => {
+describe('InterviewQuestionsOutputSchema', () => {
+  it('should validate valid interview questions output', () => {
     const output = {
-      type: 'transcript',
-      data: 'Hello',
-      timestamp: new Date().toISOString(),
+      systemPrompt: 'You are a professional interviewer conducting a technical interview.',
+      interviewStructure: {
+        warmupQuestions: ['Tell me about yourself', 'Why are you interested in this role?'],
+        technicalQuestions: ['Explain REST APIs', 'What is dependency injection?', 'Describe SOLID principles', 'How do you handle errors?'],
+        behavioralQuestions: ['Tell me about a challenging project', 'How do you handle conflicts?', 'Describe a time you failed'],
+        closingQuestions: ['Do you have any questions for me?'],
+      },
     };
-    expect(() => RealtimeOutputSchema.parse(output)).not.toThrow();
+    expect(() => InterviewQuestionsOutputSchema.parse(output)).not.toThrow();
   });
 
-  it('should reject invalid type', () => {
+  it('should validate empty question arrays', () => {
     const output = {
-      type: 'invalid_type',
-      data: 'some data',
+      systemPrompt: 'Brief interview',
+      interviewStructure: {
+        warmupQuestions: [],
+        technicalQuestions: [],
+        behavioralQuestions: [],
+        closingQuestions: [],
+      },
     };
-    expect(() => RealtimeOutputSchema.parse(output)).toThrow();
+    expect(() => InterviewQuestionsOutputSchema.parse(output)).not.toThrow();
+  });
+
+  it('should reject missing fields', () => {
+    const invalidOutput = {
+      systemPrompt: 'You are an interviewer',
+      // Missing interviewStructure
+    };
+    expect(() => InterviewQuestionsOutputSchema.parse(invalidOutput)).toThrow();
   });
 });
 

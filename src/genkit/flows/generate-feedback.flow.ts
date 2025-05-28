@@ -78,7 +78,15 @@ Be constructive, specific, and encouraging in your feedback.`;
       },
     });
 
-    return feedbackResponse.output();
+    if (!feedbackResponse) {
+      throw new Error('Failed to get response from AI');
+    }
+    
+    const output = feedbackResponse.output;
+    if (!output) {
+      throw new Error('Failed to generate feedback');
+    }
+    return output;
   }
 );
 
@@ -161,6 +169,14 @@ Focus on actionable advice and positive reinforcement.`;
       },
     });
 
-    return enhancedResponse.output();
+    if (!enhancedResponse) {
+      throw new Error('Failed to get enhanced response from AI');
+    }
+    
+    const enhancedOutput = enhancedResponse.output;
+    if (!enhancedOutput) {
+      throw new Error('Failed to generate enhanced feedback');
+    }
+    return enhancedOutput;
   }
 );
