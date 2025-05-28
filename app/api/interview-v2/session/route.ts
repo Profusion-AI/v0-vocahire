@@ -21,23 +21,8 @@ export async function POST(request: NextRequest) {
     // Create a unique session ID
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Check if we have the required API key
-    const apiKey = process.env.GOOGLE_AI_API_KEY;
-    if (!apiKey) {
-      console.error('GOOGLE_AI_API_KEY not configured');
-      return new Response(
-        JSON.stringify({
-          error: {
-            code: 'CONFIGURATION_ERROR',
-            message: 'AI service not properly configured. Please contact support.'
-          }
-        }),
-        {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-    }
+    // API key will be fetched by LiveAPISessionManager from Secret Manager
+    // No need to check here as it's handled in the session manager
 
     // Get session manager instance
     const sessionManager = LiveAPISessionManager.getInstance();

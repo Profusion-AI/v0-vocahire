@@ -23,11 +23,14 @@ export async function GET() {
     serviceStatuses.database = "disconnected";
   }
 
-  // Check Google AI API key
-  if (process.env.GOOGLE_AI_API_KEY) {
-    serviceStatuses.google_ai = "configured";
-  } else {
-    serviceStatuses.google_ai = "not_configured";
+  // Check Google AI API key from Secret Manager or env
+  try {
+    const { getSecret } = await import('@/lib/secret-manager');
+    const apiKey = await getSecret('GOOGLE_AI_API_KEY');
+    serviceStatuses.google_ai = apiKey ? "configured" : "not_configured";
+  } catch (error) {
+    // Fallback to env variable
+    serviceStatuses.google_ai = process.env.GOOGLE_AI_API_KEY ? "configured" : "not_configured";
   }
 
   const allReady = Object.values(serviceStatuses).every(
