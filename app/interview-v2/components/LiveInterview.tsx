@@ -99,7 +99,7 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
     }, 100); // Send every 100ms
 
     return () => clearInterval(interval);
-  }, [status, audioStream.isActive, audioStream.getAudioBuffer, sendData, sessionConfig, audioStream, isConnected]); // Ensure 'isConnected' is in dependencies
+  }, [status, audioStream.isActive, audioStream.getAudioBuffer, sendData, sessionConfig, isConnected]); // Removed redundant audioStream object
 
   // Play AI audio responses
   const playNextChunk = useCallback(async () => {

@@ -335,8 +335,8 @@ export function useGenkitRealtime(
       }
     }
     // At the end of `connect` (success path)
-    console.log(`[GenkitRealtime] Connect: Completed successfully. New status: ${status}.`);
-  }, [apiUrl, sessionConfig, isConnected, isConnecting, handleSSEMessage, maxReconnectAttempts, reconnectDelay, onError, status]); // Added onError to dependencies
+    console.log(`[GenkitRealtime] Connect: Completed successfully.`);
+  }, [apiUrl, sessionConfig, isConnected, isConnecting, handleSSEMessage, maxReconnectAttempts, reconnectDelay, onError]); // Removed status from dependencies
 
   const disconnect = useCallback(() => {
     console.log('Disconnect called');
@@ -379,7 +379,7 @@ export function useGenkitRealtime(
 
   const sendData = useCallback((data: z.infer<typeof RealtimeInputSchema>) => {
      // In useGenkitRealtime.ts, inside sendData() at the very beginning
-     console.log(`[GenkitRealtime] sendData: Called. Status: ${status}, isConnected: ${isConnected}, isConnecting: ${isConnecting}.`);
+     console.log(`[GenkitRealtime] sendData: Called. isConnected: ${isConnected}.`);
      console.log(`[GenkitRealtime] sendData: Payload Preview: ${JSON.stringify(data).substring(0, 200)}...`); // Log only part of payload if large
 
      // Prevent sending with invalid config
@@ -413,7 +413,7 @@ export function useGenkitRealtime(
         console.error('[GenkitRealtime] sendData: Fetch FAILED.', err);
      });
 
-  }, [apiUrl, sessionConfig, isConnected, status, isConnecting]); // Added sessionConfig, isConnected to dependencies
+  }, [apiUrl, sessionConfig, isConnected]); // Removed status and isConnecting from dependencies
 
 
   // Cleanup on unmount and page unload
@@ -453,7 +453,7 @@ export function useGenkitRealtime(
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       disconnect(); // Ensure disconnect is called on unmount
     };
-  }, [disconnect, isConnected, isConnecting, status, apiUrl, sessionConfig]); // Added all dependencies
+  }, [disconnect, isConnected, isConnecting, apiUrl, sessionConfig, status]); // Added status back for handleBeforeUnload
 
 
   return {
