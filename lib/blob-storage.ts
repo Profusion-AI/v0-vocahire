@@ -3,12 +3,13 @@ import { isStorageConfigured } from './storage-config';
 
 // Define functions that will either use GCS or provide stub implementations
 export async function uploadToBlob(
-  file: Blob,
-  fileName: string
+  file: File | Blob,
+  folder: string,
+  userId?: string
 ): Promise<{ url: string; fileName: string }> {
   if (isStorageConfigured()) {
     const { uploadToBlob: gcsUploadToBlob } = await import('./gcs-storage');
-    return gcsUploadToBlob(file, fileName);
+    return gcsUploadToBlob(file, folder, userId);
   } else {
     throw new Error("File storage not configured. Set up Google Cloud Storage environment variables.");
   }
@@ -27,13 +28,26 @@ export async function saveInterviewRecording(
   }
 }
 
-export async function listUserRecordings(userId: string): Promise<any[]> {
+export async function listUserRecordings(
+  userId: string,
+  limit?: number,
+  pageToken?: string
+): Promise<{
+  recordings: Array<{
+    fileName: string;
+    url: string;
+    createdAt: Date;
+    metadata: any;
+    size: number;
+  }>;
+  nextPageToken?: string;
+}> {
   if (isStorageConfigured()) {
     const { listUserRecordings: gcsListUserRecordings } = await import('./gcs-storage');
-    return gcsListUserRecordings(userId);
+    return gcsListUserRecordings(userId, limit, pageToken);
   } else {
-    // Return empty array for MVP when not configured
-    return [];
+    // Return empty result for MVP when not configured
+    return { recordings: [] };
   }
 }
 
