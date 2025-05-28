@@ -43,6 +43,10 @@ RUN pnpm prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
+# Accept Clerk publishable key as build argument (required for static page generation)
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+
 # Build Next.js application with standalone output
 RUN pnpm exec next build
 
