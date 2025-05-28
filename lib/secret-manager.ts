@@ -30,6 +30,11 @@ export async function getSecret(secretName: string): Promise<string> {
     return cached;
   }
 
+  // In development, if not found in env vars or cache, throw error
+  if (process.env.NODE_ENV === 'development') {
+    throw new Error(`Secret ${secretName} not found in environment variables (development mode)`);
+  }
+
   // Try Secret Manager only in production with proper auth
   if (process.env.NODE_ENV === 'production' && process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     try {
@@ -51,22 +56,13 @@ export async function getSecret(secretName: string): Promise<string> {
       
       return payload;
     } catch (error) {
-      // If Secret Manager fails in development, check env again
-      if (process.env.NODE_ENV === 'development') {
-        const envValue = process.env[secretName];
-        if (envValue) {
-          console.warn(`Secret Manager failed, using env var for ${secretName}`);
-          return envValue;
-        }
-      }
-      
-      console.error(`Failed to get secret ${secretName}:`, error);
+      console.error(`Failed to get secret ${secretName} from Secret Manager:`, error);
       throw error;
     }
   }
   
-  // If we reach here, no secret was found
-  throw new Error(`Secret ${secretName} not found in environment variables or Secret Manager`);
+  // If we reach here, we're in production but missing credentials
+  throw new Error(`Secret ${secretName} not found - production mode but GOOGLE_APPLICATION_CREDENTIALS not set`);
 }
 
 /**
