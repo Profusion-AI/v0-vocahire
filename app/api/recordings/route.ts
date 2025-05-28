@@ -2,7 +2,6 @@ import { NextResponse } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
 import { NextRequest } from "next/server"
 import { saveInterviewRecording } from "@/lib/blob-storage"
-import { isStorageConfigured } from "@/lib/storage-config"
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,37 +26,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if storage is configured
-    if (!isStorageConfigured()) {
-      return NextResponse.json(
-        {
-          error: "Recording storage not configured",
-          message: "Recording functionality requires Google Cloud Storage setup.",
-        },
-        { status: 503 }, // 503 Service Unavailable
-      )
-    }
-
-    try {
-      // Save the recording
-      const url = await saveInterviewRecording(audioBlob, sessionId, auth.userId)
-
-      return NextResponse.json({
-        success: true,
-        url,
-        sessionId,
-        savedAt: new Date().toISOString(),
-      })
-    } catch (storageError) {
-      console.error("Storage error:", storageError)
-      return NextResponse.json(
-        {
-          error: "Failed to save recording",
-          message: "Recording storage is not properly configured.",
-        },
-        { status: 503 },
-      )
-    }
+    // MVP: Recording storage is not implemented
+    return NextResponse.json(
+      {
+        error: "Recording storage not available",
+        message: "Recording functionality is not included in the MVP. We focus on real-time conversations.",
+      },
+      { status: 501 }, // 501 Not Implemented
+    )
   } catch (error) {
     console.error("Error saving recording:", error)
     return NextResponse.json(
