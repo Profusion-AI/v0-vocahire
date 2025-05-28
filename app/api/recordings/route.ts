@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
 import { NextRequest } from "next/server"
-import { saveInterviewRecording } from "@/lib/blob-storage"
 
 export async function POST(request: NextRequest) {
   try {

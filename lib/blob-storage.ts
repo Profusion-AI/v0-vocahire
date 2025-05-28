@@ -2,17 +2,17 @@
 // The magic is in the real-time conversation, not recordings!
 
 export async function uploadToBlob(
-  file: File | Blob,
-  folder: string,
-  userId?: string
+  _file: File | Blob,
+  _folder: string,
+  _userId?: string
 ): Promise<{ url: string; fileName: string }> {
   throw new Error("File uploads are not available in the MVP. Focus on the amazing conversation experience!");
 }
 
 export async function saveInterviewRecording(
-  audioBlob: Blob,
+  _audioBlob: Blob,
   sessionId: string,
-  userId: string
+  _userId: string
 ): Promise<string> {
   // MVP: We save transcripts and feedback, not audio
   console.log(`Recording feature not implemented for MVP - session ${sessionId}`);
@@ -20,9 +20,9 @@ export async function saveInterviewRecording(
 }
 
 export async function listUserRecordings(
-  userId: string,
-  limit?: number,
-  pageToken?: string
+  _userId: string,
+  _limit?: number,
+  _pageToken?: string
 ): Promise<{
   recordings: Array<{
     fileName: string;
@@ -37,7 +37,7 @@ export async function listUserRecordings(
   return { recordings: [] };
 }
 
-export async function deleteBlob(fileName: string): Promise<void> {
+export async function deleteBlob(_fileName: string): Promise<void> {
   // No-op for MVP
   return;
 }
