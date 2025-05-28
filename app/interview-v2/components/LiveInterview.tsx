@@ -66,7 +66,7 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
   // Send audio data periodically
   useEffect(() => {
     // Add detailed logging before the guard
-    console.log(`[LiveInterview] sendData useEffect: status=${status}, isActive=${audioStream.isActive}`);
+    console.log(`[LiveInterview] sendData useEffect: status=${status}, isConnected=${isConnected}, isActive=${audioStream.isActive}`);
 
     if (status !== 'streaming' || !audioStream.isActive) {
       console.warn(`[LiveInterview] sendData bypassed: status is not 'streaming' or audio is not active. Current status: ${status}.`);
@@ -99,7 +99,7 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
     }, 100); // Send every 100ms
 
     return () => clearInterval(interval);
-  }, [status, audioStream.isActive, audioStream.getAudioBuffer, sendData, sessionConfig, audioStream]);
+  }, [status, audioStream.isActive, audioStream.getAudioBuffer, sendData, sessionConfig, audioStream, isConnected]); // Ensure 'isConnected' is in dependencies
 
   // Play AI audio responses
   const playNextChunk = useCallback(async () => {

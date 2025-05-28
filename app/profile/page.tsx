@@ -1,5 +1,5 @@
 // No "use client"; here - this makes it a Server Component by default
-import { prisma } from "@/lib/prisma";
+import { prisma, withDatabaseFallback } from "@/lib/prisma";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { type User as PrismaUser } from "../../prisma/generated/client"; // Alias Prisma User type
 import ProfilePageClient from "./ProfilePageClient";
@@ -46,76 +46,63 @@ export default async function ProfilePage() {
 
   // Use this flag to track if we had database connectivity issues
   let dbConnectionError = false;
-  let dbConnectionErrorDetails = null;
+  let dbConnectionErrorDetails: string | null = null;
   
   let initialDbUser: PrismaUser | null = null;
   if (currentAuthUserId) {
     console.log(`[ProfilePage SERVER] Fetching user from DB with id: ${currentAuthUserId}`);
-    try {
-      // First, test database connectivity before making a user query
-      try {
-        // Simple connection test query
-        await prisma.$queryRaw`SELECT 1 as connection_test`;
+    
+    initialDbUser = await withDatabaseFallback<PrismaUser | null>(
+      async (p) => {
+        // First, test database connectivity before making a user query
+        await p.$queryRaw`SELECT 1 as connection_test`;
         console.log("[ProfilePage SERVER] Database connection test successful");
-      } catch (connError: any) {
-        console.error("[ProfilePage SERVER] Database connection test failed:", connError);
+        return p.user.findUnique({
+          where: { id: currentAuthUserId },
+        });
+      },
+      () => { // Removed error parameter
         dbConnectionError = true;
-        dbConnectionErrorDetails = connError.message || "Unknown connection error";
-        
-        // Throw to skip to the catch block
-        throw new Error(`Database connection error: ${dbConnectionErrorDetails}`);
+        dbConnectionErrorDetails = `Database connection test failed during initial fetch.`;
+        console.error("[ProfilePage SERVER] Database connection test failed during initial fetch.");
+        return Promise.resolve(null); // Return null user on fallback
       }
-      
-      initialDbUser = await prisma.user.findUnique({
-        where: { id: currentAuthUserId },
-      });
-      console.log("[ProfilePage SERVER] initialDbUser fetched from DB:", initialDbUser);
-      
-      // If user doesn't exist in our DB but is authenticated via Clerk, create a basic record
-      if (!initialDbUser) {
-        console.log("[ProfilePage SERVER] User not found in DB, creating basic record");
-        try {
-          initialDbUser = await prisma.user.create({
+    );
+    console.log("[ProfilePage SERVER] initialDbUser fetched from DB:", initialDbUser);
+
+    // If user doesn't exist in our DB but is authenticated via Clerk, create a basic record
+    if (!initialDbUser && !dbConnectionError) { // Only attempt creation if no prior connection error
+      console.log("[ProfilePage SERVER] User not found in DB, attempting to create basic record");
+      initialDbUser = await withDatabaseFallback<PrismaUser | null>(
+        async (p) => {
+          const newUser = await p.user.create({
             data: {
               id: currentAuthUserId,
               clerkId: currentAuthUserId,
               email: clerkUser?.emailAddresses?.[0]?.emailAddress || null,
-              name: clerkUser?.firstName 
-                ? (clerkUser.lastName 
-                  ? `${clerkUser.firstName} ${clerkUser.lastName}` 
+              name: clerkUser?.firstName
+                ? (clerkUser.lastName
+                  ? `${clerkUser.firstName} ${clerkUser.lastName}`
                   : clerkUser.firstName)
                 : null,
               credits: 3.00, // Default for new users (as Decimal)
             },
           });
-          console.log("[ProfilePage SERVER] Created new user record:", initialDbUser);
-        } catch (createError: any) {
-          console.error("[ProfilePage SERVER] Error creating user record:", createError);
-          
-          // Check if this is a connection error
-          if (createError.message && createError.message.includes("Can't reach database server")) {
-            dbConnectionError = true;
-            dbConnectionErrorDetails = createError.message;
-          }
-          
-          // Continue with null initialDbUser
+          console.log("[ProfilePage SERVER] Created new user record:", newUser);
+          return newUser as PrismaUser; // Explicitly cast to expected type
+        },
+        () => { // Removed error parameter
+          dbConnectionError = true;
+          dbConnectionErrorDetails = `Error creating user record.`;
+          console.error("[ProfilePage SERVER] Error creating user record.");
+          return Promise.resolve(null); // Return null user on fallback
         }
-      }
-    } catch (dbError: any) {
-      console.error("[ProfilePage SERVER] Error fetching user from DB:", dbError);
-      
-      // Check if this is a connection error
-      if (dbError.message && dbError.message.includes("Can't reach database server")) {
-        dbConnectionError = true;
-        dbConnectionErrorDetails = dbError.message;
-      }
-      
-      // Continue with null initialDbUser and handle gracefully in UI
+      );
     }
   } else {
     console.log("[ProfilePage SERVER] No currentAuthUserId, skipping DB fetch for initialDbUser.");
   }
-  
+
   // If we have a database connection error, log detailed diagnostics
   if (dbConnectionError) {
     console.error("[ProfilePage SERVER] DATABASE CONNECTION ERROR DETECTED");
@@ -126,17 +113,17 @@ export default async function ProfilePage() {
       // Sanitize the URL to hide credentials
       const sanitizedUrl = dbUrl.replace(/\/\/[^@]*@/, "//****:****@");
       console.error("[ProfilePage SERVER] DATABASE_URL (sanitized):", sanitizedUrl);
-      
+
       // Check for common issues
       if (dbUrl.includes("postgresql://https://")) {
         console.error("[ProfilePage SERVER] ERROR: DATABASE_URL contains nested protocols - postgresql://https://");
         console.error("[ProfilePage SERVER] Please fix this in your environment variables.");
       }
-      
+
       if (dbUrl.includes("supabase.co") && !dbUrl.includes("db.") && !dbUrl.includes("pooler")) {
         console.error("[ProfilePage SERVER] ERROR: Supabase URL missing 'db.' prefix for direct connection");
       }
-      
+
       // Parse URL to check components
       try {
         const url = new URL(dbUrl);
@@ -146,7 +133,7 @@ export default async function ProfilePage() {
           port: url.port || "(default)",
           pathname: url.pathname
         });
-        
+
         if (url.hostname.includes("supabase.co")) {
           console.error("[ProfilePage SERVER] SUGGESTION: Please check Supabase IP allowlist settings");
           console.error("[ProfilePage SERVER] Make sure Vercel deployment IP ranges are allowed:");
@@ -162,11 +149,6 @@ export default async function ProfilePage() {
     }
   }
 
-  // If the user is authenticated via Clerk but doesn't exist in your DB yet,
-  // this could happen if the Clerk webhook for user creation hasn't run or failed.
-  // You might want to handle this case, e.g., by creating the user here or redirecting.
-  // For now, we'll pass potentially null initialDbUser and let ProfilePageClient handle defaults.
-
   // Get user name from Clerk or DB
   let initialName = "";
   if (clerkUser) { // Check if clerkUser exists
@@ -181,8 +163,8 @@ export default async function ProfilePage() {
       initialName = clerkUser.emailAddresses[0].emailAddress;
     }
   }
-  
-  // If we had a database error, add a flag to pass to the client
+
+  // If we have a database error, add a flag to pass to the client
   // to display an appropriate message
   const hasDatabaseConnectionError = dbConnectionError;
 
@@ -219,8 +201,8 @@ export default async function ProfilePage() {
         </div>
         <div className="ml-3">
           <p className="text-sm leading-5 text-amber-700">
-            <strong>Database connection issue:</strong> We're experiencing technical difficulties connecting to our database. 
-            Your profile will be available in limited mode while we resolve this issue. 
+            <strong>Database connection issue:</strong> We're experiencing technical difficulties connecting to our database.
+            Your profile will be available in limited mode while we resolve this issue.
           </p>
           <p className="mt-2 text-xs text-amber-600">
             If this problem persists, please contact support.
@@ -235,7 +217,7 @@ export default async function ProfilePage() {
       <Navbar />
       {/* Show database connection error warning if applicable */}
       {hasDatabaseConnectionError && <DatabaseConnectionError />}
-      
+
       {/* AuthGuard wraps the client component that needs client-side auth checks & interactivity */}
       <AuthGuard>
         <SessionLayout>

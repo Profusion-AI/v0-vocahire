@@ -146,8 +146,10 @@ export function useGenkitRealtime(
         
         case 'thinking':
           if (parsed.thinking?.isThinking) {
+            console.log(`[GenkitRealtime] SSE Control: 'thinking' status received. Setting status: 'thinking'.`); // Added logging
             setStatus('thinking');
           } else {
+            console.log(`[GenkitRealtime] SSE Control: 'thinking' status received. Setting status: 'connected'.`); // Added logging
             setStatus('connected');
           }
           break;

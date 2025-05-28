@@ -10,6 +10,9 @@ declare global {
 // Global flag to track if we're using the fallback database
 export let isUsingFallbackDb = false;
 
+// Ensure prismaInstance is always a Promise that resolves to PrismaClient
+let prismaInstance: Promise<PrismaClient> | undefined;
+
 async function initializePrisma(): Promise<PrismaClient> {
   try {
     // In production, don't manipulate the DATABASE_URL, just use it as-is
@@ -177,7 +180,7 @@ async function initializePrisma(): Promise<PrismaClient> {
       console.warn('[Prisma] Could not parse DATABASE_URL for optimization, using as-is:', urlError);
     }
 
-    return new PrismaClient({
+    const client = new PrismaClient({
       errorFormat: 'colorless',
       log: ['error', 'warn', 'info'],
       datasources: {
@@ -186,8 +189,13 @@ async function initializePrisma(): Promise<PrismaClient> {
         },
       },
     });
+
+    // Test connection immediately after creation
+    await client.$connect();
+    console.log('[Prisma] PrismaClient successfully connected to the database.');
+    return client;
   } catch (error) {
-    console.error('Failed to initialize Prisma client:', error instanceof Error ? error.message : String(error));
+    console.error('Failed to initialize Prisma client and connect:', error instanceof Error ? error.message : String(error));
     console.warn('Using fallback database functionality (limited capabilities)');
 
     // Set the global flag to indicate we're using the fallback database
@@ -200,9 +208,7 @@ async function initializePrisma(): Promise<PrismaClient> {
   }
 }
 
-let prismaInstance: PrismaClient | Promise<PrismaClient> | undefined;
-
-export function getPrismaClient(): PrismaClient | Promise<PrismaClient> {
+export function getPrismaClient(): Promise<PrismaClient> {
   if (!prismaInstance) {
     prismaInstance = initializePrisma();
   }
@@ -235,11 +241,9 @@ export async function warmDatabaseConnection(): Promise<boolean> {
     console.log('[Prisma] Warming database connection pool...');
     const warmStart = Date.now();
 
-    // Get and await the prisma client
-    const awaitedPrisma = await getPrismaClient();
+    const awaitedPrisma = await getPrismaClient(); // Ensure client is awaited
     await awaitedPrisma.$queryRaw`SELECT 1 as warmup`;
 
-    // Mark as warmed
     isConnectionWarmed = true;
     lastWarmTime = now;
 
@@ -270,8 +274,7 @@ if (typeof window === 'undefined' && process.env.NODE_ENV === 'production') {
  */
 export async function isDatabaseAvailable(): Promise<boolean> {
   try {
-    // Get and await the prisma client
-    const awaitedPrisma = await getPrismaClient();
+    const awaitedPrisma = await getPrismaClient(); // Ensure client is awaited
     await awaitedPrisma.$queryRaw`SELECT 1 as connection_test`;
     return true;
   } catch (error) {
@@ -291,9 +294,7 @@ export async function withDatabaseFallback<T>(
   fallback: () => Promise<T> | T
 ): Promise<T> {
   try {
-    // Get and await the prisma client
-    const awaitedPrisma = await getPrismaClient();
-    // Pass the awaited client to the operation
+    const awaitedPrisma = await getPrismaClient(); // Ensure client is awaited
     return await operation(awaitedPrisma);
   } catch (error) {
     console.error('Database operation failed:', error instanceof Error ? error.message : String(error));
@@ -309,10 +310,15 @@ function createPrismaProxy(path: string[] = []): any {
       return createPrismaProxy(newPath);
     },
     async apply(_target, _thisArg, args) {
-      const client = await getPrismaClient();
+      const client = await getPrismaClient(); // Ensure the client promise is resolved
       let current: any = client;
       for (const p of path) {
-        current = current[p];
+        if (typeof current[p] === 'function') {
+          // If it's a function, we need to bind it to the current context
+          current = current[p].bind(current);
+        } else {
+          current = current[p];
+        }
       }
       return current(...args);
     }
