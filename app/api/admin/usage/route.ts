@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { UsageData, UsageType } from "@/app/admin/usage/UsageDashboardClient"; // Import from client component path
 import { isAdminUser } from "@/lib/admin-config";
+import { User } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const usageDataPromises = users.map(async (user) => {
+    const usageDataPromises = users.map(async (user: User) => {
       const dailyInterviews = await prisma.interviewSession.count({
         where: {
           userId: user.id,
