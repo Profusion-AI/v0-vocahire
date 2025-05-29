@@ -109,9 +109,13 @@ export const StreamingMessageSchema = z.object({
   error: z.object({
     code: z.string(),
     message: z.string(),
+    details: z.any().optional(),
+    timestamp: z.string(),
   }).optional(),
   control: z.object({
-    type: z.enum(['ready', 'busy', 'end'])
+    type: z.enum(['ready', 'busy', 'end', 'heartbeat']),
+    message: z.string().optional(),
+    timestamp: z.string().optional(),
   }).optional(),
   thinking: z.object({
     isThinking: z.boolean(),

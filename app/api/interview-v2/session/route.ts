@@ -87,7 +87,8 @@ Start by introducing yourself and asking the candidate to tell you about themsel
                     message: process.env.NODE_ENV === 'development' 
                       ? 'GOOGLE_AI_API_KEY not found. Please set it in your .env.local file for local development.'
                       : 'Failed to access Google AI API key. Please check Secret Manager configuration.',
-                    details: apiKeyError instanceof Error ? apiKeyError.message : String(apiKeyError)
+                    details: apiKeyError instanceof Error ? apiKeyError.message : String(apiKeyError),
+                    timestamp: new Date().toISOString()
                   }
                 })
               )
@@ -109,7 +110,8 @@ Start by introducing yourself and asking the candidate to tell you about themsel
                   type: 'error',
                   error: {
                     code: 'LIVE_API_ERROR_SERVER', // Differentiate backend error
-                    message: `Server-side Live API error: ${error.message}`
+                    message: `Server-side Live API error: ${error.message}`,
+                    timestamp: new Date().toISOString()
                   }
                 })
               )
@@ -198,7 +200,8 @@ Start by introducing yourself and asking the candidate to tell you about themsel
                   type: 'error',
                   error: {
                     code: 'LIVE_API_ERROR',
-                    message: error.message
+                    message: error.message,
+                    timestamp: new Date().toISOString()
                   }
                 })
               )
@@ -258,7 +261,8 @@ Start by introducing yourself and asking the candidate to tell you about themsel
                 type: 'error',
                 error: {
                   code: 'STREAM_INIT_FAILED_SERVER',
-                  message: `Server-side stream initialization failed: ${error instanceof Error ? error.message : String(error)}`
+                  message: `Server-side stream initialization failed: ${error instanceof Error ? error.message : String(error)}`,
+                  timestamp: new Date().toISOString()
                 }
               })
             )
