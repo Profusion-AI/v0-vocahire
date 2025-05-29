@@ -57,7 +57,7 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
       // Auto-start if we have permission
       audioStream.startStream();
     }
-  }, [audioStream]);
+  }, [audioStream.hasPermission, audioStream.error, audioStream.isActive, audioStream.startStream]);
 
   // Audio playback
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -196,7 +196,7 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
         audioContextRef.current.close();
       }
     };
-  }, [audioStream.stopStream]);
+  }, [audioStream]);
 
   // Add router navigation guard
   // useEffect(() => { // Removed commented-out useEffect

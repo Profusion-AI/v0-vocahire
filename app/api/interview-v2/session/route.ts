@@ -235,7 +235,7 @@ Start by introducing yourself and asking the candidate to tell you about themsel
                   })
                 )
               );
-            } catch (err) {
+            } catch (_err) {
               // Connection closed, clean up
               clearInterval(heartbeatInterval);
               sessionManager.closeSession(sessionId);
