@@ -45,6 +45,8 @@ export default function InterviewV2Page() {
   const [componentConfig, setComponentConfig] = useState<ComponentSessionConfig | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [reconnectAttempt, setReconnectAttempt] = useState<{ current: number; max: number } | null>(null);
+  const [connectionRequested, setConnectionRequested] = useState(false);
+  const [isConnectionPending, setIsConnectionPending] = useState(false);
   
   // Terms agreement hook
   const {
@@ -132,31 +134,44 @@ export default function InterviewV2Page() {
 
   // Handle connection lifecycle based on view state and session config
   useEffect(() => {
-    // Skip if using dummy config
+    // Skip all logic for dummy config
     if (sessionConfig?.sessionId === 'dummy') return;
 
-    if (viewState === 'interview' && 
-        sessionConfig && 
-        !realtimeHook.isConnected && 
-        !realtimeHook.isConnecting &&
-        !realtimeHook.error) {
-      console.log("Triggering connect from page.tsx useEffect with latest config:", sessionConfig);
-      connectRef.current();
-    } else if (viewState !== 'interview' && realtimeHook.isConnected) {
-      // If we navigate away from 'interview' state, disconnect
+    // Handle connection request
+    if (viewState === 'interview' && sessionConfig && !connectionRequested) {
+      console.log("Requesting connection");
+      setConnectionRequested(true);
+      setIsConnectionPending(true);
+      connectRef.current()
+        .then(() => {
+          console.log("Connection established");
+          setIsConnectionPending(false);
+        })
+        .catch((error) => {
+          console.error("Connection failed:", error);
+          setIsConnectionPending(false);
+          // Reset connection state to allow retries
+          setConnectionRequested(false);
+        });
+    }
+
+    // Handle disconnection when leaving interview view
+    if (viewState !== 'interview' && connectionRequested) {
       console.log("Disconnecting due to viewState change");
       disconnectRef.current();
+      setConnectionRequested(false);
     }
-  }, [viewState, sessionConfig, realtimeHook.isConnected, realtimeHook.isConnecting, realtimeHook.error]);
+  }, [viewState, sessionConfig, connectionRequested]);
 
   // Cleanup effect to cancel pending connections
   useEffect(() => {
     return () => {
-      if (realtimeHook.isConnected || realtimeHook.isConnecting) {
+      if (connectionRequested) {
+        console.log("Cleaning up connection on unmount");
         disconnectRef.current();
       }
     };
-  }, []);
+  }, [connectionRequested]);
 
   // Handle session setup completion
   const handleSetupComplete = async (config: ComponentSessionConfig) => {

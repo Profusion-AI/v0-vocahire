@@ -181,10 +181,11 @@ export function useGenkitRealtime(
     }
   }, [onMessage, onError, onReconnected]); // Added onMessage, onError, onReconnected to dependencies
 
-  const connect = useCallback(async () => {
-    // In useGenkitRealtime.ts, inside connect() at the very beginning
-    console.log(`[GenkitRealtime] Connect: Called. Status: ${status}, isConnected: ${isConnected}, isConnecting: ${isConnecting}`);
-    console.log(`[GenkitRealtime] Connect: Session Config: ${JSON.stringify(sessionConfig)}`);
+  const connect = useCallback(() => {
+    return new Promise<void>(async (resolve, reject) => {
+      // In useGenkitRealtime.ts, inside connect() at the very beginning
+      console.log(`[GenkitRealtime] Connect: Called. Status: ${status}, isConnected: ${isConnected}, isConnecting: ${isConnecting}`);
+      console.log(`[GenkitRealtime] Connect: Session Config: ${JSON.stringify(sessionConfig)}`);
 
     // Skip connection for dummy config
     if (sessionConfig.sessionId === 'dummy' || sessionConfig.userId === 'dummy') {
@@ -341,10 +342,179 @@ export function useGenkitRealtime(
     }
     // At the end of `connect` (success path)
     console.log(`[GenkitRealtime] Connect: Completed successfully.`);
+      // Skip connection for dummy config
+      if (sessionConfig.sessionId === 'dummy' || sessionConfig.userId === 'dummy') {
+        console.warn('Skipping connection for dummy config');
+        reject(new Error('Skipping connection for dummy config'));
+        return;
+      }
+      
+      // Prevent connection with invalid config
+      if (!sessionConfig.sessionId || !sessionConfig.userId) {
+        console.warn('Cannot connect with invalid session config');
+        reject(new Error('Cannot connect with invalid session config'));
+        return;
+      }
+      
+      if (isConnected || isConnecting) {
+        reject(new Error('Connection already in progress'));
+        return;
+      }
+
+      setStatus('connecting'); // Update status
+      setIsConnecting(true);
+      setError(null);
+      setTranscript([]); // Clear previous transcript on new connection
+      setAiAudioQueue([]); // Clear previous audio queue
+
+      try {
+        // After the safeguards, before fetch
+        console.log(`[GenkitRealtime] Connect: Safeguards passed, initiating fetch to ${apiUrl}.`);
+        // Send initial connection request
+        fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...sessionConfig,
+            controlMessage: { type: 'start' },
+          } satisfies z.infer<typeof RealtimeInputSchema>),
+          signal: abortControllerRef.current?.signal, // Use abort signal
+        })
+        .then(response => {
+          if (!response.ok) {
+            console.error(`[GenkitRealtime] Connect: Initial fetch FAILED. Status: ${response.status}, Text: ${response.statusText}`);
+            throw new Error(`Connection failed: ${response.status} ${response.statusText}`);
+          } else {
+            console.log(`[GenkitRealtime] Connect: Initial fetch SUCCEEDED. Setting up SSE.`);
+          }
+
+          // Set up SSE
+          if (response.body) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            // Process SSE stream
+            const processStream = async () => {
+              let buffer = '';
+
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                  if (line.startsWith('data:')) {
+                    handleSSEMessage(new MessageEvent('message', { data: line.substring(5) }));
+                  }
+                }
+              }
+            };
+
+            abortControllerRef.current = new AbortController();
+            processStream().catch(err => {
+               // Handle stream processing errors
+               if (err instanceof Error && err.name === 'AbortError') {
+                  console.log('Stream aborted');
+                  reject(err);
+               } else {
+                  console.error('Stream processing error:', err);
+                  const streamError: z.infer<typeof ErrorSchema> = {
+                    code: 'STREAM_ERROR',
+                    message: 'Real-time stream error',
+                    details: err instanceof Error ? err.message : String(err),
+                    timestamp: new Date().toISOString(),
+                  };
+                  setError(streamError);
+                  if (onError) {
+                    onError(streamError);
+                  }
+                  setStatus('error'); // Update status on stream error
+                  setIsConnected(false);
+                  setIsConnecting(false);
+                  reject(err);
+                  
+                  // Attempt reconnection if not explicitly disconnected
+                  if (abortControllerRef.current?.signal.aborted === false) {
+                     // Attempt reconnection inline
+                     if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+                       reconnectAttemptsRef.current++;
+                       const backoffDelay = Math.min(reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1), 10000);
+                       setTimeout(() => connect().then(resolve).catch(reject), backoffDelay);
+                     }
+                  }
+               }
+            });
+          } else {
+             // Handle no response body
+             const noBodyError: z.infer<typeof ErrorSchema> = {
+                code: 'NO_RESPONSE_BODY',
+                message: 'No response body received from server',
+                timestamp: new Date().toISOString(),
+             };
+             setError(noBodyError);
+             if (onError) {
+                onError(noBodyError);
+             }
+             setStatus('error');
+             setIsConnected(false);
+             setIsConnecting(false);
+             reject(noBodyError);
+             
+             // Attempt reconnection inline with exponential backoff
+             if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+               reconnectAttemptsRef.current++;
+               const backoffDelay = Math.min(reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1), 10000);
+               setTimeout(() => connect().then(resolve).catch(reject), backoffDelay);
+             }
+          }
+        })
+        .catch(err => {
+          // Handle initial fetch/connection errors
+          if (err instanceof Error && err.name === 'AbortError') {
+             console.log('Connection attempt aborted');
+             setStatus('disconnected'); // Explicitly set status on abort
+             setIsConnected(false);
+             setIsConnecting(false);
+             reject(err);
+          } else {
+             console.error('Initial connection error:', err);
+             const connectionError: z.infer<typeof ErrorSchema> = {
+               code: 'CONNECTION_ERROR',
+               message: err instanceof Error ? err.message : 'Failed to connect',
+               retryable: reconnectAttemptsRef.current < maxReconnectAttempts,
+               timestamp: new Date().toISOString(),
+             };
+             setError(connectionError);
+             if (onError) {
+               onError(connectionError);
+             }
+             setStatus('error'); // Update status on connection error
+             setIsConnecting(false);
+             reject(err);
+
+             // Attempt reconnection with exponential backoff
+             if (connectionError.retryable) {
+               reconnectAttemptsRef.current++;
+               const backoffDelay = Math.min(reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1), 10000);
+               console.log(`Retrying connection in ${backoffDelay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
+               setTimeout(() => connect().then(resolve).catch(reject), backoffDelay);
+             }
+          }
+        });
+      } catch (err) {
+        reject(err);
+      }
+    });
   }, [apiUrl, sessionConfig, handleSSEMessage, maxReconnectAttempts, reconnectDelay, onError]); // Removed status, isConnected, isConnecting from dependencies
 
   const disconnect = useCallback(() => {
     console.log('Disconnect called');
+    return new Promise<void>((resolve) => {
     
     // Clear any pending reconnection timeout
     if (reconnectTimeoutRef.current) {
@@ -355,8 +525,9 @@ export function useGenkitRealtime(
     // Mark that we're no longer trying to reconnect
     isReconnectingRef.current = false;
     
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort(); // Abort the fetch/stream
+    const controller = abortControllerRef.current;
+    if (controller) {
+      controller.abort(); // Abort the fetch/stream
       abortControllerRef.current = null;
     }
 
@@ -380,6 +551,45 @@ export function useGenkitRealtime(
     reconnectAttemptsRef.current = 0; // Reset reconnect attempts on explicit disconnect
     setError(null); // Clear any existing errors
 
+      // Clear any pending reconnection timeout
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      
+      // Mark that we're no longer trying to reconnect
+      isReconnectingRef.current = false;
+      
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort(); // Abort the fetch/stream
+        abortControllerRef.current = null;
+      }
+      // Explicitly type the abort controller
+      abortControllerRef.current = new AbortController();
+
+      // Send disconnect message to server (best effort)
+      // Use refs for isConnected/isConnecting to avoid them in deps
+      if (isConnected || isConnecting) { // Only send if we were connected or trying to connect
+         fetch(apiUrl, {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({
+             ...sessionConfig,
+             controlMessage: { type: 'stop' },
+           } satisfies z.infer<typeof RealtimeInputSchema>),
+         })
+         .then(() => resolve())
+         .catch(() => resolve()); // Always resolve even on error
+      } else {
+        resolve();
+      }
+
+      setIsConnected(false);
+      setIsConnecting(false);
+      setStatus('disconnected'); // Update status immediately on disconnect
+      reconnectAttemptsRef.current = 0; // Reset reconnect attempts on explicit disconnect
+      setError(null); // Clear any existing errors
+    });
   }, [apiUrl, sessionConfig]); // Removed isConnected, isConnecting from dependencies
 
 
