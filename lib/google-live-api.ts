@@ -33,6 +33,7 @@ export interface LiveAPIConfig {
     };
   };
   tools?: Tool[];
+  responseModality?: 'AUDIO' | 'TEXT';
 }
 
 export interface LiveAPIMessage {
@@ -50,6 +51,8 @@ export class GoogleLiveAPIClient extends EventEmitter {
   private reconnectDelay = 1000;
   private currentModel: string | null = null;
   private modelFallbackAttempted = false;
+  private lastSentTimestamp?: number;
+  private lastSentSequenceNumber?: number;
 
   constructor(config: LiveAPIConfig) {
     super();
@@ -120,26 +123,26 @@ export class GoogleLiveAPIClient extends EventEmitter {
     const setupMessage: any = {
       setup: {
         model: this.currentModel || this.config.model || 'models/gemini-2.5-flash-preview-native-audio-dialog',
-        generation_config: {
-          response_modalities: ['AUDIO'],
-          speech_config: {
-            voice_config: {
-              prebuilt_voice_config: {
-                voice_name: 'Aoede'
+        generationConfig: {
+          responseModalities: [this.config.responseModality || 'AUDIO'],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: 'Aoede'
               }
             }
           },
           ...this.config.generationConfig
         },
         // Enable transcription for audio output
-        output_audio_transcription: {},
+        outputAudioTranscription: {},
         // Enable transcription for audio input
-        input_audio_transcription: {}
+        inputAudioTranscription: {}
       }
     };
 
     if (this.config.systemInstruction) {
-      (setupMessage.setup as any).system_instruction = this.config.systemInstruction;
+      (setupMessage.setup as any).systemInstruction = this.config.systemInstruction;
     }
 
     if (this.config.tools) {
@@ -174,11 +177,11 @@ export class GoogleLiveAPIClient extends EventEmitter {
         const parts = content.modelTurn.parts;
         parts.forEach((part: any) => {
           if (part.text) {
-            // This shouldn't happen with AUDIO modality
-            console.warn('Received text in AUDIO mode:', part.text);
+            // Text response
+            this.emit('text', part.text, this.lastSentTimestamp, this.lastSentSequenceNumber);
           } else if (part.inlineData) {
             const audioData = base64ToArrayBuffer(part.inlineData.data);
-            this.emit('audioData', audioData);
+            this.emit('audio', audioData, this.lastSentTimestamp, this.lastSentSequenceNumber);
           } else if (part.functionCall) {
             this.emit('functionCall', part.functionCall);
           }
@@ -187,11 +190,17 @@ export class GoogleLiveAPIClient extends EventEmitter {
       
       // Handle transcriptions
       if (content.outputTranscription) {
-        this.emit('transcript', { type: 'ai', text: content.outputTranscription.text });
+        this.emit('transcript', {
+          type: 'ai',
+          text: content.outputTranscription.text,
+        }, this.lastSentTimestamp, this.lastSentSequenceNumber);
       }
       
       if (content.inputTranscription) {
-        this.emit('transcript', { type: 'user', text: content.inputTranscription.text });
+        this.emit('transcript', {
+          type: 'user',
+          text: content.inputTranscription.text,
+        }, this.lastSentTimestamp, this.lastSentSequenceNumber);
       }
 
       if (content.turnComplete) {
@@ -200,14 +209,14 @@ export class GoogleLiveAPIClient extends EventEmitter {
     }
   }
 
-  sendAudio(audioData: ArrayBuffer): void {
+  sendAudio(audioData: ArrayBuffer, timestamp?: number, sequenceNumber?: number): void {
     if (!this.isConnected || !this.ws) {
       console.warn('Cannot send audio: WebSocket not connected');
       return;
     }
 
     const base64Audio = arrayBufferToBase64(audioData);
-    const message = {
+    const message: any = {
       realtimeInput: {
         mediaChunks: [{
           mimeType: 'audio/pcm;rate=16000',
@@ -216,16 +225,21 @@ export class GoogleLiveAPIClient extends EventEmitter {
       }
     };
 
+    // Store timestamp/sequenceNumber for client-side tracking only
+    // These are not part of Google's API
+    this.lastSentTimestamp = timestamp;
+    this.lastSentSequenceNumber = sequenceNumber;
+
     this.send(message);
   }
 
-  sendText(text: string): void {
+  sendText(text: string, timestamp?: number, sequenceNumber?: number): void {
     if (!this.isConnected || !this.ws) {
       console.warn('Cannot send text: WebSocket not connected');
       return;
     }
 
-    const message = {
+    const message: any = {
       clientContent: {
         turns: [{
           role: 'user',
@@ -233,6 +247,11 @@ export class GoogleLiveAPIClient extends EventEmitter {
         }]
       }
     };
+
+    // Store timestamp/sequenceNumber for client-side tracking only
+    // These are not part of Google's API
+    this.lastSentTimestamp = timestamp;
+    this.lastSentSequenceNumber = sequenceNumber;
 
     this.send(message);
   }
@@ -243,6 +262,16 @@ export class GoogleLiveAPIClient extends EventEmitter {
     this.send({
       clientContent: {
         turnComplete: true
+      }
+    });
+  }
+  
+  sendAudioStreamEnd(): void {
+    if (!this.isConnected || !this.ws) return;
+    
+    this.send({
+      realtimeInput: {
+        audioStreamEnd: true
       }
     });
   }

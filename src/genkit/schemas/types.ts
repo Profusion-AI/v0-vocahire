@@ -33,6 +33,9 @@ export const RealtimeInputSchema = z.object({
   difficulty: z.enum(['entry', 'mid', 'senior']),
   systemInstruction: z.string(),
   audioChunk: z.string().optional(),
+  text: z.string().optional(), // Added for direct text input
+  timestamp: z.number().optional(), // For latency monitoring
+  sequenceNumber: z.number().optional(), // For latency monitoring
   controlMessage: z.object({
     type: z.enum(['start', 'stop', 'interrupt'])
   }).optional(),
@@ -60,13 +63,17 @@ export const RealtimeOutputSchema = z.object({
     data: z.string(),
     format: z.string(),
     sampleRate: z.number(),
+    echoedTimestamp: z.number().optional(), // For latency monitoring
+    echoedSequenceNumber: z.number().optional(), // For latency monitoring
   }).optional(),
   error: z.object({
     code: z.string(),
     message: z.string(),
   }).optional(),
   control: z.object({
-    type: z.enum(['ready', 'busy', 'end'])
+    type: z.enum(['ready', 'busy', 'end']),
+    echoedTimestamp: z.number().optional(), // For latency monitoring
+    echoedSequenceNumber: z.number().optional(), // For latency monitoring
   }).optional(),
   thinking: z.object({
     isThinking: z.boolean(),
