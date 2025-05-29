@@ -25,6 +25,12 @@
 - [ ] Check all Stripe keys are production keys
 - [ ] Ensure REDIS_URL is configured
 
+### 4. Legal Compliance
+- [ ] Update Terms of Service language
+- [ ] Review Privacy Policy is current
+- [ ] Ensure GDPR/CCPA compliance basics
+- [ ] Add cookie consent if needed
+
 ## 🟡 Important (Should Fix)
 
 ### 1. Google Live API Compliance
