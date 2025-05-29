@@ -8,6 +8,7 @@ import Testimonials from '@/components/landing/Testimonials'
 import Simulation from '@/components/landing/Simulation'
 import FeedbackSection from '@/components/landing/FeedbackSection'
 import Pricing from '@/components/landing/Pricing'
+import FAQ from '@/components/landing/FAQ'
 import Footer from '@/components/landing/Footer'
 
 function LandingPage() {
@@ -60,6 +61,7 @@ function LandingPage() {
         <Simulation /> {/* Contains <section id="simulation"> */}
         <FeedbackSection /> {/* Contains <section id="feedback"> */}
         <Pricing /> {/* Contains <section id="pricing"> */}
+        <FAQ /> {/* FAQ section about credits */}
       </main>
       <Footer />
     </div>

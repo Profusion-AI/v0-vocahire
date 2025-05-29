@@ -7,7 +7,7 @@ export default function TermsPage() {
       <h1 className="text-3xl font-bold mb-6">VocaHire Coach Terms of Service</h1>
 
       <div className="prose dark:prose-invert max-w-none">
-        <p>Last updated: May 6, 2024</p>
+        <p>Last updated: May 29, 2025</p>
 
         <p>
           Welcome to VocaHire Coach ("we," "us," "our"). These Terms of Service ("Terms") govern your use of our
@@ -23,10 +23,10 @@ export default function TermsPage() {
           contract to use the Service.
         </p>
         <p>
-          <strong>1.2 U.S. Only (MVP).</strong> For our minimum-viable-product launch, the Service is only available to
-          users physically located within the United States. You represent and warrant you are accessing the Service
-          from within the U.S. If you travel or relocate outside the U.S., you must stop using the Service until you
-          return.
+          <strong>1.2 U.S. Only (Public Beta).</strong> During our Public Beta phase (expected to end June 30, 2025), 
+          the Service is only available to users physically located within the United States. You represent and warrant 
+          you are accessing the Service from within the U.S. If you travel or relocate outside the U.S., you must stop 
+          using the Service until you return.
         </p>
 
         <hr className="my-6" />

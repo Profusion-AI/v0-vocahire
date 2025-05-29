@@ -31,6 +31,12 @@
 - [ ] Ensure GDPR/CCPA compliance basics
 - [ ] Add cookie consent if needed
 
+### 5. Repository Cleanup
+- [ ] Add internal docs to .gitignore
+- [ ] Remove sensitive documentation from git history
+- [ ] Keep only public-facing READMEs (README.md, CLAUDE.md, docs/)
+- [ ] Verify no API keys or secrets in commit history
+
 ## 🟡 Important (Should Fix)
 
 ### 1. Google Live API Compliance

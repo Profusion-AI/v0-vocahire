@@ -108,3 +108,17 @@ VERTEX_AI_MIGRATION_NOTE.md
 
 # genkit traces
 .genkit/traces_idx/genkit.metadata
+
+# Comprehensive internal documentation patterns
+*.AUDIT.md
+*_STATUS.md
+*_STRATEGY.md
+AI_ASSISTED_*.md
+MVP_*.md
+TESTING_*.md
+PRE_LAUNCH_*.md
+
+# Keep public-facing docs
+!README.md
+!CLAUDE.md
+!docs/**/*.md
