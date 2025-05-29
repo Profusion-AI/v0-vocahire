@@ -40,6 +40,21 @@ export interface UseGenkitRealtimeReturn {
   sendData: (data: Partial<z.infer<typeof RealtimeInputSchema>>) => void;
 }
 
+/**
+ * React hook for managing a real-time interview session over WebSocket.
+ *
+ * Establishes and maintains a WebSocket connection to stream transcript and audio data, handle session control messages, manage reconnection logic, and track connection status and errors for an interactive interview experience.
+ *
+ * @param apiUrl - The base API URL used to derive the WebSocket endpoint.
+ * @param sessionConfig - Session configuration including identifiers and interview parameters.
+ * @param options - Optional settings for reconnection, callbacks, and preconnection behavior.
+ * @returns An object containing connection status, error state, transcript and audio queues, and methods to connect, disconnect, and send data.
+ *
+ * @remark
+ * - Automatically attempts reconnection with exponential backoff on connection loss, up to the configured maximum attempts.
+ * - Tracks round-trip latency for outgoing messages using sequence numbers and timestamps.
+ * - If `preconnect` is enabled, the hook will attempt to connect automatically on mount.
+ */
 export function useGenkitRealtime(
   apiUrl: string, // This will now be the base URL for the WebSocket, e.g., '/api/interview-v2/session'
   sessionConfig: SessionConfig,
