@@ -23,9 +23,6 @@ export async function POST(request: NextRequest) {
     // Create a unique session ID
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // API key will be fetched by LiveAPISessionManager from Secret Manager
-    // No need to check here as it's handled in the session manager
-
     // Get session manager instance
     const sessionManager = LiveAPISessionManager.getInstance();
 
@@ -75,19 +72,25 @@ Start by introducing yourself and asking the candidate to tell you about themsel
             tools: []
           });
           } catch (apiKeyError) {
-            console.error('[API Route] Failed to create Live API session - likely API key issue:', apiKeyError);
+            console.error('[API Route] Failed to create Live API session:', apiKeyError);
             
-            // Send specific error message for API key issues
+            // Check if it's specifically an API key issue
+            const errorMessage = apiKeyError instanceof Error ? apiKeyError.message : String(apiKeyError);
+            const isApiKeyError = errorMessage.includes('API_KEY') || errorMessage.includes('api key') || errorMessage.includes('Failed to parse URL');
+            
+            // Send specific error message
             controller.enqueue(
               encoder.encode(
                 createSSEMessage({
                   type: 'error',
                   error: {
-                    code: 'API_KEY_ERROR',
-                    message: process.env.NODE_ENV === 'development' 
-                      ? 'GOOGLE_AI_API_KEY not found. Please set it in your .env.local file for local development.'
-                      : 'Failed to access Google AI API key. Please check Secret Manager configuration.',
-                    details: apiKeyError instanceof Error ? apiKeyError.message : String(apiKeyError),
+                    code: isApiKeyError ? 'API_KEY_ERROR' : 'SESSION_CREATION_ERROR',
+                    message: isApiKeyError 
+                      ? (process.env.NODE_ENV === 'development' 
+                        ? 'GOOGLE_AI_API_KEY not found. Please set it in your .env.local file for local development.'
+                        : 'Failed to access Google AI API key. Please check Secret Manager configuration.')
+                      : 'Failed to create interview session. Please try again.',
+                    details: errorMessage,
                     timestamp: new Date().toISOString()
                   }
                 })

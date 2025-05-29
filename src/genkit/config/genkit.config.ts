@@ -1,42 +1,35 @@
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-import { vertexAI } from '@genkit-ai/vertexai';
-import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
-import evaluator from '@genkit-ai/evaluator';
+// REMOVED vertexAI import - we don't need it for MVP
 import { logger } from 'genkit/logging';
-import { GenkitMetric } from '@genkit-ai/evaluator';
 
 logger.setLogLevel(process.env.NODE_ENV === 'development' ? 'debug' : 'info');
-
-// Only enable telemetry if we're properly configured
-if (process.env.GOOGLE_PROJECT_ID) {
-  enableFirebaseTelemetry();
-}
 
 // Lazy initialization
 let genkitAppInstance: any = null;
 
 export function getGenkitApp() {
-  if (!genkitAppInstance && process.env.GOOGLE_AI_API_KEY) {
-    genkitAppInstance = genkit({
-      plugins: [
-        googleAI({
-          apiKey: process.env.GOOGLE_AI_API_KEY,
-        }),
-        ...(process.env.GOOGLE_PROJECT_ID ? [
-          vertexAI({
-            projectId: process.env.GOOGLE_PROJECT_ID,
-            location: 'us-central1',
+  if (!genkitAppInstance) {
+    // Check for required environment variables
+    if (!process.env.GOOGLE_AI_API_KEY) {
+      console.warn('GOOGLE_AI_API_KEY not found, Genkit features disabled');
+      return null;
+    }
+
+    try {
+      genkitAppInstance = genkit({
+        plugins: [
+          googleAI({
+            apiKey: process.env.GOOGLE_AI_API_KEY,
           }),
-          evaluator({
-            metrics: [GenkitMetric.MALICIOUSNESS],
-          })
-        ] : []),
-      ],
-    });
+        ],
+      });
+    } catch (error) {
+      console.error('Failed to initialize genkit app:', error);
+      return null;
+    }
   }
   return genkitAppInstance;
 }
 
-// For backward compatibility
-export const genkitApp = getGenkitApp();
+// DO NOT export genkitApp constant - it causes module-level initialization

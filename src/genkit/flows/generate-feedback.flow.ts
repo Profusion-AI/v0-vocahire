@@ -42,18 +42,22 @@ const feedbackOutputSchema = z.object({
   nextSteps: z.array(z.string()),
 });
 
-export const generateInterviewFeedback = (() => {
-  const ai = getGenkit();
-  if (!ai) {
-    // Return a dummy flow that throws an error if called
-    return {
-      run: async () => {
-        throw new Error('Genkit not initialized - GOOGLE_AI_API_KEY missing');
-      }
-    };
-  }
-  
-  return ai.defineFlow(
+// Lazy flow definition
+let generateInterviewFeedbackInstance: any = null;
+
+export function generateInterviewFeedback() {
+  if (!generateInterviewFeedbackInstance) {
+    const ai = getGenkit();
+    if (!ai) {
+      // Return a dummy flow that throws an error if called
+      return {
+        run: async () => {
+          throw new Error('Genkit not initialized - GOOGLE_AI_API_KEY missing');
+        }
+      };
+    }
+    
+    generateInterviewFeedbackInstance = ai.defineFlow(
     {
       name: 'generateInterviewFeedback',
       inputSchema: feedbackInputSchema,
@@ -203,4 +207,6 @@ Focus on actionable advice and positive reinforcement.`;
       return enhancedOutput;
     }
   );
-})();
+  }
+  return generateInterviewFeedbackInstance;
+}

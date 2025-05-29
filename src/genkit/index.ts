@@ -1,6 +1,6 @@
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-import { vertexAI } from '@genkit-ai/vertexai';
+// REMOVED vertexAI import - it's causing the /pipeline error in production
 
 // Only initialize if we have the required environment variables
 let ai: any = null;
@@ -13,26 +13,25 @@ export function getGenkit() {
       return null;
     }
 
-    ai = genkit({
-      plugins: [
-        googleAI({
-          apiKey: process.env.GOOGLE_AI_API_KEY,
-        }),
-        // Only add vertexAI if we have the project ID
-        ...(process.env.GOOGLE_PROJECT_ID ? [
-          vertexAI({
-            projectId: process.env.GOOGLE_PROJECT_ID,
-            location: process.env.GOOGLE_CLOUD_REGION || 'us-central1',
-          })
-        ] : []),
-      ],
-    });
+    try {
+      ai = genkit({
+        plugins: [
+          googleAI({
+            apiKey: process.env.GOOGLE_AI_API_KEY,
+          }),
+          // REMOVED vertexAI plugin - it's causing the /pipeline error
+        ],
+      });
+    } catch (error) {
+      console.error('Failed to initialize genkit:', error);
+      return null;
+    }
   }
   return ai;
 }
 
-// Export for backward compatibility
-export const ai = getGenkit();
+// DO NOT export const ai here - it causes module-level initialization
+// Users should call getGenkit() when they need it
 
 // Export other modules that don't require initialization
 export * from './flows';

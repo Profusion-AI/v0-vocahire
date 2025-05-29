@@ -21,18 +21,22 @@ const sessionResponseSchema = z.object({
   }),
 });
 
-export const generateInterviewQuestions = (() => {
-  const ai = getGenkit();
-  if (!ai) {
-    // Return a dummy flow that throws an error if called
-    return {
-      run: async () => {
-        throw new Error('Genkit not initialized - GOOGLE_AI_API_KEY missing');
-      }
-    };
-  }
-  
-  return ai.defineFlow(
+// Lazy flow definition
+let generateInterviewQuestionsInstance: any = null;
+
+export function generateInterviewQuestions() {
+  if (!generateInterviewQuestionsInstance) {
+    const ai = getGenkit();
+    if (!ai) {
+      // Return a dummy flow that throws an error if called
+      return {
+        run: async () => {
+          throw new Error('Genkit not initialized - GOOGLE_AI_API_KEY missing');
+        }
+      };
+    }
+    
+    generateInterviewQuestionsInstance = ai.defineFlow(
     {
       name: 'generateInterviewQuestions',
       inputSchema: interviewSessionSchema,
@@ -102,4 +106,6 @@ Return as JSON with arrays for each category.`,
       };
     }
   );
-})();
+  }
+  return generateInterviewQuestionsInstance;
+}
