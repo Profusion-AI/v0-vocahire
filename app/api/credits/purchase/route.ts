@@ -5,6 +5,8 @@ import { z } from "zod";
 import { transactionLogger, TransactionOperations } from "@/lib/transaction-logger";
 import { Prisma } from "@/prisma/generated/client";
 
+export const dynamic = 'force-dynamic';
+
 // Request body schema
 const purchaseSchema = z.object({
   credits: z.number().int().positive(),

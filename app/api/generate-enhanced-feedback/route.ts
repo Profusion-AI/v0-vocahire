@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma"
 import { getOrCreatePrismaUser } from "@/lib/auth-utils"
 import type { EnhancedFeedback, EnhancedFeedbackResponse } from "@/types/feedback"
 
+export const dynamic = 'force-dynamic';
+
 const ENHANCED_FEEDBACK_COST = 0.50
 
 export async function POST(request: NextRequest) {

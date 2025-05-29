@@ -10,6 +10,8 @@ import { ITEM_PRICE_MAP, SUBSCRIPTION_ITEMS } from "@/lib/payment-config";
 import { transactionLogger, TransactionOperations } from "@/lib/transaction-logger";
 import { getSecrets } from '@/lib/secret-manager';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     // Fetch secrets within the async handler

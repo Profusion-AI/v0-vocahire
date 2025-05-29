@@ -7,6 +7,8 @@ import { z } from "zod"
 import { getConsistentCreditValue, createPrismaDecimal } from "@/lib/prisma-types"
 import { invalidateUserCache, prefetchUserCredentials } from "@/lib/user-cache"
 
+export const dynamic = 'force-dynamic';
+
 // Helper function to create consistent fallback user objects
 interface ClerkUser {
   firstName?: string;

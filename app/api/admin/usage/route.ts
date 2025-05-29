@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { UsageData, UsageType } from "@/app/admin/usage/UsageDashboardClient"; // Import from client component path
 import { isAdminUser } from "@/lib/admin-config";
 import { User } from "@/prisma/generated/client";
+
+// Force dynamic rendering to prevent database connection during build
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,6 +18,9 @@ export async function GET(request: NextRequest) {
     if (!isAdminUser(auth.userId)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    // Lazy import prisma to prevent connection during build
+    const { prisma } = await import("@/lib/prisma");
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);

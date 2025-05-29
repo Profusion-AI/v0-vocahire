@@ -10,6 +10,8 @@ export const config = {
   },
 };
 
+export const dynamic = 'force-dynamic';
+
 async function buffer(readable: ReadableStream<Uint8Array>): Promise<Buffer> {
   const reader = readable.getReader();
   const chunks: Uint8Array[] = [];

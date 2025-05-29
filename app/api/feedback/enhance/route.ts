@@ -8,6 +8,8 @@ import { generateEnhancedInterviewFeedback } from "@/lib/enhancedFeedback"
 import { transactionLogger, TransactionOperations } from "@/lib/transaction-logger"
 import { Transcript } from "@/prisma/generated/client"
 
+export const dynamic = 'force-dynamic';
+
 const ENHANCED_FEEDBACK_COST = 0.50
 
 export async function POST(request: NextRequest) {

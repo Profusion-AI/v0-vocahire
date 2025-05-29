@@ -6,6 +6,8 @@ import { getOrCreatePrismaUser } from "@/lib/auth-utils"
 import { z } from "zod"
 import { InterviewSession, Prisma } from "@/prisma/generated/client"
 
+export const dynamic = 'force-dynamic';
+
 // Input validation schema
 const CreateInterviewSchema = z.object({
   sessionId: z.string(),

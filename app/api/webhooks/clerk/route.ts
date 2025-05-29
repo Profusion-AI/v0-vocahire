@@ -7,6 +7,8 @@ import { Webhook } from "svix";
 import Stripe from "stripe"; // Import Stripe
 import { getSecrets } from '@/lib/secret-manager';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   // Fetch secrets within the async handler
   const clerkSecrets = await getSecrets([
