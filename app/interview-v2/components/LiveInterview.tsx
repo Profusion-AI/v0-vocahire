@@ -69,8 +69,8 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
     // Add detailed logging before the guard
     console.log(`[LiveInterview] sendData useEffect: status=${status}, isConnected=${isConnected}, isActive=${audioStream.isActive}`);
 
-    if (status !== 'streaming' || !audioStream.isActive) {
-      console.warn(`[LiveInterview] sendData bypassed: status is not 'streaming' or audio is not active. Current status: ${status}.`);
+    if ((status !== 'streaming' && status !== 'connected') || !audioStream.isActive) {
+      console.warn(`[LiveInterview] sendData bypassed: status is not 'streaming' or 'connected', or audio is not active. Current status: ${status}.`);
       return;
     }
 
