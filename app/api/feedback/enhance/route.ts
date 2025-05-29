@@ -2,7 +2,6 @@ import { NextResponse, NextRequest } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
 import { checkRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit"
 import { trackUsage, UsageType } from "@/lib/usage-tracking"
-import { getOrCreatePrismaUser } from "@/lib/auth-utils"
 import { generateEnhancedInterviewFeedback } from "@/lib/enhancedFeedback"
 import { transactionLogger, TransactionOperations } from "@/lib/transaction-logger"
 import { Transcript } from "@/prisma/generated/client"
@@ -101,6 +100,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 7. Get user and verify credits
+    const { getOrCreatePrismaUser } = await import("@/lib/auth-utils");
     const user = await getOrCreatePrismaUser(userId)
     if (!user) {
       return NextResponse.json({ 

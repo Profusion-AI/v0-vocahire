@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import { liveAPISessionManager } from '@/lib/live-api-session-manager';
-import { getOrCreatePrismaUser } from '@/lib/auth-utils';
 import { z } from 'zod';
 import { RealtimeInputSchema, RealtimeOutputSchema } from '@/src/genkit/schemas/types';
 
@@ -36,6 +35,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Verify user
+  const { getOrCreatePrismaUser } = await import("@/lib/auth-utils");
   const user = await getOrCreatePrismaUser(auth.userId);
   if (!user) {
     return new Response(JSON.stringify({ error: 'User not found' }), {
@@ -216,6 +216,7 @@ export async function POST(request: NextRequest) {
     const sessionConfig = RealtimeInputSchema.parse(body);
 
     // Verify user has credits
+    const { getOrCreatePrismaUser } = await import("@/lib/auth-utils");
     const user = await getOrCreatePrismaUser(auth.userId);
     if (!user) {
       return new Response(JSON.stringify({ error: 'User not found' }), {

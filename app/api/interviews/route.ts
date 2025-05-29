@@ -1,7 +1,6 @@
 import { NextResponse, NextRequest } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
 import { trackUsage, UsageType } from "@/lib/usage-tracking"
-import { getOrCreatePrismaUser } from "@/lib/auth-utils"
 import { z } from "zod"
 import { InterviewSession, Prisma } from "@/prisma/generated/client"
 
@@ -87,6 +86,7 @@ export async function POST(request: NextRequest) {
     const validatedData = CreateInterviewSchema.parse(body)
     
     // 3. Get or create user in database
+    const { getOrCreatePrismaUser } = await import("@/lib/auth-utils");
     const user = await getOrCreatePrismaUser(auth.userId)
     if (!user) {
       return NextResponse.json({ error: "Failed to verify user" }, { status: 500 })

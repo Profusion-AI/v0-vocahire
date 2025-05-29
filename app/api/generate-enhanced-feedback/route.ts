@@ -2,7 +2,6 @@ import { NextResponse, NextRequest } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
 import { checkRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit"
 import { trackUsage, UsageType } from "@/lib/usage-tracking"
-import { getOrCreatePrismaUser } from "@/lib/auth-utils"
 import type { EnhancedFeedback, EnhancedFeedbackResponse } from "@/types/feedback"
 
 export const dynamic = 'force-dynamic';
@@ -47,6 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Verify user credits
+    const { getOrCreatePrismaUser } = await import("@/lib/auth-utils");
     const user = await getOrCreatePrismaUser(userId)
     if (!user) {
       return NextResponse.json({ 
