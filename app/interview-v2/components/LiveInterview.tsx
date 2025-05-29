@@ -48,16 +48,29 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
     channelCount: 1,
   });
   
-  // Handle microphone permission on mount
+  // Handle microphone permission when interview starts
   useEffect(() => {
-    if (audioStream.hasPermission === false && audioStream.error) {
-      // Don't auto-request, let user trigger it
-      console.warn('Microphone permission denied:', audioStream.error);
-    } else if (audioStream.hasPermission === true && !audioStream.isActive) {
-      // Auto-start if we have permission
-      audioStream.startStream();
-    }
-  }, [audioStream.hasPermission, audioStream.error, audioStream.isActive, audioStream.startStream]);
+    // When we reach the interview stage, we need microphone access
+    const initializeMicrophone = async () => {
+      // If permission status is unknown (null), request it
+      if (audioStream.hasPermission === null && !audioStream.isCheckingPermission) {
+        console.log('[LiveInterview] Requesting microphone permission...');
+        await audioStream.requestPermission();
+      }
+      // If we have permission but stream isn't active, start it
+      else if (audioStream.hasPermission === true && !audioStream.isActive) {
+        console.log('[LiveInterview] Starting audio stream...');
+        await audioStream.startStream();
+      }
+      // If permission was denied, we'll show the error UI
+      else if (audioStream.hasPermission === false) {
+        console.warn('[LiveInterview] Microphone permission denied:', audioStream.error);
+      }
+    };
+
+    // Initialize microphone when component mounts (user started interview)
+    initializeMicrophone();
+  }, [audioStream.hasPermission, audioStream.isCheckingPermission, audioStream.isActive, audioStream.requestPermission, audioStream.startStream, audioStream.error]);
 
   // Audio playback
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -237,7 +250,34 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
       </Card>
 
       {/* Session Status */}
-      <SessionStatus status={status} error={error} />
+      <div className="flex items-center justify-between">
+        <SessionStatus status={status} error={error} />
+        
+        {/* Microphone Status Indicator */}
+        {audioStream.isActive && (
+          <Badge 
+            variant={audioStream.isMuted ? "secondary" : "default"} 
+            className="gap-1.5 animate-in fade-in duration-300"
+          >
+            {audioStream.isMuted ? (
+              <MicOff className="h-3 w-3" />
+            ) : (
+              <Mic className="h-3 w-3 text-red-500 animate-pulse" />
+            )}
+            <span className="text-xs">
+              {audioStream.isMuted ? "Muted" : "Recording"}
+            </span>
+          </Badge>
+        )}
+        
+        {/* Checking Permission Indicator */}
+        {audioStream.isCheckingPermission && (
+          <Badge variant="secondary" className="gap-1.5">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span className="text-xs">Checking microphone...</span>
+          </Badge>
+        )}
+      </div>
       
       {/* Error Display */}
       {error && status === 'error' && (

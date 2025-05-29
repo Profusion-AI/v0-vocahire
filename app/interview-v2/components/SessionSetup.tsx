@@ -307,6 +307,10 @@ export function SessionSetup({ onComplete, isLoading = false }: SessionSetupProp
             )}
           </Button>
           
+          <p className="text-xs text-center text-muted-foreground">
+            Your browser will ask for microphone permission when you start
+          </p>
+          
           {/* Help text for multiple failed attempts */}
           {submitAttempts > 3 && Object.keys(errors).length > 0 && (
             <p className="text-sm text-muted-foreground text-center">
