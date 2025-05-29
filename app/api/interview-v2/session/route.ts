@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
             sendMessage({
               type: 'transcript',
               transcript: {
+                id: `mock-${Date.now()}`,
                 role: 'assistant',
                 text: `[MOCK MODE] Hello! I'm ready to conduct your ${interviewType} interview for the ${jobRole} position. Please note: This is a mock interview session for development. To use the real AI, please configure your Google AI API key.`,
                 timestamp: new Date().toISOString()
@@ -118,6 +119,7 @@ export async function GET(request: NextRequest) {
           sendMessage({
             type: 'transcript',
             transcript: {
+              id: data.id || `transcript-${Date.now()}`,
               role: data.type === 'user' ? 'user' : 'assistant',
               text: data.text,
               timestamp: new Date().toISOString()
