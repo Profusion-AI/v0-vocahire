@@ -268,44 +268,86 @@ export function useGenkitRealtime(
       setTranscript([]);
       setAiAudioQueue([]);
 
-      // Convert HTTP URL to WebSocket URL
-      const buildWsUrl = (baseUrl: string) => {
-        const url = new URL(baseUrl, window.location.origin);
-        url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-        // Replace /session with /ws at the end of the pathname
-        url.pathname = url.pathname.replace(/\/session$/, '/ws');
-        return url.toString();
-      };
-      
-      const wsUrl = buildWsUrl(apiUrl);
-      console.log(`[GenkitRealtime] Initiating WebSocket connection to ${wsUrl}.`);
-
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+      // First, create session via POST
+      const sessionUrl = new URL(apiUrl, window.location.origin).toString();
+      console.log(`[GenkitRealtime] Creating session at ${sessionUrl}`);
       
       // Store the resolve/reject functions to be called when ready
       connectionResolverRef.current = resolve;
       connectionRejecterRef.current = reject;
 
-      ws.onopen = () => {
-        console.log('[GenkitRealtime] WebSocket opened.');
-        // Send initial configuration message
-        ws.send(JSON.stringify({
+      fetch(sessionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           ...sessionConfig,
           controlMessage: { type: 'start' },
-        } satisfies z.infer<typeof RealtimeInputSchema>));
-        // Don't resolve yet - wait for 'ready' message
+        } satisfies z.infer<typeof RealtimeInputSchema>),
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (!data.success || !data.sseUrl) {
+          throw new Error('Invalid session response');
+        }
+        
+        // Now connect to SSE stream
+        const sseUrl = new URL(data.sseUrl, window.location.origin).toString();
+        console.log(`[GenkitRealtime] Connecting to SSE stream at ${sseUrl}`);
+        
+        const eventSource = new EventSource(sseUrl);
+        // Store EventSource in wsRef for compatibility
+        wsRef.current = eventSource as any;
+        
+        eventSource.onmessage = (event: MessageEvent) => {
+        handleWebSocketMessage(event);
       };
 
-      ws.onmessage = handleWebSocketMessage;
+      eventSource.onerror = (event: Event) => {
+          console.error('[GenkitRealtime] SSE error:', event);
+          const connectionError: z.infer<typeof ErrorSchema> = {
+            code: 'SSE_ERROR',
+            message: 'SSE connection error.',
+            details: event instanceof Event ? 'Connection failed' : 'Unknown error',
+            retryable: reconnectAttemptsRef.current < maxReconnectAttempts,
+            timestamp: new Date().toISOString(),
+          };
+          setError(connectionError);
+          if (onError) {
+            onError(connectionError);
+          }
+          setStatus('error');
+          setIsConnecting(false);
 
-      ws.onerror = (event) => {
-        console.error('[GenkitRealtime] WebSocket error:', event);
-        const connectionError: z.infer<typeof ErrorSchema> = { // Changed back to ErrorSchema
-          code: 'WEBSOCKET_ERROR',
-          message: 'WebSocket connection error.',
-          details: event instanceof ErrorEvent ? event.message : 'Unknown error',
-          retryable: reconnectAttemptsRef.current < maxReconnectAttempts,
+          if (connectionError.retryable) {
+            reconnectAttemptsRef.current++;
+            const backoffDelay = Math.min(reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1), 10000);
+            console.log(`Retrying SSE connection in ${backoffDelay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
+            reconnectTimeoutRef.current = setTimeout(() => {
+              connect();
+            }, backoffDelay);
+          } else {
+            // Reject the connection promise if it exists
+            if (connectionRejecterRef.current) {
+              connectionRejecterRef.current(new Error(connectionError.message));
+              connectionResolverRef.current = null;
+              connectionRejecterRef.current = null;
+            }
+          }
+        };
+      })
+      .catch(error => {
+        console.error('[GenkitRealtime] Failed to create session:', error);
+        const connectionError: z.infer<typeof ErrorSchema> = {
+          code: 'SESSION_CREATE_ERROR',
+          message: 'Failed to create session',
+          details: error instanceof Error ? error.message : 'Unknown error',
           timestamp: new Date().toISOString(),
         };
         setError(connectionError);
@@ -314,49 +356,14 @@ export function useGenkitRealtime(
         }
         setStatus('error');
         setIsConnecting(false);
-
-        if (connectionError.retryable) {
-          reconnectAttemptsRef.current++;
-          const backoffDelay = Math.min(reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1), 10000);
-          console.log(`Retrying WebSocket connection in ${backoffDelay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect();
-          }, backoffDelay);
-        } else {
-          // Reject the connection promise if it exists
-          if (connectionRejecterRef.current) {
-            connectionRejecterRef.current(new Error(connectionError.message));
-            connectionResolverRef.current = null;
-            connectionRejecterRef.current = null;
-          }
+        
+        // Reject the connection promise
+        if (connectionRejecterRef.current) {
+          connectionRejecterRef.current(new Error(connectionError.message));
+          connectionResolverRef.current = null;
+          connectionRejecterRef.current = null;
         }
-      };
-
-      ws.onclose = (event) => {
-        console.log(`[GenkitRealtime] WebSocket closed: Code ${event.code}, Reason: ${event.reason}`);
-        setIsConnected(false);
-        setIsConnecting(false);
-        setStatus('disconnected');
-        // Attempt reconnection if not explicitly closed by disconnect()
-        if (!event.wasClean && reconnectAttemptsRef.current < maxReconnectAttempts) {
-          reconnectAttemptsRef.current++;
-          const backoffDelay = Math.min(reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1), 10000);
-          console.log(`Retrying WebSocket connection in ${backoffDelay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect().then(resolve).catch(reject);
-          }, backoffDelay);
-        } else if (event.code !== 1000) { // 1000 is normal closure
-          const closeError: z.infer<typeof ErrorSchema> = { // Changed back to ErrorSchema
-            code: 'WEBSOCKET_CLOSED',
-            message: `WebSocket closed unexpectedly: ${event.reason || 'No reason provided'} (Code: ${event.code})`,
-            timestamp: new Date().toISOString(),
-          };
-          setError(closeError);
-          if (onError) {
-            onError(closeError);
-          }
-        }
-      };
+      });
     });
   }, [apiUrl, sessionConfig, handleWebSocketMessage, maxReconnectAttempts, reconnectDelay, onError]);
 
@@ -370,14 +377,23 @@ export function useGenkitRealtime(
     }
 
     if (wsRef.current) {
-      // Send a stop message before closing the WebSocket
-      if (wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
+      // Send stop message via PUT request
+      const sseUrl = new URL(apiUrl, window.location.origin).toString();
+      fetch(`${sseUrl}/${sessionConfig.sessionId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           ...sessionConfig,
           controlMessage: { type: 'stop' },
-        } satisfies z.infer<typeof RealtimeInputSchema>));
+        } satisfies z.infer<typeof RealtimeInputSchema>),
+      }).catch(console.error);
+      
+      // Close EventSource
+      if (wsRef.current.close) {
+        wsRef.current.close();
       }
-      wsRef.current.close(1000, 'Client requested disconnect'); // 1000 is normal closure
       wsRef.current = null;
     }
 
@@ -405,8 +421,8 @@ export function useGenkitRealtime(
       return;
     }
 
-    if (!currentIsConnected || wsRef.current?.readyState !== WebSocket.OPEN) {
-      console.warn('Cannot send data: WebSocket not connected or not open.');
+    if (!currentIsConnected || !wsRef.current) {
+      console.warn('Cannot send data: SSE not connected.');
       return;
     }
 
@@ -432,27 +448,32 @@ export function useGenkitRealtime(
       sequenceNumber: currentSequenceNumber,
     } satisfies z.infer<typeof RealtimeInputSchema>;
 
-    // Check if audioChunk is present and send as binary
-    if (data.audioChunk) {
-      // For binary audio, we need to send metadata separately
-      // First send a metadata message
-      const metadataPayload = {
-        ...sessionConfig,
-        timestamp: currentTimestamp,
-        sequenceNumber: currentSequenceNumber,
-        audioMetadata: true,
+    // Send data via PUT request to session endpoint
+    const sseUrl = new URL(apiUrl, window.location.origin).toString();
+    fetch(`${sseUrl}/${sessionConfig.sessionId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }).then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      console.log(`[GenkitRealtime] sendData: Message sent via HTTP (seq: ${currentSequenceNumber}).`);
+    }).catch(error => {
+      console.error('[GenkitRealtime] Failed to send data:', error);
+      const sendError: z.infer<typeof ErrorSchema> = {
+        code: 'SEND_ERROR',
+        message: 'Failed to send data',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
       };
-      wsRef.current.send(JSON.stringify(metadataPayload));
-      
-      // Then send the binary audio
-      const audioBuffer = Uint8Array.from(atob(data.audioChunk), c => c.charCodeAt(0)).buffer;
-      wsRef.current.send(audioBuffer);
-      console.log(`[GenkitRealtime] sendData: Binary audio chunk sent via WebSocket (seq: ${currentSequenceNumber}).`);
-    } else {
-      // Send other data (text, control messages) as JSON
-      wsRef.current.send(JSON.stringify(payload));
-      console.log(`[GenkitRealtime] sendData: JSON message sent via WebSocket (seq: ${currentSequenceNumber}).`);
-    }
+      setError(sendError);
+      if (onError) {
+        onError(sendError);
+      }
+    });
 
   }, [sessionConfig]);
 
@@ -461,24 +482,21 @@ export function useGenkitRealtime(
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isConnectedRef.current || isConnectingRef.current) {
-        // Send disconnect message via WebSocket if possible, otherwise rely on browser closing the connection
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          wsRef.current.send(JSON.stringify({
-            ...sessionConfig,
-            controlMessage: { type: 'stop' },
-          } satisfies z.infer<typeof RealtimeInputSchema>));
-          wsRef.current.close(1000, 'Client requested disconnect on unload');
-        } else {
-          // Fallback for best effort disconnect if WebSocket is not open
-          // This might not be reliable as browser might kill process before sendBeacon completes
-          const disconnectUrl = `${window.location.protocol === 'https:' ? 'https:' : 'http:'}//${window.location.host}${apiUrl}/${sessionConfig.sessionId}/input`;
-          const disconnectData = JSON.stringify({
-            ...sessionConfig,
-            controlMessage: { type: 'stop' },
-          } satisfies z.infer<typeof RealtimeInputSchema>);
-          if (navigator.sendBeacon) {
-            navigator.sendBeacon(disconnectUrl, disconnectData);
-          }
+        // Send disconnect message via beacon API for reliability
+        const sseUrl = new URL(apiUrl, window.location.origin).toString();
+        const disconnectUrl = `${sseUrl}/${sessionConfig.sessionId}`;
+        const disconnectData = JSON.stringify({
+          ...sessionConfig,
+          controlMessage: { type: 'stop' },
+        } satisfies z.infer<typeof RealtimeInputSchema>);
+        
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(disconnectUrl, disconnectData);
+        }
+        
+        // Also close EventSource if it exists
+        if (wsRef.current && wsRef.current.close) {
+          wsRef.current.close();
         }
 
         // Show browser warning if interview is active

@@ -46,9 +46,26 @@ export class LiveAPISessionManager {
     }
 
     // Create new client with fetched API key
-    const apiKey = await getSecret('GOOGLE_AI_API_KEY');
+    let apiKey: string | null = null;
+    
+    // Try to get from environment first (for local dev)
+    if (process.env.GOOGLE_AI_API_KEY) {
+      apiKey = process.env.GOOGLE_AI_API_KEY;
+    } else {
+      // Try to get from Secret Manager (for production)
+      try {
+        apiKey = await getSecret('GOOGLE_AI_API_KEY');
+      } catch (error) {
+        console.error('Failed to fetch Google AI API key from Secret Manager:', error);
+      }
+    }
+    
+    if (!apiKey) {
+      throw new Error('Google AI API key not configured. Please set GOOGLE_AI_API_KEY environment variable.');
+    }
+    
     const client = new GoogleLiveAPIClient({
-      apiKey: apiKey || '', // Use the fetched API key
+      apiKey: apiKey,
       model: config.model || 'models/gemini-2.0-flash-exp',
       systemInstruction: config.systemInstruction,
       generationConfig: config.generationConfig,
