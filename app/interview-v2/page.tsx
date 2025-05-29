@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { Loader2 } from 'lucide-react';
@@ -111,6 +111,16 @@ export default function InterviewV2Page() {
     }
   );
 
+  // Create stable references to connect and disconnect functions
+  const connectRef = useRef(realtimeHook.connect);
+  const disconnectRef = useRef(realtimeHook.disconnect);
+
+  // Update refs when functions change
+  useEffect(() => {
+    connectRef.current = realtimeHook.connect;
+    disconnectRef.current = realtimeHook.disconnect;
+  }, [realtimeHook.connect, realtimeHook.disconnect]);
+
   // Check auth on mount
   useEffect(() => {
     if (!isLoaded) return;
@@ -122,15 +132,31 @@ export default function InterviewV2Page() {
 
   // Handle connection lifecycle based on view state and session config
   useEffect(() => {
-    if (viewState === 'interview' && sessionConfig && !realtimeHook.isConnected && !realtimeHook.isConnecting) {
+    // Skip if using dummy config
+    if (sessionConfig?.sessionId === 'dummy') return;
+
+    if (viewState === 'interview' && 
+        sessionConfig && 
+        !realtimeHook.isConnected && 
+        !realtimeHook.isConnecting &&
+        !realtimeHook.error) {
       console.log("Triggering connect from page.tsx useEffect with latest config:", sessionConfig);
-      realtimeHook.connect();
+      connectRef.current();
     } else if (viewState !== 'interview' && realtimeHook.isConnected) {
       // If we navigate away from 'interview' state, disconnect
       console.log("Disconnecting due to viewState change");
-      realtimeHook.disconnect();
+      disconnectRef.current();
     }
-  }, [viewState, sessionConfig, realtimeHook.isConnected, realtimeHook.isConnecting, realtimeHook.connect, realtimeHook.disconnect]);
+  }, [viewState, sessionConfig, realtimeHook.isConnected, realtimeHook.isConnecting, realtimeHook.error]);
+
+  // Cleanup effect to cancel pending connections
+  useEffect(() => {
+    return () => {
+      if (realtimeHook.isConnected || realtimeHook.isConnecting) {
+        disconnectRef.current();
+      }
+    };
+  }, []);
 
   // Handle session setup completion
   const handleSetupComplete = async (config: ComponentSessionConfig) => {

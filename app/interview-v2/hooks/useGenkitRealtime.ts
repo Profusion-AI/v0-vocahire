@@ -186,9 +186,14 @@ export function useGenkitRealtime(
     console.log(`[GenkitRealtime] Connect: Called. Status: ${status}, isConnected: ${isConnected}, isConnecting: ${isConnecting}`);
     console.log(`[GenkitRealtime] Connect: Session Config: ${JSON.stringify(sessionConfig)}`);
 
+    // Skip connection for dummy config
+    if (sessionConfig.sessionId === 'dummy' || sessionConfig.userId === 'dummy') {
+      console.warn('Skipping connection for dummy config');
+      return;
+    }
+    
     // Prevent connection with invalid config
-    if (!sessionConfig.sessionId || !sessionConfig.userId || 
-        sessionConfig.sessionId === 'dummy' || sessionConfig.userId === 'dummy') {
+    if (!sessionConfig.sessionId || !sessionConfig.userId) {
       console.warn('Cannot connect with invalid session config');
       return;
     }
