@@ -6,7 +6,7 @@ import { RealtimeInputSchema } from '@/src/genkit/schemas/types';
 // Handle sending audio/text from client to Google Live API
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const auth = getAuth(request);
   
@@ -21,8 +21,11 @@ export async function PUT(
     const body = await request.json();
     const input = RealtimeInputSchema.parse(body);
     
+    // Await the params
+    const { sessionId } = await params;
+    
     // Get the active session
-    const liveClient = liveAPISessionManager.getSession(params.sessionId);
+    const liveClient = liveAPISessionManager.getSession(sessionId);
     
     if (!liveClient) {
       return new Response(JSON.stringify({ error: 'Session not found' }), {
@@ -40,7 +43,7 @@ export async function PUT(
       liveClient.sendText(input.textInput, input.timestamp, input.sequenceNumber);
     } else if (input.controlMessage) {
       if (input.controlMessage.type === 'stop') {
-        await liveAPISessionManager.closeSession(params.sessionId);
+        await liveAPISessionManager.closeSession(sessionId);
       }
     }
 
