@@ -63,11 +63,11 @@ export function generateInterviewFeedback() {
       inputSchema: feedbackInputSchema,
       outputSchema: feedbackOutputSchema,
     },
-    async (input) => {
+    async (input: z.infer<typeof feedbackInputSchema>) => {
     const feedbackPrompt = `Analyze this ${input.difficulty} level ${input.jobRole} interview transcript and provide comprehensive feedback.
 
 Interview Transcript:
-${input.transcript.map(t => `${t.speaker.toUpperCase()}: ${t.text}`).join('\n')}
+${input.transcript.map((t: any) => `${t.speaker.toUpperCase()}: ${t.text}`).join('\n')}
 
 Audio Metrics:
 - Speaking Pace: ${input.audioMetrics?.speakingPace || 'N/A'} words per minute
@@ -104,20 +104,26 @@ Be constructive, specific, and encouraging in your feedback.`;
       return output;
     }
   );
-})();
-
-export const generateEnhancedFeedback = (() => {
-  const ai = getGenkit();
-  if (!ai) {
-    // Return a dummy flow that throws an error if called
-    return {
-      run: async () => {
-        throw new Error('Genkit not initialized - GOOGLE_AI_API_KEY missing');
-      }
-    };
   }
-  
-  return ai.defineFlow(
+  return generateInterviewFeedbackInstance;
+}
+
+// Lazy flow definition for enhanced feedback
+let generateEnhancedFeedbackInstance: any = null;
+
+export function generateEnhancedFeedback() {
+  if (!generateEnhancedFeedbackInstance) {
+    const ai = getGenkit();
+    if (!ai) {
+      // Return a dummy flow that throws an error if called
+      return {
+        run: async () => {
+          throw new Error('Genkit not initialized - GOOGLE_AI_API_KEY missing');
+        }
+      };
+    }
+    
+    generateEnhancedFeedbackInstance = ai.defineFlow(
     {
       name: 'generateEnhancedFeedback',
     inputSchema: z.object({
@@ -149,7 +155,7 @@ export const generateEnhancedFeedback = (() => {
       motivationalMessage: z.string(),
     }),
   },
-  async (input) => {
+  async (input: any) => {
     const enhancementPrompt = `Based on the interview feedback and user context, provide enhanced, personalized insights.
 
 Basic Feedback Summary:
@@ -160,7 +166,7 @@ Basic Feedback Summary:
 User Goals: ${input.userGoals || 'Not specified'}
 
 Previous Interview History:
-${input.previousInterviews?.map(i => `- ${i.date}: ${i.jobRole} (Score: ${i.score})`).join('\n') || 'No previous interviews'}
+${input.previousInterviews?.map((i: any) => `- ${i.date}: ${i.jobRole} (Score: ${i.score})`).join('\n') || 'No previous interviews'}
 
 Generate:
 1. Personalized insights based on their specific situation

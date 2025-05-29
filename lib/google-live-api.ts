@@ -9,14 +9,10 @@ import type {
 import { arrayBufferToBase64, base64ToArrayBuffer } from './google-ai-utils';
 
 // Import WebSocket for Node.js environment
-let WebSocket: any;
-if (typeof window === 'undefined') {
-  // We're in Node.js
-  WebSocket = require('ws');
-} else {
-  // We're in the browser
-  WebSocket = global.WebSocket;
-}
+import ws from 'ws';
+
+// Use a type-safe approach for WebSocket
+const WebSocketImpl: any = typeof window === 'undefined' ? ws : global.WebSocket;
 
 // Re-export types and enums for backward compatibility
 export { SchemaType };
@@ -45,7 +41,7 @@ export interface LiveAPIMessage {
 }
 
 export class GoogleLiveAPIClient extends EventEmitter {
-  private ws: WebSocket | null = null;
+  private ws: any = null;
   private config: LiveAPIConfig;
   private audioBuffer: ArrayBuffer[] = [];
   private isConnected = false;
@@ -64,10 +60,10 @@ export class GoogleLiveAPIClient extends EventEmitter {
     return new Promise((resolve, reject) => {
       try {
         const wsUrl = this.buildWebSocketUrl();
-        this.ws = new WebSocket(wsUrl);
-        this.ws.binaryType = 'arraybuffer';
+        this.ws = new WebSocketImpl(wsUrl);
+        this.ws!.binaryType = 'arraybuffer';
 
-        this.ws.onopen = () => {
+        this.ws!.onopen = () => {
           console.log('Live API WebSocket connected');
           this.isConnected = true;
           this.reconnectAttempts = 0;
@@ -75,11 +71,11 @@ export class GoogleLiveAPIClient extends EventEmitter {
           resolve();
         };
 
-        this.ws.onmessage = (event) => {
+        this.ws!.onmessage = (event: any) => {
           this.handleMessage(event);
         };
 
-        this.ws.onerror = (error) => {
+        this.ws!.onerror = (error: any) => {
           console.error('Live API WebSocket error:', error);
           
           // Try fallback model if native audio model fails and we haven't tried already
@@ -99,7 +95,7 @@ export class GoogleLiveAPIClient extends EventEmitter {
           this.emit('error', error);
         };
 
-        this.ws.onclose = () => {
+        this.ws!.onclose = () => {
           console.log('Live API WebSocket disconnected');
           this.isConnected = false;
           this.emit('disconnected');
@@ -119,7 +115,7 @@ export class GoogleLiveAPIClient extends EventEmitter {
   }
 
   private sendInitialSetup(): void {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (!this.ws || this.ws.readyState !== 1) return; // 1 = OPEN
 
     const setupMessage: any = {
       setup: {
@@ -153,7 +149,7 @@ export class GoogleLiveAPIClient extends EventEmitter {
     this.send(setupMessage);
   }
 
-  private handleMessage(event: MessageEvent): void {
+  private handleMessage(event: any): void {
     try {
       if (typeof event.data === 'string') {
         const message = JSON.parse(event.data);
@@ -252,7 +248,7 @@ export class GoogleLiveAPIClient extends EventEmitter {
   }
 
   send(message: any): void {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+    if (this.ws && this.ws.readyState === 1) { // 1 = OPEN
       this.ws.send(JSON.stringify(message));
     }
   }
@@ -289,8 +285,8 @@ export class GoogleLiveAPIClient extends EventEmitter {
 
   getConnectionState(): 'connecting' | 'connected' | 'disconnected' {
     if (!this.ws) return 'disconnected';
-    if (this.ws.readyState === WebSocket.CONNECTING) return 'connecting';
-    if (this.ws.readyState === WebSocket.OPEN) return 'connected';
+    if (this.ws.readyState === 0) return 'connecting'; // 0 = CONNECTING
+    if (this.ws.readyState === 1) return 'connected'; // 1 = OPEN
     return 'disconnected';
   }
 }

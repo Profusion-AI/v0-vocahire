@@ -42,7 +42,7 @@ export function generateInterviewQuestions() {
       inputSchema: interviewSessionSchema,
       outputSchema: sessionResponseSchema,
     },
-    async (input) => {
+    async (input: z.infer<typeof interviewSessionSchema>) => {
     const systemPromptRequest = await ai.generate({
       model: gemini15Flash,
       prompt: `Create a system prompt for an AI interviewer conducting a ${input.difficulty} level interview for a ${input.jobRole} position.
