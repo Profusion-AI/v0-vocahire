@@ -263,6 +263,90 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case "checkout.session.expired": {
+        // Handle expired checkout sessions
+        const session = event.data.object as Stripe.Checkout.Session;
+        console.log(
+          `[Stripe] Checkout session expired for client_reference_id: ${session.client_reference_id}`
+        );
+        // Could notify user or clean up any pending state
+        break;
+      }
+
+      case "customer.subscription.created": {
+        // Handle new subscription creation
+        const subscription = event.data.object as Stripe.Subscription;
+        console.log(
+          `[Stripe] New subscription created: ${subscription.id} for customer: ${subscription.customer}`
+        );
+        // Initial setup is handled by checkout.session.completed
+        // This is for logging/monitoring
+        break;
+      }
+
+      case "customer.subscription.updated": {
+        // Handle subscription updates (plan changes, quantity changes, etc.)
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = subscription.customer as string;
+        
+        // Find user by customer ID
+        const user = await (await getPrismaClient()).user.findFirst({
+          where: { stripeCustomerId: customerId },
+        });
+
+        if (!user) {
+          console.error("User not found for customer ID:", customerId);
+          break;
+        }
+
+        // Update subscription details
+        let premiumExpiresAt: Date | null = null;
+        if (subscription.current_period_end) {
+          premiumExpiresAt = new Date(subscription.current_period_end * 1000);
+        }
+
+        // Check if subscription is still active
+        const isActive = ['active', 'trialing'].includes(subscription.status);
+
+        await (await getPrismaClient()).user.update({
+          where: { id: user.id },
+          data: {
+            isPremium: isActive,
+            premiumSubscriptionId: isActive ? subscription.id : null,
+            premiumExpiresAt: isActive ? premiumExpiresAt : null,
+          },
+        });
+
+        console.log(
+          `[Stripe] Subscription updated for user ${user.id}: ${subscription.id}, status: ${subscription.status}`
+        );
+        break;
+      }
+
+      case "customer.subscription.trial_will_end": {
+        // Handle trial ending notification (3 days before trial ends)
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = subscription.customer as string;
+        
+        // Find user by customer ID
+        const user = await (await getPrismaClient()).user.findFirst({
+          where: { stripeCustomerId: customerId },
+        });
+
+        if (!user) {
+          console.error("User not found for customer ID:", customerId);
+          break;
+        }
+
+        console.log(
+          `[Stripe] Trial ending soon for user ${user.id}, subscription: ${subscription.id}`
+        );
+        
+        // TODO: Send email notification to user about trial ending
+        // You could trigger an email service here
+        break;
+      }
+
       default: {
         // Optionally log unhandled events
         console.log(`[Stripe] Unhandled event type: ${event.type}`);
