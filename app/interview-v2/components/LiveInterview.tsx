@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle, WifiOff, RefreshCw } from 'lucide-react';
+import { AlertTriangle, WifiOff, RefreshCw, Loader2 } from 'lucide-react';
 import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useAudioStream, MicrophonePermissionError, MicrophoneNotFoundError } from '../hooks/useAudioStream';
@@ -27,9 +27,10 @@ interface LiveInterviewProps {
   realtimeHook: UseGenkitRealtimeReturn;
   onEnd: () => void;
   reconnectAttempt?: { current: number; max: number } | null;
+  isConnectionPending?: boolean;
 }
 
-export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAttempt }: LiveInterviewProps) {
+export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAttempt, isConnectionPending }: LiveInterviewProps) {
   // const router = useRouter(); // Removed unused variable
   const {
     status,
@@ -195,7 +196,7 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
         audioContextRef.current.close();
       }
     };
-  }, [audioStream]);
+  }, [audioStream.stopStream]);
 
   // Add router navigation guard
   // useEffect(() => { // Removed commented-out useEffect
@@ -237,6 +238,18 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
 
       {/* Session Status */}
       <SessionStatus status={status} error={error} />
+      
+      {/* Connection Pending */}
+      {isConnectionPending && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center gap-2 text-blue-700">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Establishing connection...</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       
       {/* Reconnection Progress */}
       {reconnectAttempt && (

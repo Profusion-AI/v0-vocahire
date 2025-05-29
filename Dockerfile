@@ -42,6 +42,9 @@ RUN chmod +x ./scripts/*.sh
 # Generate Prisma Client for the target platform
 RUN pnpm prisma generate
 
+# Fix Prisma generated types (workaround for enum generation bug)
+RUN node ./scripts/fix-prisma-types.js
+
 # Build the application
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production

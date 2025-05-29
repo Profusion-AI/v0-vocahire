@@ -254,6 +254,7 @@ export default function InterviewV2Page() {
           realtimeHook={realtimeHook}
           onEnd={handleInterviewEnd}
           reconnectAttempt={reconnectAttempt}
+          isConnectionPending={isConnectionPending}
         />
       )}
       

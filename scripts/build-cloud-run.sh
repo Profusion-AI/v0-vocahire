@@ -11,9 +11,8 @@ if [ -f ".env" ]; then
   set +a
 fi
 
-# Generate Prisma client
-echo "📦 Generating Prisma client..."
-npx prisma generate
+# Prisma client generation is handled in Dockerfile
+# Skip generation here to avoid duplicates
 
 # Run migrations if DATABASE_URL or MIGRATE_DATABASE_URL is set
 if [ -n "$MIGRATE_DATABASE_URL" ] || [ -n "$DATABASE_URL" ]; then
