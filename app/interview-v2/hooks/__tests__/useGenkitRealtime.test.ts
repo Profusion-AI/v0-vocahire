@@ -24,10 +24,10 @@ class MockWebSocket implements WebSocket {
   send: ReturnType<typeof vi.fn>;
   close: ReturnType<typeof vi.fn>;
 
-  readonly CONNECTING: 0 = 0;
-  readonly OPEN: 1 = 1;
-  readonly CLOSING: 2 = 2;
-  readonly CLOSED: 3 = 3;
+  readonly CONNECTING = 0 as const;
+  readonly OPEN = 1 as const;
+  readonly CLOSING = 2 as const;
+  readonly CLOSED = 3 as const;
 
   constructor(public url: string) {
     this.readyState = this.CONNECTING;

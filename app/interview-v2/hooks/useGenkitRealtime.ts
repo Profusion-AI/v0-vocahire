@@ -358,7 +358,7 @@ export function useGenkitRealtime(
         }
       };
     });
-  }, [apiUrl, sessionConfig, handleWebSocketMessage, maxReconnectAttempts, reconnectDelay, onError, onReconnected]);
+  }, [apiUrl, sessionConfig, handleWebSocketMessage, maxReconnectAttempts, reconnectDelay, onError]);
 
 
   const disconnect = useCallback(() => {

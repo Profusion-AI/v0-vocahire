@@ -70,7 +70,7 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
 
     // Initialize microphone when component mounts (user started interview)
     initializeMicrophone();
-  }, [audioStream.hasPermission, audioStream.isCheckingPermission, audioStream.isActive, audioStream.requestPermission, audioStream.startStream, audioStream.error]);
+  }, [audioStream.hasPermission, audioStream.isCheckingPermission, audioStream.isActive, audioStream.requestPermission, audioStream.startStream, audioStream.error, audioStream]);
 
   // Audio playback
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -113,7 +113,7 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
     }, 100); // Send every 100ms
 
     return () => clearInterval(interval);
-  }, [status, audioStream.isActive, audioStream.getAudioBuffer, sendData, sessionConfig, isConnected]); // Removed redundant audioStream object
+  }, [status, audioStream.isActive, audioStream.getAudioBuffer, sendData, sessionConfig, isConnected, audioStream]);
 
   // Play AI audio responses
   const playNextChunk = useCallback(async () => {
