@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { Loader2 } from 'lucide-react';
@@ -53,49 +53,61 @@ export default function InterviewV2Page() {
     agreeToTerms,
   } = useTermsAgreement(user?.id);
   
+  // Create stable dummy config to prevent re-renders
+  const dummyConfig = useMemo(() => ({
+    sessionId: 'dummy', // Dummy values to satisfy type requirements
+    userId: 'dummy',
+    jobRole: 'dummy',
+    interviewType: 'General' as const,
+    difficulty: 'mid' as const,
+    systemInstruction: 'dummy',
+    jobPosition: 'dummy',
+    jobDescription: 'dummy',
+    userEmail: 'dummy@example.com',
+    userName: 'dummy'
+  }), []);
+
+  // Stable callbacks for the realtime hook
+  const onMessage = useCallback((data: any) => {
+    // Only process messages if we have a real session config
+    if (!sessionConfig) return;
+    
+    // Handle feedback completion when session ends
+    if (data.type === 'session_status' && data.sessionStatus?.status === 'completed' && data.sessionStatus?.feedback) {
+      setFeedback(data.sessionStatus.feedback as Feedback);
+      setViewState('feedback');
+    }
+  }, [sessionConfig]);
+
+  const onError = useCallback((error: any) => {
+    // Only log errors if we have a real session config
+    if (sessionConfig) {
+      console.error('Connection error:', error);
+    }
+  }, [sessionConfig]);
+
+  const onReconnecting = useCallback((attempt: number, maxAttempts: number) => {
+    if (sessionConfig) {
+      setReconnectAttempt({ current: attempt, max: maxAttempts });
+    }
+  }, [sessionConfig]);
+
+  const onReconnected = useCallback(() => {
+    if (sessionConfig) {
+      setReconnectAttempt(null);
+    }
+  }, [sessionConfig]);
+
   // Initialize realtime hook only when we have a valid session config
   // This prevents connection attempts before the user starts the interview
   const realtimeHook = useGenkitRealtime(
     '/api/interview-v2/session',
-    sessionConfig || {
-      sessionId: 'dummy', // Dummy values to satisfy type requirements
-      userId: 'dummy',
-      jobRole: 'dummy',
-      interviewType: 'General',
-      difficulty: 'mid',
-      systemInstruction: 'dummy',
-      jobPosition: 'dummy',
-      jobDescription: 'dummy',
-      userEmail: 'dummy@example.com',
-      userName: 'dummy'
-    },
+    sessionConfig || dummyConfig,
     {
-      onMessage: (data) => {
-        // Only process messages if we have a real session config
-        if (!sessionConfig) return;
-        
-        // Handle feedback completion when session ends
-        if (data.type === 'session_status' && data.sessionStatus?.status === 'completed' && data.sessionStatus?.feedback) {
-          setFeedback(data.sessionStatus.feedback as Feedback);
-          setViewState('feedback');
-        }
-      },
-      onError: (error) => {
-        // Only log errors if we have a real session config
-        if (sessionConfig) {
-          console.error('Connection error:', error);
-        }
-      },
-      onReconnecting: (attempt, maxAttempts) => {
-        if (sessionConfig) {
-          setReconnectAttempt({ current: attempt, max: maxAttempts });
-        }
-      },
-      onReconnected: () => {
-        if (sessionConfig) {
-          setReconnectAttempt(null);
-        }
-      },
+      onMessage,
+      onError,
+      onReconnecting,
+      onReconnected,
     }
   );
 
