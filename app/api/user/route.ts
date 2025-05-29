@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
 import { NextRequest } from "next/server"
-import { withDatabaseFallback, isUsingFallbackDb } from "@/lib/prisma"
-import { Prisma, UserRole } from "../../../prisma/generated/client"
 import { z } from "zod"
-import { getConsistentCreditValue, createPrismaDecimal } from "@/lib/prisma-types"
-import { invalidateUserCache, prefetchUserCredentials } from "@/lib/user-cache"
 
 export const dynamic = 'force-dynamic';
+
+// Import types separately - these are type-only imports that won't execute code
+import type { Prisma, UserRole } from "../../../prisma/generated/client"
 
 // Helper function to create consistent fallback user objects
 interface ClerkUser {
@@ -92,6 +91,17 @@ export async function GET(request: NextRequest) {
     perfLog("CLERK_USER_FETCH_ERROR", { error: error instanceof Error ? error.message : String(error) });
     console.error("Error fetching Clerk user data:", error);
   }
+
+  // Dynamically import database-related modules
+  const [
+    { withDatabaseFallback, isUsingFallbackDb },
+    { getConsistentCreditValue, createPrismaDecimal },
+    { invalidateUserCache, prefetchUserCredentials }
+  ] = await Promise.all([
+    import("@/lib/prisma"),
+    import("@/lib/prisma-types"),
+    import("@/lib/user-cache")
+  ]);
 
   // Fetch user profile from DB with timeout to prevent 504 errors
   perfLog("DATABASE_QUERY_START");
@@ -296,6 +306,17 @@ export async function PATCH(request: NextRequest) {
   const validatedData = result.data;
 
   try {
+    // Dynamically import database-related modules
+    const [
+      { withDatabaseFallback, isUsingFallbackDb },
+      { getConsistentCreditValue, createPrismaDecimal },
+      { invalidateUserCache }
+    ] = await Promise.all([
+      import("@/lib/prisma"),
+      import("@/lib/prisma-types"),
+      import("@/lib/user-cache")
+    ]);
+
     // Get Clerk user data as fallback
     let clerkUser: ClerkUser | null = null;
     try {

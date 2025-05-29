@@ -259,14 +259,15 @@ export async function warmDatabaseConnection(): Promise<boolean> {
 }
 
 // Auto-warm on module load for critical routes
-if (typeof window === 'undefined' && process.env.NODE_ENV === 'production') {
-  // Fire and forget - don't block module loading
-  setImmediate(() => {
-    warmDatabaseConnection().catch(err =>
-      console.error('[Prisma] Background connection warming failed:', err)
-    );
-  });
-}
+// DISABLED: This causes build failures as it attempts DB connection during Next.js build
+// if (typeof window === 'undefined' && process.env.NODE_ENV === 'production') {
+//   // Fire and forget - don't block module loading
+//   setImmediate(() => {
+//     warmDatabaseConnection().catch(err =>
+//       console.error('[Prisma] Background connection warming failed:', err)
+//     );
+//   });
+// }
 
 /**
  * Check if the database is available for connections
