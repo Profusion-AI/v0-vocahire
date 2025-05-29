@@ -1,8 +1,5 @@
 import { NextResponse, NextRequest } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
-import { prefetchUserCredentials } from "@/lib/user-cache"
-import { warmDatabaseConnection } from "@/lib/prisma"
-import { connectionPoolMonitor } from "@/lib/db-connection-monitor"
 
 // Force dynamic rendering to prevent database connection during build
 export const dynamic = 'force-dynamic';
@@ -20,6 +17,17 @@ export async function GET(request: NextRequest) {
     if (!auth.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    
+    // Dynamically import modules that use prisma
+    const [
+      { connectionPoolMonitor },
+      { warmDatabaseConnection },
+      { prefetchUserCredentials }
+    ] = await Promise.all([
+      import("@/lib/db-connection-monitor"),
+      import("@/lib/prisma"),
+      import("@/lib/user-cache")
+    ]);
     
     // Monitor pool health before operations
     await connectionPoolMonitor.updateMetrics();
