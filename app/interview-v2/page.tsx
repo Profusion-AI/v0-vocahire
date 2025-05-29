@@ -66,7 +66,7 @@ export default function InterviewV2Page() {
     systemInstruction: 'dummy',
     jobPosition: 'dummy',
     jobDescription: 'dummy',
-    userEmail: 'dummy@example.com',
+    userEmail: 'noreply@localhost',
     userName: 'dummy'
   }), []);
 

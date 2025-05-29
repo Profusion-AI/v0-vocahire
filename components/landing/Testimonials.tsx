@@ -4,20 +4,20 @@ import { Star, StarHalf } from 'lucide-react'
 const testimonialsData = [
   {
     stars: 5,
-    quote: "I used VocaHire Coach to prepare for my Google interview, and one of the practice questions came up in the real interview! I felt so confident answering it.",
-    author: 'Sarah L.',
-    role: 'Software Engineer at Google',
+    quote: "VocaHire Coach helped me prepare for my tech interview, and one of the practice questions came up in the real interview! I felt so confident answering it.",
+    author: 'S. Lee',
+    role: 'Software Engineer',
   },
   {
     stars: 5,
     quote: "The feedback on my filler words and speaking pace was eye-opening. After just a week of practice, I eliminated my 'ums' and 'likes' completely.",
-    author: 'Mark T.',
+    author: 'M. Thompson',
     role: 'Marketing Manager',
   },
   {
     stars: 4.5,
     quote: "As someone with interview anxiety, practicing with an AI removed the pressure. By my real interview, I felt prepared and ended up getting the job!",
-    author: 'Jamie K.',
+    author: 'J. Kim',
     role: 'Project Manager',
   },
 ]
@@ -50,6 +50,9 @@ const Testimonials = () => {
           </h2>
           <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
             Success stories from our users
+          </p>
+          <p className="mt-2 text-xs text-gray-500">
+            * Names abbreviated for privacy
           </p>
         </div>
         <div className="mt-10 space-y-8 sm:space-y-0 sm:grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 sm:gap-8">

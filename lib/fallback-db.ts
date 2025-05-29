@@ -4,6 +4,12 @@
  * with limited capabilities when the database is unavailable.
  */
 
+// CRITICAL: Prevent fallback database from running in production
+if (process.env.NODE_ENV === 'production') {
+  console.error('FATAL: Fallback database cannot be used in production');
+  throw new Error('Database connection required in production');
+}
+
 import { Prisma } from '../prisma/generated/client';
 import type { User, UserRole } from '../prisma/generated/client';
 

@@ -52,29 +52,20 @@ export async function GET(request: NextRequest) {
           controller.enqueue(encoder.encode(message));
         };
 
-        // In development without API key, send mock responses
-        if (process.env.NODE_ENV === 'development' && !process.env.GOOGLE_AI_API_KEY) {
-          console.log('[Session API] Running in mock mode - no Google AI API key configured');
+        // Critical: Fail fast if API key is missing
+        if (!process.env.GOOGLE_AI_API_KEY) {
+          const errorMsg = process.env.NODE_ENV === 'production' 
+            ? 'Service temporarily unavailable. Please try again later.'
+            : '[DEV] Google AI API key not configured';
           
-          // Send ready message
           sendMessage({
-            type: 'control',
-            control: { type: 'ready' }
+            type: 'error',
+            error: {
+              code: 'CONFIG_ERROR',
+              message: errorMsg
+            }
           });
-          
-          // Send mock greeting after a delay
-          setTimeout(() => {
-            sendMessage({
-              type: 'transcript',
-              transcript: {
-                id: `mock-${Date.now()}`,
-                role: 'assistant',
-                text: `[MOCK MODE] Hello! I'm ready to conduct your ${interviewType} interview for the ${jobRole} position. Please note: This is a mock interview session for development. To use the real AI, please configure your Google AI API key.`,
-                timestamp: new Date().toISOString()
-              }
-            });
-          }, 1000);
-          
+          controller.close();
           return;
         }
 
