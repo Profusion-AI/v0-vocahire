@@ -39,8 +39,8 @@ export async function PUT(
       // Convert base64 to ArrayBuffer
       const audioBuffer = Buffer.from(input.audioChunk, 'base64').buffer;
       liveClient.sendAudio(audioBuffer as ArrayBuffer, input.timestamp, input.sequenceNumber);
-    } else if (input.textInput) {
-      liveClient.sendText(input.textInput, input.timestamp, input.sequenceNumber);
+    } else if (input.text) {
+      liveClient.sendText(input.text, input.timestamp, input.sequenceNumber);
     } else if (input.controlMessage) {
       if (input.controlMessage.type === 'stop') {
         await liveAPISessionManager.closeSession(sessionId);
