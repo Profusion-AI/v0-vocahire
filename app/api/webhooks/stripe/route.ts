@@ -116,8 +116,8 @@ export async function POST(req: NextRequest) {
           let premiumExpiresAt: Date | null = null;
           try {
             const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any;
-            if (subscription.current_period_end) {
-              premiumExpiresAt = new Date(subscription.current_period_end * 1000);
+            if ((subscription as any).current_period_end) {
+              premiumExpiresAt = new Date((subscription as any).current_period_end * 1000);
             }
           } catch (err) {
             console.error("Failed to fetch Stripe subscription:", err);
@@ -178,8 +178,8 @@ export async function POST(req: NextRequest) {
         let premiumExpiresAt: Date | null = null;
         try {
           const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any;
-          if (subscription.current_period_end) {
-            premiumExpiresAt = new Date(subscription.current_period_end * 1000);
+          if ((subscription as any).current_period_end) {
+            premiumExpiresAt = new Date((subscription as any).current_period_end * 1000);
           }
         } catch (err) {
           console.error("Failed to fetch Stripe subscription:", err);
@@ -301,8 +301,8 @@ export async function POST(req: NextRequest) {
 
         // Update subscription details
         let premiumExpiresAt: Date | null = null;
-        if (subscription.current_period_end) {
-          premiumExpiresAt = new Date(subscription.current_period_end * 1000);
+        if ((subscription as any).current_period_end) {
+          premiumExpiresAt = new Date((subscription as any).current_period_end * 1000);
         }
 
         // Check if subscription is still active
