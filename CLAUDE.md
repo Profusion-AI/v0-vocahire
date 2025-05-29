@@ -1,6 +1,6 @@
 # CLAUDE.md - VocaHire Development Guide
 
-**Last Updated**: May 28, 2025 1:30 PM CST  
+**Last Updated**: May 28, 2025 8:30 PM CST  
 **Target Launch**: June 1, 2025 (Public Beta) 🎯
 
 ## 🎯 MVP Focus: Real-Time AI Conversations
@@ -91,18 +91,33 @@ Browser → HTTP/SSE → Next.js API → Google AI Live API
    - No clear UX benefit for MVP
 4. **Future**: Created POST_MVP_VERTEX_AI_MIGRATION_BLUEPRINT.md
 
-### May 28, 2025 - Morning Deployment Success (8:00 AM CST)
+### May 28, 2025 - Evening Build Fix Success (8:30 PM CST)
 
-#### Key Decisions Made
-1. **Removed Google Cloud Storage** - Not needed for MVP
-2. **Removed WebRTC Components** - Using SSE instead
-3. **Simplified Architecture** - Focus on what matters
-4. **Fixed ESLint Issues** - Pragmatic approach to warnings
+#### 🔧 Prisma Enum Generation Bug Resolution
+- **Build ID**: 1e9c0af (Successfully pushed to trigger Cloud Build)
+- **Issue**: Prisma 6.8.2 generating malformed TypeScript enum syntax
+- **Root Cause**: Double Prisma generation (Dockerfile + build script)
 
-#### What We Learned
-- ESLint strict mode was blocking builds unnecessarily
-- File storage adds complexity without MVP value
-- The magic is in the conversation, not the infrastructure
+#### Key Fixes Implemented
+1. **React Hooks Compliance**
+   - Fixed `isConnectionPending` ESLint error by using state in UI
+   - Added connection pending indicator with loading spinner
+   - Resolved hook dependency warnings
+
+2. **Prisma Generation Deduplication**
+   - Removed duplicate `prisma generate` from build script
+   - Kept single generation in Dockerfile
+   - Created `fix-prisma-types.js` script to correct enum syntax
+
+3. **Build Pipeline Enhancement**
+   - Added glob dependency for file cleanup
+   - Integrated fix script into Dockerfile after Prisma generation
+   - Cleaned up duplicate generated files (index.d 2.ts, etc.)
+
+#### Technical Details
+- **Problem**: `export const UserRole: {` instead of `export const UserRole = {`
+- **Solution**: Post-processing script targets only enum declarations
+- **Result**: Clean, single Prisma generation with corrected TypeScript
 
 ### May 28, 2025 - Morning Deployment Success (8:00 AM CST)
 
@@ -111,6 +126,11 @@ Browser → HTTP/SSE → Next.js API → Google AI Live API
 2. **Build Configuration** - Proper environment variable handling
 3. **Authentication** - Fixed redirect URLs for Cloud Run
 4. **Dependencies** - Removed Vercel-specific code
+
+#### What We Learned
+- ESLint strict mode was blocking builds unnecessarily
+- File storage adds complexity without MVP value
+- The magic is in the conversation, not the infrastructure
 
 ## 💻 Development Commands
 
