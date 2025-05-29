@@ -136,7 +136,8 @@ export async function GET(request: NextRequest) {
             type: 'audio',
             audio: {
               data: base64Audio,
-              mimeType: 'audio/pcm;rate=24000'
+              format: 'audio/pcm',
+              sampleRate: 24000
             },
             echoedTimestamp: timestamp,
             echoedSequenceNumber: sequenceNumber
