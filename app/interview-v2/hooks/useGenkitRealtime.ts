@@ -234,6 +234,24 @@ export function useGenkitRealtime(
 
       console.log(`[GenkitRealtime] Connect: Safeguards passed, initiating fetch to ${apiUrl}.`);
       
+      // Create connection timeout
+      const connectionTimeout = setTimeout(() => {
+        currentAbortController.abort();
+        const timeoutError: z.infer<typeof ErrorSchema> = {
+          code: 'CONNECTION_TIMEOUT',
+          message: 'Connection timed out. Please check your internet connection and try again.',
+          retryable: true,
+          timestamp: new Date().toISOString(),
+        };
+        setError(timeoutError);
+        if (onError) {
+          onError(timeoutError);
+        }
+        setStatus('error');
+        setIsConnecting(false);
+        reject(timeoutError);
+      }, 30000); // 30 second timeout
+      
       // Send initial connection request
       fetch(apiUrl, {
         method: 'POST',
@@ -247,6 +265,8 @@ export function useGenkitRealtime(
         signal: currentAbortController.signal,
       })
       .then(async response => {
+        clearTimeout(connectionTimeout); // Clear timeout on response
+        
         if (!response.ok) {
           console.error(`[GenkitRealtime] Connect: Initial fetch FAILED. Status: ${response.status}, Text: ${response.statusText}`);
           throw new Error(`Connection failed: ${response.status} ${response.statusText}`);
@@ -282,6 +302,8 @@ export function useGenkitRealtime(
         resolve();
       })
       .catch(err => {
+        clearTimeout(connectionTimeout); // Clear timeout on error
+        
         // Handle errors
         if (err instanceof Error && err.name === 'AbortError') {
           console.log('Connection attempt aborted');

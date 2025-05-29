@@ -221,8 +221,30 @@ Start by introducing yourself and asking the candidate to tell you about themsel
             )
           );
 
+          // Set up heartbeat to keep connection alive
+          const heartbeatInterval = setInterval(() => {
+            try {
+              controller.enqueue(
+                encoder.encode(
+                  createSSEMessage({
+                    type: 'control',
+                    control: {
+                      type: 'heartbeat',
+                      timestamp: new Date().toISOString()
+                    }
+                  })
+                )
+              );
+            } catch (err) {
+              // Connection closed, clean up
+              clearInterval(heartbeatInterval);
+              sessionManager.closeSession(sessionId);
+            }
+          }, 20000); // Send heartbeat every 20 seconds
+
           // Listen for client disconnection
           request.signal.addEventListener('abort', async () => {
+            clearInterval(heartbeatInterval);
             await sessionManager.closeSession(sessionId);
             controller.close();
           });

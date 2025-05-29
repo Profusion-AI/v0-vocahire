@@ -239,6 +239,49 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
       {/* Session Status */}
       <SessionStatus status={status} error={error} />
       
+      {/* Error Display */}
+      {error && status === 'error' && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>
+            {error.code === 'API_KEY_ERROR' ? 'Configuration Error' :
+             error.code === 'CONNECTION_TIMEOUT' ? 'Connection Timeout' :
+             error.code === 'CONNECTION_ERROR' ? 'Connection Failed' :
+             error.code === 'STREAM_ERROR' ? 'Stream Interrupted' :
+             'Connection Error'}
+          </AlertTitle>
+          <AlertDescription className="space-y-2">
+            <p>{error.message}</p>
+            {error.code === 'API_KEY_ERROR' && (
+              <p className="text-sm font-medium mt-2">
+                Please contact support if this persists.
+              </p>
+            )}
+            {error.code === 'CONNECTION_TIMEOUT' && (
+              <p className="text-sm font-medium mt-2">
+                Check your internet connection and try again.
+              </p>
+            )}
+            {(error.code === 'CONNECTION_ERROR' || error.code === 'STREAM_ERROR') && (
+              <p className="text-sm font-medium mt-2">
+                Please check your internet connection.
+              </p>
+            )}
+            <div className="flex gap-2 mt-3">
+              {error.retryable !== false && (
+                <Button size="sm" variant="outline" onClick={onEnd}>
+                  Try Different Settings
+                </Button>
+              )}
+              <Button size="sm" onClick={() => window.location.reload()}>
+                <RefreshCw className="h-3 w-3 mr-2" />
+                Refresh Page
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+      
       {/* Connection Pending */}
       {isConnectionPending && (
         <Card className="border-blue-200 bg-blue-50">
