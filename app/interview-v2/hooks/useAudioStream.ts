@@ -117,8 +117,21 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
       setIsCheckingPermission(true);
       setError(null);
       
-      // Try to get a temporary stream just to trigger permission
-      const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Request getUserMedia with a more complete configuration
+      // This ensures the browser shows the permission dialog
+      const tempStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      
+      // Keep the stream alive for a moment to ensure permission dialog appears
+      // Some browsers need this delay
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Now stop the tracks
       tempStream.getTracks().forEach(track => track.stop());
       
       setHasPermission(true);

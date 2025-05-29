@@ -149,6 +149,18 @@ export function MicCheckModal({ open, onComplete, onCancel }: MicCheckModalProps
                   <p className="text-sm text-muted-foreground">
                     Click your browser's permission dialog to allow microphone access.
                   </p>
+                  {/* Fallback button if permission dialog doesn't appear automatically */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => audioStream.requestPermission()}
+                    className="mt-2"
+                  >
+                    Request Microphone Access
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    If you don't see a permission dialog, click the button above or check your browser's address bar for a blocked permission icon.
+                  </p>
                 </div>
               )}
             </>
