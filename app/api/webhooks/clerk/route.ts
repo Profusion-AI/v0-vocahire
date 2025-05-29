@@ -83,9 +83,11 @@ export async function POST(req: NextRequest) {
       }
       const image = user.image_url || null;
 
+      // Import getPrismaClient at case level to make it available in all blocks
+      const { getPrismaClient } = await import("@/lib/prisma");
+
       try {
         // Create user in DB first
-        const { getPrismaClient } = await import("@/lib/prisma");
         const _dbUser = await (await getPrismaClient()).user.create({
           data: {
             id: clerkId,
@@ -179,6 +181,9 @@ export async function POST(req: NextRequest) {
       }
       const updatedImage = updatedUser.image_url || null;
 
+      // Import getPrismaClient for this case
+      const { getPrismaClient } = await import("@/lib/prisma");
+
       try {
         await (await getPrismaClient()).user.update({
           where: { id: updatedClerkId },
@@ -203,6 +208,9 @@ export async function POST(req: NextRequest) {
       }
 
       const deletedClerkId = deletedUser.id;
+
+      // Import getPrismaClient for this case
+      const { getPrismaClient } = await import("@/lib/prisma");
 
       try {
         // Find the user in your DB to get their Stripe Subscription ID

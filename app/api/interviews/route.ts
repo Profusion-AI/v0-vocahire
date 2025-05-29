@@ -164,9 +164,11 @@ export async function POST(request: NextRequest) {
 
 // Async feedback generation function
 async function triggerFeedbackGeneration(sessionId: string, messages: any[]) {
+  // Import prisma at function level to make it available in all blocks
+  const { prisma } = await import("@/lib/prisma");
+  
   try {
     // Update status to generating
-    const { prisma } = await import("@/lib/prisma");
     await prisma.$executeRaw`
       UPDATE "InterviewSession" 
       SET "feedbackStatus" = 'generating', "updatedAt" = NOW()

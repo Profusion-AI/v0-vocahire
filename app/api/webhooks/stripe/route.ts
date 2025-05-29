@@ -55,6 +55,9 @@ export async function POST(req: NextRequest) {
       return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 });
     }
 
+    // Import getPrismaClient once for all cases
+    const { getPrismaClient } = await import("@/lib/prisma");
+
     // Handle event types
     switch (event.type) {
       case "checkout.session.completed": {
@@ -79,7 +82,6 @@ export async function POST(req: NextRequest) {
         }
 
         // Find user by client_reference_id
-        const { getPrismaClient } = await import("@/lib/prisma");
         const user = await (await getPrismaClient()).user.findUnique({
           where: { id: clientReferenceId },
         });
