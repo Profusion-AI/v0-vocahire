@@ -390,7 +390,7 @@ export async function PATCH(request: NextRequest) {
                   clerkUser?.firstName || clerkUser?.lastName || null,
             email: clerkUser?.emailAddresses?.[0]?.emailAddress || null,
             image: clerkUser?.imageUrl || null,
-            credits: new Prisma.Decimal(3.00),
+            credits: createPrismaDecimal(3),
             isPremium: false,
           }
         });
@@ -407,8 +407,8 @@ export async function PATCH(request: NextRequest) {
                   clerkUser?.firstName || clerkUser?.lastName || null,
             email: clerkUser?.emailAddresses?.[0]?.emailAddress || null,
             image: clerkUser?.imageUrl || null,
-            role: UserRole.USER,
-            credits: new Prisma.Decimal(3.00),
+            role: 'USER' as UserRole,
+            credits: createPrismaDecimal(3),
             resumeJobTitle: null,
             resumeSkills: null,
             resumeExperience: null,
@@ -498,11 +498,11 @@ export async function PATCH(request: NextRequest) {
             resumeFileUrl: validatedData.resumeFileUrl || null,
             jobSearchStage: validatedData.jobSearchStage || null,
             linkedinUrl: validatedData.linkedinUrl || null,
-            credits: new Prisma.Decimal(3.00),
+            credits: createPrismaDecimal(3),
             isPremium: false,
             premiumExpiresAt: null,
             premiumSubscriptionId: null,
-            role: UserRole.USER,
+            role: 'USER' as UserRole,
             _isTemporaryUser: true,
             _dbUpdateError: true,
             _usingFallbackDb: isUsingFallbackDb
@@ -520,11 +520,11 @@ export async function PATCH(request: NextRequest) {
           resumeFileUrl: validatedData.resumeFileUrl || null,
           jobSearchStage: validatedData.jobSearchStage || null,
           linkedinUrl: validatedData.linkedinUrl || null,
-          credits: new Prisma.Decimal(0),
+          credits: createPrismaDecimal(0),
           isPremium: false,
           premiumExpiresAt: null,
           premiumSubscriptionId: null,
-          role: UserRole.USER,
+          role: 'USER' as UserRole,
           error: "Database error during update. Your changes have been saved locally.",
           _usingFallbackDb: isUsingFallbackDb
         };
