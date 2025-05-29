@@ -1,5 +1,4 @@
 // No "use client"; here - this makes it a Server Component by default
-import { withDatabaseFallback } from "@/lib/prisma";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { type User as PrismaUser } from "../../prisma/generated/client"; // Alias Prisma User type
 import ProfilePageClient from "./ProfilePageClient";
@@ -51,6 +50,9 @@ export default async function ProfilePage() {
   let initialDbUser: PrismaUser | null = null;
   if (currentAuthUserId) {
     console.log(`[ProfilePage SERVER] Fetching user from DB with id: ${currentAuthUserId}`);
+    
+    // Dynamically import database-related modules
+    const { withDatabaseFallback } = await import("@/lib/prisma");
     
     initialDbUser = await withDatabaseFallback<PrismaUser | null>(
       async (p) => {
