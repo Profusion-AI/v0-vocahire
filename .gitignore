@@ -65,4 +65,13 @@ auth-cleanup-summary.md
 production-url-updates.md
 PRODUCTION_CHECKLIST_MAY31.md
 QA_AUDIT_GUIDELINES.md
+
+# temporary WebSocket migration documentation
+WEBSOCKET_MIGRATION_GUIDE.md
+WEBSOCKET_PERFORMANCE_RECOMMENDATIONS.md
+WEBSOCKET_TEST_REVIEW.md
+
+# deployment summaries
+DEPLOYMENT_SUCCESS_SUMMARY.md
+VERCEL_REMOVAL_SUMMARY.md
 .genkit/traces_idx/genkit.metadata

@@ -33,6 +33,10 @@ export const RealtimeInputSchema = z.object({
   difficulty: z.enum(['entry', 'mid', 'senior']),
   systemInstruction: z.string(),
   audioChunk: z.string().optional(),
+  text: z.string().optional(), // Added for direct text input
+  timestamp: z.number().optional(), // For latency monitoring
+  sequenceNumber: z.number().optional(), // For latency monitoring
+  audioMetadata: z.boolean().optional(), // Flag to indicate this is metadata for binary audio
   controlMessage: z.object({
     type: z.enum(['start', 'stop', 'interrupt'])
   }).optional(),
@@ -66,12 +70,15 @@ export const RealtimeOutputSchema = z.object({
     message: z.string(),
   }).optional(),
   control: z.object({
-    type: z.enum(['ready', 'busy', 'end'])
+    type: z.enum(['ready', 'busy', 'end']),
   }).optional(),
   thinking: z.object({
     isThinking: z.boolean(),
     message: z.string().optional(),
   }).optional(),
+  // Latency tracking fields at top level
+  echoedTimestamp: z.number().optional(),
+  echoedSequenceNumber: z.number().optional(),
 });
 
 // Session Config Schema
