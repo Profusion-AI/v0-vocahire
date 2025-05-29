@@ -69,6 +69,10 @@ export function useGenkitRealtime(
   // Latency monitoring
   const sentTimestampsRef = useRef<Map<number, number>>(new Map());
   const sequenceNumberRef = useRef(0);
+  
+  // Connection promise handlers
+  const connectionResolverRef = useRef<(() => void) | null>(null);
+  const connectionRejecterRef = useRef<((error: Error) => void) | null>(null);
 
   // Keep refs updated with latest state values
   const isConnectedRef = useRef(isConnected);
@@ -163,6 +167,13 @@ export function useGenkitRealtime(
             reconnectAttemptsRef.current = 0;
             setStatus('connected');
 
+            // Resolve the connection promise if it exists
+            if (connectionResolverRef.current) {
+              connectionResolverRef.current();
+              connectionResolverRef.current = null;
+              connectionRejecterRef.current = null;
+            }
+
             if (wasReconnecting && onReconnected) {
               onReconnected();
             }
@@ -243,15 +254,23 @@ export function useGenkitRealtime(
       setAiAudioQueue([]);
 
       // Convert HTTP URL to WebSocket URL
-      // Assuming apiUrl is something like '/api/interview-v2/session'
-      // We need to convert it to 'ws://localhost:3000/api/interview-v2/ws'
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${wsProtocol}//${window.location.host}${apiUrl.replace('/session', '/ws')}`;
-
+      const buildWsUrl = (baseUrl: string) => {
+        const url = new URL(baseUrl, window.location.origin);
+        url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+        // Replace /session with /ws at the end of the pathname
+        url.pathname = url.pathname.replace(/\/session$/, '/ws');
+        return url.toString();
+      };
+      
+      const wsUrl = buildWsUrl(apiUrl);
       console.log(`[GenkitRealtime] Initiating WebSocket connection to ${wsUrl}.`);
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
+      
+      // Store the resolve/reject functions to be called when ready
+      connectionResolverRef.current = resolve;
+      connectionRejecterRef.current = reject;
 
       ws.onopen = () => {
         console.log('[GenkitRealtime] WebSocket opened.');
@@ -260,8 +279,7 @@ export function useGenkitRealtime(
           ...sessionConfig,
           controlMessage: { type: 'start' },
         } satisfies z.infer<typeof RealtimeInputSchema>));
-        // Status will be set to 'connected' when 'ready' control message is received
-        resolve();
+        // Don't resolve yet - wait for 'ready' message
       };
 
       ws.onmessage = handleWebSocketMessage;
@@ -287,10 +305,15 @@ export function useGenkitRealtime(
           const backoffDelay = Math.min(reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1), 10000);
           console.log(`Retrying WebSocket connection in ${backoffDelay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
           reconnectTimeoutRef.current = setTimeout(() => {
-            connect().then(resolve).catch(reject);
+            connect();
           }, backoffDelay);
         } else {
-          reject(connectionError);
+          // Reject the connection promise if it exists
+          if (connectionRejecterRef.current) {
+            connectionRejecterRef.current(new Error(connectionError.message));
+            connectionResolverRef.current = null;
+            connectionRejecterRef.current = null;
+          }
         }
       };
 

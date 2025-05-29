@@ -75,12 +75,14 @@ describe('useGenkitRealtime (WebSocket)', () => {
   };
 
   let mockWsInstance: MockWebSocket; // Declare mockWsInstance here
+  let originalWindow: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers(); // Use fake timers for controlling WebSocket connection timing
     
-    // Mock window.location.host to ensure consistent WebSocket URL in tests
+    // Save original window and mock it
+    originalWindow = global.window;
     vi.stubGlobal('window', {
       location: {
         protocol: 'http:',
@@ -94,6 +96,9 @@ describe('useGenkitRealtime (WebSocket)', () => {
   });
 
   afterEach(() => {
+    // Restore original window
+    global.window = originalWindow;
+    vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 

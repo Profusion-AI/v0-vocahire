@@ -51,8 +51,7 @@ export class GoogleLiveAPIClient extends EventEmitter {
   private reconnectDelay = 1000;
   private currentModel: string | null = null;
   private modelFallbackAttempted = false;
-  private lastSentTimestamp?: number;
-  private lastSentSequenceNumber?: number;
+  private sentTimestamps: Map<number, number> = new Map();
 
   constructor(config: LiveAPIConfig) {
     super();
@@ -177,11 +176,13 @@ export class GoogleLiveAPIClient extends EventEmitter {
         const parts = content.modelTurn.parts;
         parts.forEach((part: any) => {
           if (part.text) {
-            // Text response
-            this.emit('text', part.text, this.lastSentTimestamp, this.lastSentSequenceNumber);
+            // Text response - for simplicity, emit with the oldest pending timestamp
+            const oldestEntry = this.getOldestPendingEntry();
+            this.emit('text', part.text, oldestEntry?.timestamp, oldestEntry?.sequenceNumber);
           } else if (part.inlineData) {
             const audioData = base64ToArrayBuffer(part.inlineData.data);
-            this.emit('audio', audioData, this.lastSentTimestamp, this.lastSentSequenceNumber);
+            const oldestEntry = this.getOldestPendingEntry();
+            this.emit('audio', audioData, oldestEntry?.timestamp, oldestEntry?.sequenceNumber);
           } else if (part.functionCall) {
             this.emit('functionCall', part.functionCall);
           }
@@ -190,17 +191,19 @@ export class GoogleLiveAPIClient extends EventEmitter {
       
       // Handle transcriptions
       if (content.outputTranscription) {
+        const oldestEntry = this.getOldestPendingEntry();
         this.emit('transcript', {
           type: 'ai',
           text: content.outputTranscription.text,
-        }, this.lastSentTimestamp, this.lastSentSequenceNumber);
+        }, oldestEntry?.timestamp, oldestEntry?.sequenceNumber);
       }
       
       if (content.inputTranscription) {
+        const oldestEntry = this.getOldestPendingEntry();
         this.emit('transcript', {
           type: 'user',
           text: content.inputTranscription.text,
-        }, this.lastSentTimestamp, this.lastSentSequenceNumber);
+        }, oldestEntry?.timestamp, oldestEntry?.sequenceNumber);
       }
 
       if (content.turnComplete) {
@@ -225,10 +228,18 @@ export class GoogleLiveAPIClient extends EventEmitter {
       }
     };
 
-    // Store timestamp/sequenceNumber for client-side tracking only
+    // Store timestamp for client-side tracking only
     // These are not part of Google's API
-    this.lastSentTimestamp = timestamp;
-    this.lastSentSequenceNumber = sequenceNumber;
+    if (timestamp !== undefined && sequenceNumber !== undefined) {
+      this.sentTimestamps.set(sequenceNumber, timestamp);
+      // Clean up old entries (older than 30 seconds)
+      const cutoff = Date.now() - 30000;
+      for (const [seq, ts] of this.sentTimestamps.entries()) {
+        if (ts < cutoff) {
+          this.sentTimestamps.delete(seq);
+        }
+      }
+    }
 
     this.send(message);
   }
@@ -248,10 +259,18 @@ export class GoogleLiveAPIClient extends EventEmitter {
       }
     };
 
-    // Store timestamp/sequenceNumber for client-side tracking only
+    // Store timestamp for client-side tracking only
     // These are not part of Google's API
-    this.lastSentTimestamp = timestamp;
-    this.lastSentSequenceNumber = sequenceNumber;
+    if (timestamp !== undefined && sequenceNumber !== undefined) {
+      this.sentTimestamps.set(sequenceNumber, timestamp);
+      // Clean up old entries (older than 30 seconds)
+      const cutoff = Date.now() - 30000;
+      for (const [seq, ts] of this.sentTimestamps.entries()) {
+        if (ts < cutoff) {
+          this.sentTimestamps.delete(seq);
+        }
+      }
+    }
 
     this.send(message);
   }
@@ -317,5 +336,27 @@ export class GoogleLiveAPIClient extends EventEmitter {
     if (this.ws.readyState === 0) return 'connecting'; // 0 = CONNECTING
     if (this.ws.readyState === 1) return 'connected'; // 1 = OPEN
     return 'disconnected';
+  }
+
+  private getOldestPendingEntry(): { timestamp: number; sequenceNumber: number } | undefined {
+    if (this.sentTimestamps.size === 0) return undefined;
+    
+    let oldestSeq: number | undefined;
+    let oldestTimestamp: number | undefined;
+    
+    for (const [seq, ts] of this.sentTimestamps.entries()) {
+      if (oldestTimestamp === undefined || ts < oldestTimestamp) {
+        oldestTimestamp = ts;
+        oldestSeq = seq;
+      }
+    }
+    
+    if (oldestSeq !== undefined && oldestTimestamp !== undefined) {
+      // Remove it from the map since we're using it
+      this.sentTimestamps.delete(oldestSeq);
+      return { timestamp: oldestTimestamp, sequenceNumber: oldestSeq };
+    }
+    
+    return undefined;
   }
 }
