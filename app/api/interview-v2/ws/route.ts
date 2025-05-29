@@ -12,7 +12,15 @@ import { z } from 'zod';
 // with WebSocket capabilities.
 
 // Mock upgradeWebSocket for now, as it's not a standard Next.js feature
-// In a real implementation, this would be provided by a custom server setup.
+/**
+ * Simulates upgrading an HTTP request to a WebSocket connection for local development and testing.
+ *
+ * Returns a mock WebSocket object and a 101 Switching Protocols response. The mock WebSocket provides stubbed methods and simulates an 'open' event asynchronously.
+ *
+ * @remark This is a mock implementation. Real WebSocket upgrades require a custom server setup and proper handling of the 'upgrade' header.
+ *
+ * @returns An object containing the mock WebSocket and the upgrade response.
+ */
 function upgradeWebSocket(request: NextRequest): { socket: WebSocket, response: Response } {
   // This is a simplified mock. Actual implementation would involve
   // handling the 'upgrade' header and creating a WebSocket connection.
@@ -57,6 +65,16 @@ function upgradeWebSocket(request: NextRequest): { socket: WebSocket, response: 
 }
 
 
+/**
+ * Handles WebSocket connections for real-time audio and text sessions using the Google Live API.
+ *
+ * Upgrades incoming HTTP requests to WebSocket connections, manages session lifecycle, and facilitates bidirectional communication between clients and the Google Live API. Supports receiving binary audio data, JSON control/text messages, and relays transcripts, audio, and errors back to the client. Cleans up sessions on disconnect or error.
+ *
+ * @param request - The incoming HTTP request to be upgraded to a WebSocket connection.
+ * @returns A response that completes the WebSocket upgrade handshake.
+ *
+ * @remark The WebSocket upgrade logic is mocked and not suitable for production use without a custom server setup.
+ */
 export async function SOCKET(request: NextRequest) {
   console.log('[API Route] WebSocket connection request received.');
   const { socket, response } = upgradeWebSocket(request);
