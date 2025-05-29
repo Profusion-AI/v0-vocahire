@@ -65,6 +65,14 @@ export function useGenkitRealtime(
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastConnectionTimeRef = useRef<number>(Date.now());
   const disconnectRef = useRef<() => void>(() => {});
+  const isConnectedRef = useRef(isConnected);
+  const isConnectingRef = useRef(isConnecting);
+  const statusRef = useRef(status);
+
+  // Keep refs updated with latest state values
+  useEffect(() => { isConnectedRef.current = isConnected; }, [isConnected]);
+  useEffect(() => { isConnectingRef.current = isConnecting; }, [isConnecting]);
+  useEffect(() => { statusRef.current = status; }, [status]);
 
   const handleSSEMessage = useCallback((event: MessageEvent) => {
     try {
@@ -202,10 +210,11 @@ export function useGenkitRealtime(
       const currentAbortController = new AbortController();
       
       // Check current state using refs to avoid stale closure
-      const currentIsConnected = isConnected;
-      const currentIsConnecting = isConnecting;
+      const currentIsConnected = isConnectedRef.current;
+      const currentIsConnecting = isConnectingRef.current;
+      const currentStatus = statusRef.current;
       
-      console.log(`[GenkitRealtime] Connect: Called. isConnected: ${currentIsConnected}, isConnecting: ${currentIsConnecting}`);
+      console.log(`[GenkitRealtime] Connect: Called. Status: ${currentStatus}, isConnected: ${currentIsConnected}, isConnecting: ${currentIsConnecting}`);
       console.log(`[GenkitRealtime] Connect: Session Config: ${JSON.stringify(sessionConfig)}`);
       
       if (currentIsConnected || currentIsConnecting) {
@@ -310,7 +319,7 @@ export function useGenkitRealtime(
         }
       });
     });
-  }, [apiUrl, sessionConfig, handleSSEMessage, maxReconnectAttempts, reconnectDelay, onError, isConnected, isConnecting]); // Added back isConnected and isConnecting
+  }, [apiUrl, sessionConfig, handleSSEMessage, maxReconnectAttempts, reconnectDelay, onError]); // Removed isConnected and isConnecting to ensure stable callback
 
   const disconnect = useCallback(() => {
     console.log('Disconnect called');
@@ -331,7 +340,7 @@ export function useGenkitRealtime(
     }
 
     // Send disconnect message to server (best effort)
-    if (isConnected || isConnecting) {
+    if (isConnectedRef.current || isConnectingRef.current) {
       // Use navigator.sendBeacon for reliability during unmount
       const disconnectData = JSON.stringify({
         ...sessionConfig,
@@ -357,7 +366,7 @@ export function useGenkitRealtime(
     setStatus('disconnected');
     reconnectAttemptsRef.current = 0;
     setError(null);
-  }, [apiUrl, sessionConfig, isConnected, isConnecting]);
+  }, [apiUrl, sessionConfig]); // Removed isConnected and isConnecting to ensure stable callback
   
   // Update the ref whenever disconnect changes
   useEffect(() => {
@@ -367,7 +376,8 @@ export function useGenkitRealtime(
 
   const sendData = useCallback((data: z.infer<typeof RealtimeInputSchema>) => {
      // In useGenkitRealtime.ts, inside sendData() at the very beginning
-     console.log(`[GenkitRealtime] sendData: Called. isConnected: ${isConnected}.`);
+     const currentIsConnected = isConnectedRef.current;
+     console.log(`[GenkitRealtime] sendData: Called. isConnected: ${currentIsConnected}.`);
      console.log(`[GenkitRealtime] sendData: Payload Preview: ${JSON.stringify(data).substring(0, 200)}...`); // Log only part of payload if large
 
      // Prevent sending with invalid config
@@ -377,7 +387,7 @@ export function useGenkitRealtime(
        return;
      }
      
-     if (!isConnected) {
+     if (!currentIsConnected) {
        console.warn('Cannot send data: Not connected');
        return;
      }
@@ -401,13 +411,13 @@ export function useGenkitRealtime(
         console.error('[GenkitRealtime] sendData: Fetch FAILED.', err);
      });
 
-  }, [apiUrl, sessionConfig, isConnected]); // Removed status and isConnecting from dependencies
+  }, [apiUrl, sessionConfig]); // Removed isConnected to ensure stable callback
 
 
   // Handle browser/tab close and visibility changes
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isConnected || isConnecting) {
+      if (isConnectedRef.current || isConnectingRef.current) {
         // Send disconnect message immediately (best effort)
         const disconnectData = JSON.stringify({
           ...sessionConfig,
@@ -419,7 +429,8 @@ export function useGenkitRealtime(
         }
         
         // Show browser warning if interview is active
-        if (status === 'streaming' || status === 'connected') {
+        const currentStatus = statusRef.current;
+        if (currentStatus === 'streaming' || currentStatus === 'connected') {
           e.preventDefault();
           e.returnValue = 'Are you sure you want to leave? Your interview session will be terminated.';
           return e.returnValue;
@@ -429,8 +440,8 @@ export function useGenkitRealtime(
 
     // Handle visibility change (tab switching)
     const handleVisibilityChange = () => {
-      if (document.hidden && isConnected) {
-        console.log('Tab hidden while connected, maintaining connection');
+      if (document.hidden && isConnectedRef.current) {
+        console.log('[GenkitRealtime] Tab hidden while connected, maintaining connection');
       }
     };
 
@@ -441,13 +452,13 @@ export function useGenkitRealtime(
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isConnected, isConnecting, apiUrl, sessionConfig, status]);
+  }, [apiUrl, sessionConfig]); // Removed state dependencies, using refs instead
   
   // Separate cleanup effect for component unmount
   useEffect(() => {
     // Cleanup function runs when component unmounts
     return () => {
-      console.log('Hook unmounting, disconnecting...');
+      console.log('[GenkitRealtime] Component unmounting: performing hook cleanup.');
       // Use the ref to check if we should disconnect
       if (abortControllerRef.current) {
         disconnectRef.current();
