@@ -9,7 +9,7 @@ const cacheTimestamps = new Map<string, number>();
 let client: SecretManagerServiceClient | null = null;
 
 // Project configuration
-const PROJECT_ID = process.env.GOOGLE_PROJECT_ID || 'vocahire-prod-20810233';
+const PROJECT_ID = process.env.GOOGLE_PROJECT_ID || 'vocahire-prod';
 
 /**
  * Gets a secret from Google Secret Manager or environment variable

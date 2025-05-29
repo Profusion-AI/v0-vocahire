@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ai } from '..';
+import { getGenkit } from '..';
 import { gemini15Pro } from '@genkit-ai/googleai';
 
 const feedbackInputSchema = z.object({
@@ -42,13 +42,24 @@ const feedbackOutputSchema = z.object({
   nextSteps: z.array(z.string()),
 });
 
-export const generateInterviewFeedback = ai.defineFlow(
-  {
-    name: 'generateInterviewFeedback',
-    inputSchema: feedbackInputSchema,
-    outputSchema: feedbackOutputSchema,
-  },
-  async (input) => {
+export const generateInterviewFeedback = (() => {
+  const ai = getGenkit();
+  if (!ai) {
+    // Return a dummy flow that throws an error if called
+    return {
+      run: async () => {
+        throw new Error('Genkit not initialized - GOOGLE_AI_API_KEY missing');
+      }
+    };
+  }
+  
+  return ai.defineFlow(
+    {
+      name: 'generateInterviewFeedback',
+      inputSchema: feedbackInputSchema,
+      outputSchema: feedbackOutputSchema,
+    },
+    async (input) => {
     const feedbackPrompt = `Analyze this ${input.difficulty} level ${input.jobRole} interview transcript and provide comprehensive feedback.
 
 Interview Transcript:
@@ -70,29 +81,41 @@ Provide a detailed evaluation including:
 
 Be constructive, specific, and encouraging in your feedback.`;
 
-    const feedbackResponse = await ai.generate({
-      model: gemini15Pro,
-      prompt: feedbackPrompt,
-      output: {
-        schema: feedbackOutputSchema,
-      },
-    });
+      const feedbackResponse = await ai.generate({
+        model: gemini15Pro,
+        prompt: feedbackPrompt,
+        output: {
+          schema: feedbackOutputSchema,
+        },
+      });
 
-    if (!feedbackResponse) {
-      throw new Error('Failed to get response from AI');
+      if (!feedbackResponse) {
+        throw new Error('Failed to get response from AI');
+      }
+      
+      const output = feedbackResponse.output;
+      if (!output) {
+        throw new Error('Failed to generate feedback');
+      }
+      return output;
     }
-    
-    const output = feedbackResponse.output;
-    if (!output) {
-      throw new Error('Failed to generate feedback');
-    }
-    return output;
+  );
+})();
+
+export const generateEnhancedFeedback = (() => {
+  const ai = getGenkit();
+  if (!ai) {
+    // Return a dummy flow that throws an error if called
+    return {
+      run: async () => {
+        throw new Error('Genkit not initialized - GOOGLE_AI_API_KEY missing');
+      }
+    };
   }
-);
-
-export const generateEnhancedFeedback = ai.defineFlow(
-  {
-    name: 'generateEnhancedFeedback',
+  
+  return ai.defineFlow(
+    {
+      name: 'generateEnhancedFeedback',
     inputSchema: z.object({
       basicFeedback: feedbackOutputSchema,
       userGoals: z.string().optional(),
@@ -177,6 +200,7 @@ Focus on actionable advice and positive reinforcement.`;
     if (!enhancedOutput) {
       throw new Error('Failed to generate enhanced feedback');
     }
-    return enhancedOutput;
-  }
-);
+      return enhancedOutput;
+    }
+  );
+})();

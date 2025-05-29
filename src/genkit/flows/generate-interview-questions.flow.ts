@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ai } from '..';
+import { getGenkit } from '..';
 import { gemini15Flash } from '@genkit-ai/googleai';
 
 const interviewSessionSchema = z.object({
@@ -21,13 +21,24 @@ const sessionResponseSchema = z.object({
   }),
 });
 
-export const generateInterviewQuestions = ai.defineFlow(
-  {
-    name: 'generateInterviewQuestions',
-    inputSchema: interviewSessionSchema,
-    outputSchema: sessionResponseSchema,
-  },
-  async (input) => {
+export const generateInterviewQuestions = (() => {
+  const ai = getGenkit();
+  if (!ai) {
+    // Return a dummy flow that throws an error if called
+    return {
+      run: async () => {
+        throw new Error('Genkit not initialized - GOOGLE_AI_API_KEY missing');
+      }
+    };
+  }
+  
+  return ai.defineFlow(
+    {
+      name: 'generateInterviewQuestions',
+      inputSchema: interviewSessionSchema,
+      outputSchema: sessionResponseSchema,
+    },
+    async (input) => {
     const systemPromptRequest = await ai.generate({
       model: gemini15Flash,
       prompt: `Create a system prompt for an AI interviewer conducting a ${input.difficulty} level interview for a ${input.jobRole} position.
@@ -85,9 +96,10 @@ Return as JSON with arrays for each category.`,
       throw new Error('Interview structure is empty');
     }
 
-    return {
-      systemPrompt,
-      interviewStructure,
-    };
-  }
-);
+      return {
+        systemPrompt,
+        interviewStructure,
+      };
+    }
+  );
+})();

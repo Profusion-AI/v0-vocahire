@@ -8,6 +8,16 @@ import type {
 } from '@google/generative-ai';
 import { arrayBufferToBase64, base64ToArrayBuffer } from './google-ai-utils';
 
+// Import WebSocket for Node.js environment
+let WebSocket: any;
+if (typeof window === 'undefined') {
+  // We're in Node.js
+  WebSocket = require('ws');
+} else {
+  // We're in the browser
+  WebSocket = global.WebSocket;
+}
+
 // Re-export types and enums for backward compatibility
 export { SchemaType };
 export type { Schema, FunctionDeclaration, Tool };
