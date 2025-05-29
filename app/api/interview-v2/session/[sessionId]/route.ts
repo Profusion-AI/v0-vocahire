@@ -3,6 +3,9 @@ import { getAuth } from '@clerk/nextjs/server';
 import { liveAPISessionManager } from '@/lib/live-api-session-manager';
 import { RealtimeInputSchema } from '@/src/genkit/schemas/types';
 
+// Force dynamic rendering to prevent database connection during build
+export const dynamic = 'force-dynamic';
+
 // Handle sending audio/text from client to Google Live API
 export async function PUT(
   request: NextRequest,

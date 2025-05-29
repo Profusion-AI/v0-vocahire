@@ -4,6 +4,9 @@ import { prefetchUserCredentials } from "@/lib/user-cache"
 import { warmDatabaseConnection } from "@/lib/prisma"
 import { connectionPoolMonitor } from "@/lib/db-connection-monitor"
 
+// Force dynamic rendering to prevent database connection during build
+export const dynamic = 'force-dynamic';
+
 /**
  * Pre-fetch user credentials to warm the cache
  * This reduces latency when creating interview sessions

@@ -5,6 +5,9 @@ import { getOrCreatePrismaUser } from '@/lib/auth-utils';
 import { z } from 'zod';
 import { RealtimeInputSchema, RealtimeOutputSchema } from '@/src/genkit/schemas/types';
 
+// Force dynamic rendering to prevent database connection during build
+export const dynamic = 'force-dynamic';
+
 // GET endpoint for Server-Sent Events (SSE) stream
 export async function GET(request: NextRequest) {
   const auth = getAuth(request);
