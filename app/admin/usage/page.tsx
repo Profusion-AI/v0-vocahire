@@ -1,5 +1,4 @@
 // Server-side imports
-import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { isAdminUser } from "@/lib/admin-config";
 
@@ -11,6 +10,7 @@ export const dynamic = 'force-dynamic';
 
 // Helper function to get admin user details and check authorization
 async function getAdminUserServerSide(userId: string) {
+  const { prisma } = await import("@/lib/prisma");
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { id: true }, // No email field in schema
@@ -21,6 +21,7 @@ async function getAdminUserServerSide(userId: string) {
 
 // Helper function to fetch top users by interview session count using groupBy
 async function getTopUsersByInterviewsServerSide() {
+  const { prisma } = await import("@/lib/prisma");
   // Get top user IDs by interview session count
   const topSessions = await prisma.interviewSession.groupBy({
     by: ['userId'],
@@ -68,6 +69,7 @@ async function getInitialUsageStatsServerSide(): Promise<UsageData[]> {
   tomorrowStart.setDate(todayStart.getDate() + 1);
 
   try {
+    const { prisma } = await import("@/lib/prisma");
     const dailyInterviewsCount = await prisma.interviewSession.count({
       where: {
         createdAt: {
