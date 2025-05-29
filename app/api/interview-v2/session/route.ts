@@ -51,7 +51,9 @@ export async function POST(request: NextRequest) {
           );
 
           // Create Live API session
-          const liveSession = await sessionManager.getOrCreateSession(sessionId, {
+          let liveSession;
+          try {
+            liveSession = await sessionManager.getOrCreateSession(sessionId, {
             model: 'models/gemini-2.0-flash-exp',
             systemInstruction: {
               parts: [{
@@ -72,6 +74,27 @@ Start by introducing yourself and asking the candidate to tell you about themsel
             },
             tools: []
           });
+          } catch (apiKeyError) {
+            console.error('[API Route] Failed to create Live API session - likely API key issue:', apiKeyError);
+            
+            // Send specific error message for API key issues
+            controller.enqueue(
+              encoder.encode(
+                createSSEMessage({
+                  type: 'error',
+                  error: {
+                    code: 'API_KEY_ERROR',
+                    message: process.env.NODE_ENV === 'development' 
+                      ? 'GOOGLE_AI_API_KEY not found. Please set it in your .env.local file for local development.'
+                      : 'Failed to access Google AI API key. Please check Secret Manager configuration.',
+                    details: apiKeyError instanceof Error ? apiKeyError.message : String(apiKeyError)
+                  }
+                })
+              )
+            );
+            controller.close();
+            return;
+          }
 
           // After liveSession.connect();
           console.log(`[API Route] Server-side Live API connect for session ${sessionId} completed.`);
@@ -184,6 +207,19 @@ Start by introducing yourself and asking the candidate to tell you about themsel
 
           // Start the Live API session
           await liveSession.connect();
+          
+          // Send ready signal after successful connection
+          controller.enqueue(
+            encoder.encode(
+              createSSEMessage({
+                type: 'control',
+                control: {
+                  type: 'ready',
+                  message: 'Live API session ready'
+                }
+              })
+            )
+          );
 
           // Listen for client disconnection
           request.signal.addEventListener('abort', async () => {

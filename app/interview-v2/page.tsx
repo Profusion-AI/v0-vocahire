@@ -84,7 +84,13 @@ export default function InterviewV2Page() {
   const onError = useCallback((error: any) => {
     // Only log errors if we have a real session config
     if (sessionConfig) {
-      console.error('Connection error:', error);
+      console.error('Connection error:', {
+        code: error?.code,
+        message: error?.message,
+        details: error?.details,
+        timestamp: error?.timestamp,
+        fullError: error
+      });
     }
   }, [sessionConfig]);
 
