@@ -2,7 +2,6 @@ import { NextResponse, NextRequest } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
 import { checkRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit"
 import { trackUsage, UsageType } from "@/lib/usage-tracking"
-import { prisma } from "@/lib/prisma"
 import { getOrCreatePrismaUser } from "@/lib/auth-utils"
 import { generateEnhancedInterviewFeedback } from "@/lib/enhancedFeedback"
 import { transactionLogger, TransactionOperations } from "@/lib/transaction-logger"
@@ -55,6 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Verify interview ownership and get data
+    const { prisma } = await import("@/lib/prisma");
     const interview = await prisma.interviewSession.findUnique({
       where: {
         id: interviewId,

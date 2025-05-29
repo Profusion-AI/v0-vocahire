@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { getPrismaClient } from "@/lib/prisma";
 import { getSecrets } from '@/lib/secret-manager';
 
 // Disable Next.js body parsing for this route (required for Stripe signature verification)
@@ -80,6 +79,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Find user by client_reference_id
+        const { getPrismaClient } = await import("@/lib/prisma");
         const user = await (await getPrismaClient()).user.findUnique({
           where: { id: clientReferenceId },
         });

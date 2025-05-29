@@ -1,6 +1,5 @@
 import { NextResponse, NextRequest } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
-import { prisma } from "@/lib/prisma"
 import { trackUsage, UsageType } from "@/lib/usage-tracking"
 import { getOrCreatePrismaUser } from "@/lib/auth-utils"
 import { z } from "zod"
@@ -40,6 +39,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Fetch the user's interviews from database
+    const { prisma } = await import("@/lib/prisma");
     const interviews = await prisma.interviewSession.findMany({
       where: {
         userId: auth.userId,
@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
     }
     
     // 4. Create interview session with transaction for data integrity
+    const { prisma } = await import("@/lib/prisma");
     const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create the interview session
       const interviewSession = await tx.interviewSession.create({
@@ -165,6 +166,7 @@ export async function POST(request: NextRequest) {
 async function triggerFeedbackGeneration(sessionId: string, messages: any[]) {
   try {
     // Update status to generating
+    const { prisma } = await import("@/lib/prisma");
     await prisma.$executeRaw`
       UPDATE "InterviewSession" 
       SET "feedbackStatus" = 'generating', "updatedAt" = NOW()

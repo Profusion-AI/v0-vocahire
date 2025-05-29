@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { transactionLogger, TransactionOperations } from "@/lib/transaction-logger";
 import { Prisma } from "@/prisma/generated/client";
@@ -41,6 +40,9 @@ export async function POST(request: NextRequest) {
     transactionLogger.info(auth.userId, TransactionOperations.CREDITS_PURCHASED, {
       metadata: { transactionId, credits }
     });
+    
+    // Dynamically import prisma to prevent build-time database connection
+    const { prisma } = await import("@/lib/prisma");
     
     // Use a transaction to ensure both operations succeed together
     const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {

@@ -2,7 +2,6 @@ import { NextResponse, NextRequest } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
 import { checkRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/rate-limit"
 import { trackUsage, UsageType } from "@/lib/usage-tracking"
-import { prisma } from "@/lib/prisma"
 import { getOrCreatePrismaUser } from "@/lib/auth-utils"
 import type { EnhancedFeedback, EnhancedFeedbackResponse } from "@/types/feedback"
 
@@ -67,6 +66,7 @@ export async function POST(request: NextRequest) {
 
     // 5. Deduct credits (only for non-premium users)
     if (!user.isPremium) {
+      const { prisma } = await import("@/lib/prisma");
       const updateResult = await prisma.user.update({
         where: { id: userId },
         data: { 

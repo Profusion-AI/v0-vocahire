@@ -5,7 +5,6 @@ import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import Stripe from "stripe";
 import { getAuth } from "@clerk/nextjs/server";
-import { getPrismaClient } from "@/lib/prisma";
 import { ITEM_PRICE_MAP, SUBSCRIPTION_ITEMS } from "@/lib/payment-config";
 import { transactionLogger, TransactionOperations } from "@/lib/transaction-logger";
 import { getSecrets } from '@/lib/secret-manager';
@@ -78,6 +77,7 @@ export async function POST(request: NextRequest) {
     // 5. Get user's Stripe customer ID if available
     let stripeCustomerId: string | undefined = undefined;
     try {
+      const { getPrismaClient } = await import("@/lib/prisma");
       const dbUser = await (await getPrismaClient()).user.findUnique({
         where: { id: userId },
         select: { stripeCustomerId: true },

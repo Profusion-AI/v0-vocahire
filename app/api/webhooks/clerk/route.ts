@@ -2,7 +2,6 @@
 // Clerk webhook only manages stripeCustomerId (on creation) and clears non-Stripe fields on deletion.
 
 import { NextRequest, NextResponse } from "next/server";
-import { getPrismaClient } from "@/lib/prisma";
 import { Webhook } from "svix";
 import Stripe from "stripe"; // Import Stripe
 import { getSecrets } from '@/lib/secret-manager';
@@ -86,6 +85,7 @@ export async function POST(req: NextRequest) {
 
       try {
         // Create user in DB first
+        const { getPrismaClient } = await import("@/lib/prisma");
         const _dbUser = await (await getPrismaClient()).user.create({
           data: {
             id: clerkId,

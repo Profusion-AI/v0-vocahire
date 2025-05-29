@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { getAuth } from "@clerk/nextjs/server"
 import { NextRequest } from "next/server"
-import { prisma, withDatabaseFallback, isUsingFallbackDb } from "@/lib/prisma"
+import { withDatabaseFallback, isUsingFallbackDb } from "@/lib/prisma"
 import { Prisma, UserRole } from "../../../prisma/generated/client"
 import { z } from "zod"
 import { getConsistentCreditValue, createPrismaDecimal } from "@/lib/prisma-types"
@@ -97,7 +97,9 @@ export async function GET(request: NextRequest) {
   perfLog("DATABASE_QUERY_START");
   const user = await Promise.race([
     withDatabaseFallback(
-      async () => await prisma.user.findUnique({
+      async () => {
+        const { prisma } = await import("@/lib/prisma");
+        return await prisma.user.findUnique({
         where: { id: auth.userId },
         select: {
           id: true,
@@ -115,7 +117,8 @@ export async function GET(request: NextRequest) {
           role: true,
           // Add more fields as needed
         },
-      }),
+      });
+      },
       async () => {
         console.error("Database error when fetching user, using fallback");
         
@@ -177,7 +180,9 @@ export async function GET(request: NextRequest) {
     
     // Create new user using withDatabaseFallback
     const newUser = await withDatabaseFallback(
-      async () => await prisma.user.create({
+      async () => {
+        const { prisma } = await import("@/lib/prisma");
+        return await prisma.user.create({
         data: {
           id: auth.userId,
           clerkId: auth.userId,
@@ -204,7 +209,8 @@ export async function GET(request: NextRequest) {
           premiumSubscriptionId: true,
           role: true,
         },
-      }),
+      });
+      },
       async () => {
         console.error("Database error when creating user, using fallback");
         
@@ -309,10 +315,13 @@ export async function PATCH(request: NextRequest) {
     
     // First check if the user exists with error handling using withDatabaseFallback
     const existingUser = await withDatabaseFallback(
-      async () => await prisma.user.findUnique({
+      async () => {
+        const { prisma } = await import("@/lib/prisma");
+        return await prisma.user.findUnique({
         where: { id: auth.userId },
         select: { id: true }
-      }),
+      });
+      },
       async () => {
         console.error("Database error when checking user existence, using fallback");
         
@@ -345,7 +354,9 @@ export async function PATCH(request: NextRequest) {
       
       // Create basic user first using withDatabaseFallback
       const createdUser = await withDatabaseFallback(
-        async () => await prisma.user.create({
+        async () => {
+          const { prisma } = await import("@/lib/prisma");
+          return await prisma.user.create({
           data: {
             id: auth.userId,
             clerkId: auth.userId,
@@ -357,7 +368,8 @@ export async function PATCH(request: NextRequest) {
             credits: new Prisma.Decimal(3.00),
             isPremium: false,
           }
-        }),
+        });
+        },
         async () => {
           console.error("Error creating user during update, using fallback");
           
@@ -421,7 +433,9 @@ export async function PATCH(request: NextRequest) {
 
     // Now perform the update with error handling using withDatabaseFallback
     const updatedUser = await withDatabaseFallback(
-      async () => await prisma.user.update({
+      async () => {
+        const { prisma } = await import("@/lib/prisma");
+        return await prisma.user.update({
         where: { id: auth.userId },
         data: validatedData,
         select: {
@@ -440,7 +454,8 @@ export async function PATCH(request: NextRequest) {
           role: true,
           // Add more fields as needed
         },
-      }),
+      });
+      },
       async () => {
         console.error("Error updating user, using fallback");
         
