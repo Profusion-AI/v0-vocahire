@@ -35,8 +35,8 @@ export async function getSecret(secretName: string): Promise<string> {
     throw new Error(`Secret ${secretName} not found in environment variables (development mode)`);
   }
 
-  // Try Secret Manager only in production with proper auth
-  if (process.env.NODE_ENV === 'production' && process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  // Try Secret Manager in production (Cloud Run has implicit auth)
+  if (process.env.NODE_ENV === 'production') {
     try {
       if (!client) {
         client = new SecretManagerServiceClient();
