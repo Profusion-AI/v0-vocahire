@@ -8,12 +8,13 @@ import { useGenkitRealtime } from './hooks/useGenkitRealtime';
 import { SessionSetup } from './components/SessionSetup';
 import { LiveInterview } from './components/LiveInterview';
 import { FeedbackView } from './components/FeedbackView';
+import { MicCheckModal } from './components/MicCheckModal';
 import { Navbar } from '@/components/navbar';
 import { TermsModal } from '@/components/terms-modal';
 import { useTermsAgreement } from '@/hooks/use-terms-agreement';
 import type { Feedback } from '@/src/genkit/schemas/types';
 
-type ViewState = 'setup' | 'interview' | 'feedback';
+type ViewState = 'setup' | 'mic-check' | 'interview' | 'feedback';
 
 // Extended SessionConfig for use with the realtime hook
 export interface ExtendedSessionConfig {
@@ -205,9 +206,22 @@ export default function InterviewV2Page() {
     
     setSessionConfig(extendedConfig);
     setComponentConfig(config);
-    setViewState('interview');
+    setViewState('mic-check'); // Go to mic check first instead of directly to interview
     
+    // Connection will be initiated after mic check is complete
+  };
+
+  // Handle mic check completion
+  const handleMicCheckComplete = () => {
+    setViewState('interview');
     // Connection will be initiated by useEffect after state updates
+  };
+
+  // Handle mic check cancellation
+  const handleMicCheckCancel = () => {
+    setViewState('setup');
+    setSessionConfig(null);
+    setComponentConfig(null);
   };
 
   // Handle interview end
@@ -272,6 +286,15 @@ export default function InterviewV2Page() {
         />
       )}
       </div>
+      
+      {/* Mic Check Modal */}
+      <MicCheckModal
+        open={viewState === 'mic-check'}
+        onComplete={handleMicCheckComplete}
+        onCancel={handleMicCheckCancel}
+        sessionConfig={sessionConfig}
+      />
+      
       <TermsModal
         open={showTermsModal}
         onOpenChange={setShowTermsModal}

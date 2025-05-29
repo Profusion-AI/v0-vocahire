@@ -46,6 +46,37 @@ export async function GET(request: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        // Helper to send SSE messages
+        const sendMessage = (data: z.infer<typeof RealtimeOutputSchema>) => {
+          const message = `data: ${JSON.stringify(data)}\n\n`;
+          controller.enqueue(encoder.encode(message));
+        };
+
+        // In development without API key, send mock responses
+        if (process.env.NODE_ENV === 'development' && !process.env.GOOGLE_AI_API_KEY) {
+          console.log('[Session API] Running in mock mode - no Google AI API key configured');
+          
+          // Send ready message
+          sendMessage({
+            type: 'control',
+            control: { type: 'ready' }
+          });
+          
+          // Send mock greeting after a delay
+          setTimeout(() => {
+            sendMessage({
+              type: 'transcript',
+              transcript: {
+                role: 'assistant',
+                text: `[MOCK MODE] Hello! I'm ready to conduct your ${interviewType} interview for the ${jobRole} position. Please note: This is a mock interview session for development. To use the real AI, please configure your Google AI API key.`,
+                timestamp: new Date().toISOString()
+              }
+            });
+          }, 1000);
+          
+          return;
+        }
+
         // Create or get Google Live API session
         const liveClient = await liveAPISessionManager.getOrCreateSession(
           sessionId,
@@ -69,14 +100,7 @@ export async function GET(request: NextRequest) {
                 }
               }
             }
-          }
-        );
-
-        // Helper to send SSE messages
-        const sendMessage = (data: z.infer<typeof RealtimeOutputSchema>) => {
-          const message = `data: ${JSON.stringify(data)}\n\n`;
-          controller.enqueue(encoder.encode(message));
-        };
+          });
 
         // Connect to Google Live API
         await liveClient.connect();

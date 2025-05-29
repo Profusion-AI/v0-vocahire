@@ -48,29 +48,24 @@ export function LiveInterview({ sessionConfig, realtimeHook, onEnd, reconnectAtt
     channelCount: 1,
   });
   
-  // Handle microphone permission when interview starts
+  // Handle microphone when interview starts
   useEffect(() => {
-    // When we reach the interview stage, we need microphone access
+    // When we reach the interview stage after mic check, start the audio stream
     const initializeMicrophone = async () => {
-      // If permission status is unknown (null), request it
-      if (audioStream.hasPermission === null && !audioStream.isCheckingPermission) {
-        console.log('[LiveInterview] Requesting microphone permission...');
-        await audioStream.requestPermission();
-      }
-      // If we have permission but stream isn't active, start it
-      else if (audioStream.hasPermission === true && !audioStream.isActive) {
-        console.log('[LiveInterview] Starting audio stream...');
+      // Since mic check already handled permissions, we just need to start the stream
+      if (audioStream.hasPermission === true && !audioStream.isActive) {
+        console.log('[LiveInterview] Starting audio stream after mic check...');
         await audioStream.startStream();
       }
-      // If permission was denied, we'll show the error UI
-      else if (audioStream.hasPermission === false) {
-        console.warn('[LiveInterview] Microphone permission denied:', audioStream.error);
+      // If somehow we don't have permission (edge case), show error
+      else if (audioStream.hasPermission === false || audioStream.hasPermission === null) {
+        console.warn('[LiveInterview] Microphone permission issue:', audioStream.error || 'Permission not granted');
       }
     };
 
-    // Initialize microphone when component mounts (user started interview)
+    // Initialize microphone when component mounts
     initializeMicrophone();
-  }, [audioStream.hasPermission, audioStream.isCheckingPermission, audioStream.isActive, audioStream.requestPermission, audioStream.startStream, audioStream.error, audioStream]);
+  }, [audioStream.hasPermission, audioStream.isActive, audioStream.startStream, audioStream.error, audioStream]);
 
   // Audio playback
   const audioContextRef = useRef<AudioContext | null>(null);
