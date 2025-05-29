@@ -226,12 +226,20 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
       const updateAudioLevel = () => {
         if (!analyserNodeRef.current) return;
         
+        // Use time domain data for better real-time audio level detection
         const dataArray = new Uint8Array(analyserNodeRef.current.frequencyBinCount);
-        analyserNodeRef.current.getByteFrequencyData(dataArray);
+        analyserNodeRef.current.getByteTimeDomainData(dataArray);
         
-        // Calculate average volume
-        const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-        const normalizedLevel = average / 255;
+        // Calculate RMS (Root Mean Square) for more accurate volume measurement
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          const amplitude = (dataArray[i] - 128) / 128;
+          sum += amplitude * amplitude;
+        }
+        const rms = Math.sqrt(sum / dataArray.length);
+        
+        // Normalize to 0-1 range with some amplification for better visualization
+        const normalizedLevel = Math.min(rms * 3, 1);
         setAudioLevel(normalizedLevel);
         
         animationFrameRef.current = requestAnimationFrame(updateAudioLevel);

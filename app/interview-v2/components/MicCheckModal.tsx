@@ -38,15 +38,21 @@ export function MicCheckModal({ open, onComplete, onCancel }: MicCheckModalProps
   // Move to testing step when permission is granted
   useEffect(() => {
     if (audioStream.hasPermission === true && step === 'permission') {
+      console.log('MicCheck: Permission granted, starting audio stream');
       setStep('testing');
       // Start the audio stream
-      audioStream.startStream();
+      audioStream.startStream().then(() => {
+        console.log('MicCheck: Audio stream started successfully');
+      }).catch((error) => {
+        console.error('MicCheck: Failed to start audio stream:', error);
+      });
     }
   }, [audioStream.hasPermission, step, audioStream]);
 
   // Track audio levels for visual feedback
   useEffect(() => {
-    if (audioStream.audioLevel > 0.1) {
+    // Lower threshold for better sensitivity
+    if (audioStream.audioLevel > 0.01) {
       setAudioDetected(true);
       setPeakLevel(Math.max(peakLevel, audioStream.audioLevel));
     }
@@ -55,17 +61,19 @@ export function MicCheckModal({ open, onComplete, onCancel }: MicCheckModalProps
   // Simulate connection preparation (this gives time for API setup)
   useEffect(() => {
     if (step === 'testing' && connectionStatus === 'idle') {
+      console.log('MicCheck: Starting connection simulation');
       setConnectionStatus('connecting');
       
       // Simulate connection setup time (2-3 seconds)
       const timer = setTimeout(() => {
+        console.log('MicCheck: Connection simulation complete, audioDetected:', audioDetected);
         setConnectionStatus('connected');
         
         // Move to ready step after a brief moment
+        // Don't require audio detection - the user can still proceed
         setTimeout(() => {
-          if (audioDetected) {
-            setStep('ready');
-          }
+          console.log('MicCheck: Moving to ready state (audio detected:', audioDetected, ')');
+          setStep('ready');
         }, 500);
       }, 2500);
 
