@@ -6,7 +6,7 @@ import { z } from "zod"
 export const dynamic = 'force-dynamic';
 
 // Import types separately - these are type-only imports that won't execute code
-import type { Prisma, UserRole } from "../../../prisma/generated/client"
+import type { UserRole } from "../../../prisma/generated/client"
 
 // Helper function to create consistent fallback user objects
 interface ClerkUser {
