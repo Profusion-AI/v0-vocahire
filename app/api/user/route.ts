@@ -16,7 +16,13 @@ interface ClerkUser {
   imageUrl?: string;
 }
 
-function createFallbackUser(userId: string, clerkUser: ClerkUser | null, extraProps: Record<string, unknown> = {}) {
+function createFallbackUser(
+  userId: string, 
+  clerkUser: ClerkUser | null, 
+  createPrismaDecimal: (value: number) => any,
+  isUsingFallbackDb: boolean,
+  extraProps: Record<string, unknown> = {}
+) {
   return {
     id: userId,
     name: clerkUser?.firstName && clerkUser?.lastName ? 
@@ -32,7 +38,7 @@ function createFallbackUser(userId: string, clerkUser: ClerkUser | null, extraPr
     isPremium: false,
     premiumExpiresAt: null,
     premiumSubscriptionId: null,
-    role: UserRole.USER,
+    role: 'USER' as UserRole,
     _isTemporaryUser: true,
     _usingFallbackDb: isUsingFallbackDb,
     ...extraProps
@@ -95,12 +101,10 @@ export async function GET(request: NextRequest) {
   // Dynamically import database-related modules
   const [
     { withDatabaseFallback, isUsingFallbackDb },
-    { getConsistentCreditValue, createPrismaDecimal },
-    { invalidateUserCache, prefetchUserCredentials }
+    { getConsistentCreditValue, createPrismaDecimal }
   ] = await Promise.all([
     import("@/lib/prisma"),
-    import("@/lib/prisma-types"),
-    import("@/lib/user-cache")
+    import("@/lib/prisma-types")
   ]);
 
   // Fetch user profile from DB with timeout to prevent 504 errors
@@ -136,7 +140,7 @@ export async function GET(request: NextRequest) {
         if (clerkUser) {
           console.log("Using Clerk data as fallback for database error");
           // Use helper function to create a consistent fallback user
-          return createFallbackUser(auth.userId, clerkUser, { _dbError: true });
+          return createFallbackUser(auth.userId, clerkUser, createPrismaDecimal, isUsingFallbackDb, { _dbError: true });
         }
         return null;
       }
@@ -152,14 +156,14 @@ export async function GET(request: NextRequest) {
     // Return fallback user from Clerk data if available
     if (clerkUser) {
       console.log("Using Clerk data as fallback after timeout");
-      return createFallbackUser(auth.userId, clerkUser, { 
+      return createFallbackUser(auth.userId, clerkUser, createPrismaDecimal, isUsingFallbackDb, { 
         _dbTimeout: true,
         error: error.message 
       });
     }
     
     // If no Clerk data, return minimal fallback
-    return createFallbackUser(auth.userId, null, { 
+    return createFallbackUser(auth.userId, null, createPrismaDecimal, isUsingFallbackDb, { 
       _dbTimeout: true,
       error: error.message 
     });
@@ -226,7 +230,7 @@ export async function GET(request: NextRequest) {
         
         // Return a fallback user with clerk data if available
         if (clerkUser) {
-          return createFallbackUser(auth.userId, clerkUser, { _dbCreateError: true });
+          return createFallbackUser(auth.userId, clerkUser, createPrismaDecimal, isUsingFallbackDb, { _dbCreateError: true });
         }
         return null;
       }
@@ -240,7 +244,7 @@ export async function GET(request: NextRequest) {
     console.error("User not found and could not be created, returning default user structure");
     
     // Use null for clerkUser but include an error message
-    const defaultUser = createFallbackUser(auth.userId, null, {
+    const defaultUser = createFallbackUser(auth.userId, null, createPrismaDecimal, isUsingFallbackDb, {
       credits: createPrismaDecimal(0), // Override credits to 0 for this error case
       error: "User not found and could not be created"
     });
@@ -310,7 +314,7 @@ export async function PATCH(request: NextRequest) {
     const [
       { withDatabaseFallback, isUsingFallbackDb },
       { getConsistentCreditValue, createPrismaDecimal },
-      { invalidateUserCache }
+      { invalidateUserCache, prefetchUserCredentials }
     ] = await Promise.all([
       import("@/lib/prisma"),
       import("@/lib/prisma-types"),
@@ -433,7 +437,7 @@ export async function PATCH(request: NextRequest) {
       const fallbackCreation = createdUser as { _isFallbackCreation?: boolean };
       if (fallbackCreation?._isFallbackCreation && clerkUser) {
         // Create fallback user with the validated data and extra flags
-        const fallbackUser = createFallbackUser(auth.userId, clerkUser, {
+        const fallbackUser = createFallbackUser(auth.userId, clerkUser, createPrismaDecimal, isUsingFallbackDb, {
           ...validatedData,
         });
         
