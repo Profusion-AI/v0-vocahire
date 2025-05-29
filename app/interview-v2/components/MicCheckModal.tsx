@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Mic, MicOff, Volume2, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Mic, Volume2, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { useAudioStream, MicrophonePermissionError, MicrophoneNotFoundError } from '../hooks/useAudioStream';
 
 interface MicCheckModalProps {
@@ -16,7 +16,7 @@ interface MicCheckModalProps {
   sessionConfig: any; // We'll pass the session config for connection prep
 }
 
-export function MicCheckModal({ open, onComplete, onCancel, sessionConfig }: MicCheckModalProps) {
+export function MicCheckModal({ open, onComplete, onCancel }: MicCheckModalProps) {
   const [step, setStep] = useState<'permission' | 'testing' | 'ready'>('permission');
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [audioDetected, setAudioDetected] = useState(false);

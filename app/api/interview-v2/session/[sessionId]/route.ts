@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import { liveAPISessionManager } from '@/lib/live-api-session-manager';
-import { z } from 'zod';
 import { RealtimeInputSchema } from '@/src/genkit/schemas/types';
 
 // Handle sending audio/text from client to Google Live API

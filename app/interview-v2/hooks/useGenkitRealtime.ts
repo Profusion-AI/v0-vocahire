@@ -402,7 +402,7 @@ export function useGenkitRealtime(
     setStatus('disconnected');
     reconnectAttemptsRef.current = 0;
     setError(null);
-  }, [sessionConfig]);
+  }, [sessionConfig, apiUrl]);
 
   // Update the ref whenever disconnect changes
   useEffect(() => {
@@ -475,7 +475,7 @@ export function useGenkitRealtime(
       }
     });
 
-  }, [sessionConfig]);
+  }, [sessionConfig, apiUrl, onError]);
 
 
   // Handle browser/tab close and visibility changes
