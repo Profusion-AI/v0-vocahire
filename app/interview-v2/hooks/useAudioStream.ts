@@ -76,6 +76,7 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
   const processorNodeRef = useRef<ScriptProcessorNode | null>(null);
   const audioBufferRef = useRef<Int16Array>(new Int16Array(0));
   const animationFrameRef = useRef<number | null>(null);
+  const isMutedRef = useRef(false);
   
   // Check microphone permission status
   const checkPermission = useCallback(async () => {
@@ -208,8 +209,10 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
       sourceNodeRef.current = sourceNode;
       
       const analyserNode = audioContext.createAnalyser();
-      analyserNode.fftSize = 256;
-      analyserNode.smoothingTimeConstant = 0.8;
+      analyserNode.fftSize = 1024; // Increased for better low-frequency detection
+      analyserNode.smoothingTimeConstant = 0.3; // Reduced for faster response
+      analyserNode.minDecibels = -90; // More sensitive
+      analyserNode.maxDecibels = -10; // Adjust for typical speech levels
       analyserNodeRef.current = analyserNode;
       
       // Create script processor for audio chunks (deprecated but still works)
@@ -219,7 +222,7 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
       
       // Process audio chunks
       processorNode.onaudioprocess = (event) => {
-        if (isMuted) return;
+        if (isMutedRef.current) return;
         
         const inputData = event.inputBuffer.getChannelData(0);
         
@@ -363,6 +366,11 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
     setAudioLevel(0);
     audioBufferRef.current = new Int16Array(0);
   }, [stream]);
+  
+  // Keep muted ref in sync with state
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
   
   // Toggle mute
   const toggleMute = useCallback(() => {
