@@ -51,8 +51,13 @@ export function MicCheckModal({ open, onComplete, onCancel }: MicCheckModalProps
 
   // Track audio levels for visual feedback
   useEffect(() => {
+    // Log the audio level for debugging
+    if (audioStream.audioLevel > 0) {
+      console.log('MicCheck: Audio level detected:', audioStream.audioLevel);
+    }
+    
     // Lower threshold for better sensitivity
-    if (audioStream.audioLevel > 0.01) {
+    if (audioStream.audioLevel > 0.005) { // Even lower threshold
       setAudioDetected(true);
       setPeakLevel(Math.max(peakLevel, audioStream.audioLevel));
     }
@@ -104,6 +109,18 @@ export function MicCheckModal({ open, onComplete, onCancel }: MicCheckModalProps
 
   // Calculate normalized audio level for visualization
   const normalizedLevel = Math.min(audioStream.audioLevel * 100, 100);
+  
+  // Debug logging for stream status
+  useEffect(() => {
+    console.log('MicCheck Debug:', {
+      step,
+      isActive: audioStream.isActive,
+      hasPermission: audioStream.hasPermission,
+      error: audioStream.error,
+      audioLevel: audioStream.audioLevel,
+      stream: audioStream.stream ? 'exists' : 'null'
+    });
+  }, [step, audioStream.isActive, audioStream.hasPermission, audioStream.error, audioStream.audioLevel, audioStream.stream]);
 
   return (
     <Dialog open={open} onOpenChange={(newOpen) => !newOpen && handleCancel()}>

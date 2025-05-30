@@ -180,10 +180,27 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
         },
       });
       
+      // Verify we have audio tracks
+      const audioTracks = mediaStream.getAudioTracks();
+      console.log('Audio tracks:', audioTracks.length, audioTracks.map(t => ({
+        label: t.label,
+        enabled: t.enabled,
+        muted: t.muted,
+        readyState: t.readyState
+      })));
+      
       // Create audio context
       const audioContext = new AudioContext({
         sampleRate: mergedOptions.sampleRate,
       });
+      
+      // Resume audio context if it's suspended (some browsers require this)
+      if (audioContext.state === 'suspended') {
+        console.log('Audio context suspended, attempting to resume...');
+        await audioContext.resume();
+      }
+      
+      console.log('Audio context state:', audioContext.state, 'Sample rate:', audioContext.sampleRate);
       audioContextRef.current = audioContext;
       
       // Create audio nodes
@@ -215,6 +232,9 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
         
         // Store in buffer (you might want to implement a circular buffer here)
         audioBufferRef.current = pcm16;
+        
+        // Pass through the audio to hear feedback (required for some browsers)
+        event.outputBuffer.getChannelData(0).set(inputData);
       };
       
       // Connect nodes
@@ -223,23 +243,45 @@ export function useAudioStream(options: UseAudioStreamOptions = {}): UseAudioStr
       processorNode.connect(audioContext.destination);
       
       // Start audio level monitoring
+      let frameCount = 0;
       const updateAudioLevel = () => {
         if (!analyserNodeRef.current) return;
         
-        // Use time domain data for better real-time audio level detection
+        // Use frequency data for visualization (often more responsive)
         const dataArray = new Uint8Array(analyserNodeRef.current.frequencyBinCount);
-        analyserNodeRef.current.getByteTimeDomainData(dataArray);
+        analyserNodeRef.current.getByteFrequencyData(dataArray);
         
-        // Calculate RMS (Root Mean Square) for more accurate volume measurement
+        // Get the average of the frequency data
         let sum = 0;
         for (let i = 0; i < dataArray.length; i++) {
-          const amplitude = (dataArray[i] - 128) / 128;
-          sum += amplitude * amplitude;
+          sum += dataArray[i];
         }
-        const rms = Math.sqrt(sum / dataArray.length);
+        const average = sum / dataArray.length;
         
-        // Normalize to 0-1 range with some amplification for better visualization
-        const normalizedLevel = Math.min(rms * 3, 1);
+        // Also check time domain for peak detection
+        analyserNodeRef.current.getByteTimeDomainData(dataArray);
+        let maxAmplitude = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          const amplitude = Math.abs(dataArray[i] - 128) / 128;
+          maxAmplitude = Math.max(maxAmplitude, amplitude);
+        }
+        
+        // Use combination of frequency average and time domain peak
+        const frequencyLevel = average / 255;
+        const combinedLevel = Math.max(frequencyLevel, maxAmplitude);
+        const normalizedLevel = Math.min(combinedLevel * 2, 1);
+        
+        // Log every 30 frames (roughly once per second at 30fps)
+        if (frameCount++ % 30 === 0) {
+          console.log('Audio Debug:', {
+            frequencyAvg: average.toFixed(2),
+            frequencyLevel: frequencyLevel.toFixed(4),
+            maxAmplitude: maxAmplitude.toFixed(4),
+            normalizedLevel: normalizedLevel.toFixed(4),
+            analyserConnected: !!analyserNodeRef.current
+          });
+        }
+        
         setAudioLevel(normalizedLevel);
         
         animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
