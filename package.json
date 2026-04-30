@@ -19,8 +19,7 @@
     "docker:shell": "docker-compose -f docker-compose.dev.yml exec web sh"
   },
   "dependencies": {
-    "@clerk/clerk-sdk-node": "^5.1.6",
-    "@clerk/nextjs": "^6.19.3",
+    "@clerk/nextjs": "^6.39.3",
     "@genkit-ai/evaluator": "^1.10.0",
     "@genkit-ai/firebase": "^1.10.0",
     "@genkit-ai/flow": "^0.5.17",
